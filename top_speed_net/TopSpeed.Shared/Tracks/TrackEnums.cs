@@ -13,15 +13,6 @@ namespace TopSpeed.Data
         HairpinRight = 8
     }
 
-    public enum TrackSurface
-    {
-        Asphalt = 0,
-        Gravel = 1,
-        Water = 2,
-        Sand = 3,
-        Snow = 4
-    }
-
     public enum TrackNoise
     {
         NoNoise = 0,

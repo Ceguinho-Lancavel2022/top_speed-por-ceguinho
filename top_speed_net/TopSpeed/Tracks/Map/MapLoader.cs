@@ -4,6 +4,7 @@ using System.IO;
 using System.Numerics;
 using TopSpeed.Core;
 using TopSpeed.Data;
+using TopSpeed.Tracks.Materials;
 using TopSpeed.Tracks.Areas;
 using TopSpeed.Tracks.Topology;
 using TopSpeed.Tracks.Walls;
@@ -57,7 +58,7 @@ namespace TopSpeed.Tracks.Map
             {
                 Weather = definition.Metadata.Weather,
                 Ambience = definition.Metadata.Ambience,
-                DefaultSurface = definition.Metadata.DefaultSurface,
+                DefaultMaterialId = definition.Metadata.DefaultMaterialId,
                 DefaultNoise = definition.Metadata.DefaultNoise,
                 DefaultWidthMeters = definition.Metadata.DefaultWidthMeters,
                 StartX = definition.Metadata.StartX,
@@ -84,12 +85,15 @@ namespace TopSpeed.Tracks.Map
                 map.AddApproach(approach);
             foreach (var branch in definition.Branches)
                 map.AddBranch(branch);
-            foreach (var wall in definition.Walls)
-                map.AddWall(wall);
+            foreach (var material in definition.Materials)
+                map.AddMaterial(material);
 
             AddSafeZoneRing(map, definition.Metadata);
             AddOuterRing(map, definition.Metadata);
+            AddPresetMaterials(map, definition);
+            AddExplicitWalls(map, definition);
             AddAutoWalls(map, definition);
+            AddPresetMaterials(map, definition);
             ApplyStartFromAreas(map, definition);
             ApplyFinishFromAreas(map, definition);
 
@@ -127,11 +131,11 @@ namespace TopSpeed.Tracks.Map
             var innerMaxZ = maxZ;
 
             var name = string.IsNullOrWhiteSpace(metadata.SafeZoneName) ? "Safe zone" : metadata.SafeZoneName!;
-            var surface = metadata.SafeZoneSurface;
+            var materialId = metadata.SafeZoneMaterialId;
             var noise = metadata.SafeZoneNoise;
             var flags = TrackAreaFlags.SafeZone;
 
-            AddRingShapeArea(map, "__safe_zone", innerMinX, innerMinZ, innerMaxX - innerMinX, innerMaxZ - innerMinZ, ringMeters, name, surface, noise, TrackAreaType.SafeZone, flags);
+            AddRingShapeArea(map, "__safe_zone", innerMinX, innerMinZ, innerMaxX - innerMinX, innerMaxZ - innerMinZ, ringMeters, name, materialId, noise, TrackAreaType.SafeZone, flags);
         }
 
         private static void AddOuterRing(TrackMap map, TrackMapMetadata metadata)
@@ -152,12 +156,12 @@ namespace TopSpeed.Tracks.Map
             var innerMaxZ = maxZ;
 
             var name = string.IsNullOrWhiteSpace(metadata.OuterRingName) ? "Outer ring" : metadata.OuterRingName!;
-            var surface = metadata.OuterRingSurface;
+            var materialId = metadata.OuterRingMaterialId;
             var noise = metadata.OuterRingNoise;
             var flags = metadata.OuterRingFlags;
             var areaType = metadata.OuterRingType;
 
-            AddRingShapeArea(map, "__outer_ring", innerMinX, innerMinZ, innerMaxX - innerMinX, innerMaxZ - innerMinZ, ringMeters, name, surface, noise, areaType, flags);
+            AddRingShapeArea(map, "__outer_ring", innerMinX, innerMinZ, innerMaxX - innerMinX, innerMaxZ - innerMinZ, ringMeters, name, materialId, noise, areaType, flags);
         }
 
         private static void AddAutoWalls(TrackMap map, TrackMapDefinition definition)
@@ -200,7 +204,13 @@ namespace TopSpeed.Tracks.Map
                 var wallWidth = TryGetMetadataFloat(area.Metadata, out var widthValue, "wall_width", "wall_thickness", "wall_size")
                     ? Math.Max(0.1f, widthValue)
                     : 2f;
-                var material = ParseWallMaterial(area.Metadata);
+                var wallHeight = TryGetMetadataFloat(area.Metadata, out var heightValue, "wall_height", "wall_height_m")
+                    ? Math.Max(0f, heightValue)
+                    : 2f;
+                var wallMaterialId = TryGetMetadataValue(area.Metadata, out var acousticValue, "wall_material_id")
+                    ? acousticValue
+                    : area.MaterialId;
+                var material = ResolveCollisionMaterial(map, wallMaterialId);
                 var collision = ParseWallCollision(area.Metadata);
 
                 var minX = Math.Min(shape.X, shape.X + shape.Width);
@@ -209,17 +219,118 @@ namespace TopSpeed.Tracks.Map
                 var maxZ = Math.Max(shape.Z, shape.Z + shape.Height);
                 if ((edges & WallEdges.North) != 0)
                     AddWallEdgeSegments(map, shapesById, area, areaManager, stepMeters, edgeProbe, "north",
-                        minX, maxX, maxZ, wallWidth, material, collision);
+                        minX, maxX, maxZ, wallWidth, wallHeight, wallMaterialId, material, collision);
                 if ((edges & WallEdges.South) != 0)
                     AddWallEdgeSegments(map, shapesById, area, areaManager, stepMeters, edgeProbe, "south",
-                        minX, maxX, minZ, wallWidth, material, collision);
+                        minX, maxX, minZ, wallWidth, wallHeight, wallMaterialId, material, collision);
                 if ((edges & WallEdges.East) != 0)
                     AddWallEdgeSegments(map, shapesById, area, areaManager, stepMeters, edgeProbe, "east",
-                        minZ, maxZ, maxX, wallWidth, material, collision);
+                        minZ, maxZ, maxX, wallWidth, wallHeight, wallMaterialId, material, collision);
                 if ((edges & WallEdges.West) != 0)
                     AddWallEdgeSegments(map, shapesById, area, areaManager, stepMeters, edgeProbe, "west",
-                        minZ, maxZ, minX, wallWidth, material, collision);
+                        minZ, maxZ, minX, wallWidth, wallHeight, wallMaterialId, material, collision);
             }
+        }
+
+        private static void AddPresetMaterials(TrackMap map, TrackMapDefinition definition)
+        {
+            if (map == null || definition == null)
+                return;
+
+            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var material in map.Materials)
+            {
+                if (material == null)
+                    continue;
+                existing.Add(material.Id);
+            }
+
+            foreach (var area in map.Areas)
+            {
+                if (area == null || string.IsNullOrWhiteSpace(area.MaterialId))
+                    continue;
+                var id = area.MaterialId!.Trim();
+                if (existing.Contains(id))
+                    continue;
+                if (TrackMaterialLibrary.TryGetPreset(id, out var preset))
+                {
+                    map.AddMaterial(preset);
+                    existing.Add(id);
+                }
+            }
+
+            foreach (var wall in map.Walls)
+            {
+                if (wall == null || string.IsNullOrWhiteSpace(wall.MaterialId))
+                    continue;
+                var id = wall.MaterialId!.Trim();
+                if (existing.Contains(id))
+                    continue;
+                if (TrackMaterialLibrary.TryGetPreset(id, out var preset))
+                {
+                    map.AddMaterial(preset);
+                    existing.Add(id);
+                }
+            }
+        }
+
+        private static void AddExplicitWalls(TrackMap map, TrackMapDefinition definition)
+        {
+            if (map == null || definition == null)
+                return;
+
+            foreach (var wall in definition.Walls)
+            {
+                if (wall == null)
+                    continue;
+                var collisionMaterial = ResolveCollisionMaterial(map, wall.MaterialId);
+                var resolvedWall = new TrackWallDefinition(
+                    wall.Id,
+                    wall.ShapeId,
+                    wall.WidthMeters,
+                    collisionMaterial,
+                    wall.CollisionMode,
+                    wall.Name,
+                    wall.Metadata,
+                    wall.HeightMeters,
+                    wall.MaterialId);
+                map.AddWall(resolvedWall);
+            }
+        }
+
+        private static TrackWallMaterial ResolveCollisionMaterial(TrackMap map, string? materialId)
+        {
+            if (map == null)
+                return TrackWallMaterial.Hard;
+
+            var trimmed = materialId?.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed))
+                trimmed = map.DefaultMaterialId?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(trimmed))
+            {
+                var material = FindMaterial(map, trimmed!);
+                if (material == null && TrackMaterialLibrary.TryGetPreset(trimmed!, out var preset))
+                {
+                    map.AddMaterial(preset);
+                    material = preset;
+                }
+
+                if (material != null)
+                    return material.CollisionMaterial;
+            }
+
+            return TrackWallMaterial.Hard;
+        }
+
+        private static TrackMaterialDefinition? FindMaterial(TrackMap map, string materialId)
+        {
+            foreach (var material in map.Materials)
+            {
+                if (material != null && string.Equals(material.Id, materialId, StringComparison.OrdinalIgnoreCase))
+                    return material;
+            }
+            return null;
         }
 
         private static void AddWallEdgeSegments(
@@ -234,6 +345,8 @@ namespace TopSpeed.Tracks.Map
             float spanMax,
             float edgePosition,
             float wallWidth,
+            float wallHeight,
+            string? wallMaterialId,
             TrackWallMaterial material,
             TrackWallCollisionMode collision)
         {
@@ -256,7 +369,7 @@ namespace TopSpeed.Tracks.Map
                 {
                     if (!float.IsNaN(runStart))
                     {
-                        AddWallRun(map, shapesById, area, edge, runStart, segStart, edgePosition, wallWidth, material, collision);
+                        AddWallRun(map, shapesById, area, edge, runStart, segStart, edgePosition, wallWidth, wallHeight, wallMaterialId, material, collision);
                         runStart = float.NaN;
                     }
                 }
@@ -268,7 +381,7 @@ namespace TopSpeed.Tracks.Map
             }
 
             if (!float.IsNaN(runStart))
-                AddWallRun(map, shapesById, area, edge, runStart, spanMax, edgePosition, wallWidth, material, collision);
+                AddWallRun(map, shapesById, area, edge, runStart, spanMax, edgePosition, wallWidth, wallHeight, wallMaterialId, material, collision);
         }
 
         private static bool IsAdjacent(
@@ -325,6 +438,8 @@ namespace TopSpeed.Tracks.Map
             float runEnd,
             float edgePosition,
             float wallWidth,
+            float wallHeight,
+            string? wallMaterialId,
             TrackWallMaterial material,
             TrackWallCollisionMode collision)
         {
@@ -335,16 +450,16 @@ namespace TopSpeed.Tracks.Map
             switch (edge)
             {
                 case "north":
-                    AddWallEdge(map, shapesById, area, edge, runStart, edgePosition, runLength, wallWidth, material, collision);
+                    AddWallEdge(map, shapesById, area, edge, runStart, edgePosition, runLength, wallWidth, wallHeight, wallMaterialId, material, collision);
                     break;
                 case "south":
-                    AddWallEdge(map, shapesById, area, edge, runStart, edgePosition - wallWidth, runLength, wallWidth, material, collision);
+                    AddWallEdge(map, shapesById, area, edge, runStart, edgePosition - wallWidth, runLength, wallWidth, wallHeight, wallMaterialId, material, collision);
                     break;
                 case "east":
-                    AddWallEdge(map, shapesById, area, edge, edgePosition, runStart, wallWidth, runLength, material, collision);
+                    AddWallEdge(map, shapesById, area, edge, edgePosition, runStart, wallWidth, runLength, wallHeight, wallMaterialId, material, collision);
                     break;
                 case "west":
-                    AddWallEdge(map, shapesById, area, edge, edgePosition - wallWidth, runStart, wallWidth, runLength, material, collision);
+                    AddWallEdge(map, shapesById, area, edge, edgePosition - wallWidth, runStart, wallWidth, runLength, wallHeight, wallMaterialId, material, collision);
                     break;
             }
         }
@@ -402,15 +517,6 @@ namespace TopSpeed.Tracks.Map
             return edges;
         }
 
-        private static TrackWallMaterial ParseWallMaterial(IReadOnlyDictionary<string, string> metadata)
-        {
-            if (!TryGetMetadataValue(metadata, out var raw, "wall_material", "material"))
-                return TrackWallMaterial.Hard;
-            return Enum.TryParse(raw, true, out TrackWallMaterial material)
-                ? material
-                : TrackWallMaterial.Hard;
-        }
-
         private static TrackWallCollisionMode ParseWallCollision(IReadOnlyDictionary<string, string> metadata)
         {
             if (!TryGetMetadataValue(metadata, out var raw, "wall_collision", "wall_collision_mode", "collision", "collision_mode", "wall_mode"))
@@ -442,6 +548,8 @@ namespace TopSpeed.Tracks.Map
             float z,
             float width,
             float height,
+            float wallHeight,
+            string? wallMaterialId,
             TrackWallMaterial material,
             TrackWallCollisionMode collision)
         {
@@ -460,7 +568,7 @@ namespace TopSpeed.Tracks.Map
             var wallName = string.IsNullOrWhiteSpace(area.Name) ? null : $"{area.Name} {edge} wall";
             var shape = new ShapeDefinition(shapeId, ShapeType.Rectangle, x, z, width, height);
             map.AddShape(shape);
-            map.AddWall(new TrackWallDefinition(wallId, shapeId, 0f, material, collision, wallName));
+            map.AddWall(new TrackWallDefinition(wallId, shapeId, 0f, material, collision, wallName, null, wallHeight, wallMaterialId));
             shapesById[shapeId] = shape;
         }
 
@@ -532,7 +640,7 @@ namespace TopSpeed.Tracks.Map
             float innerHeight,
             float ringWidth,
             string name,
-            TrackSurface surface,
+            string materialId,
             TrackNoise noise,
             TrackAreaType areaType,
             TrackAreaFlags flags)
@@ -543,7 +651,7 @@ namespace TopSpeed.Tracks.Map
             var shapeId = idPrefix + "_shape";
             var areaId = idPrefix + "_area";
             map.AddShape(new ShapeDefinition(shapeId, ShapeType.Ring, innerMinX, innerMinZ, innerWidth, innerHeight, ringWidth: ringWidth));
-            map.AddArea(new TrackAreaDefinition(areaId, areaType, shapeId, name, surface, noise, null, flags));
+            map.AddArea(new TrackAreaDefinition(areaId, areaType, shapeId, name, materialId, noise, null, flags));
         }
 
         private static void ApplyStartFromAreas(TrackMap map, TrackMapDefinition definition)

@@ -2,7 +2,7 @@
 [meta]
 name=Approach Demo 1km
 cell_size=1
-default_surface=asphalt
+default_material=asphalt
 default_noise=nonoise
 default_width=12
 weather=sunny
@@ -110,64 +110,64 @@ height=30
 [area: loop_area]
 type=zone
 shape=loop_south_zone
-surface=asphalt
+material=asphalt
 noise=nonoise
 auto_walls=true
 wall_edges=north
 wall_width=2
-wall_material=concrete
+wall_material_id=concrete
 wall_collision=block
 
 [area: loop_west]
 type=zone
 shape=loop_west_zone
-surface=asphalt
+material=asphalt
 noise=nonoise
 auto_walls=true
 wall_edges=east
 wall_width=2
-wall_material=concrete
+wall_material_id=concrete
 wall_collision=block
 
 [area: loop_north]
 type=zone
 shape=loop_north_zone
-surface=asphalt
+material=asphalt
 noise=nonoise
 auto_walls=true
 wall_edges=south
 wall_width=2
-wall_material=concrete
+wall_material_id=concrete
 wall_collision=block
 
 [area: loop_east]
 type=zone
 shape=loop_east_zone
-surface=asphalt
+material=asphalt
 noise=nonoise
 auto_walls=true
 wall_edges=west
 wall_width=2
-wall_material=concrete
+wall_material_id=concrete
 wall_collision=block
 
 [area: corner_nw_area]
 type=zone
 shape=corner_nw_zone
-surface=asphalt
+material=asphalt
 noise=nonoise
 
 [area: corner_ne_area]
 type=zone
 shape=corner_ne_zone
-surface=asphalt
+material=asphalt
 noise=nonoise
 
 [area: outer_grass]
 type=boundary
 name=Outer grass ring
 shape=outer_grass_ring
-surface=sand
+material=sand
 noise=nonoise
 
 
@@ -175,7 +175,7 @@ noise=nonoise
 type=intersection
 name=Intersection
 shape=intersection_zone
-surface=asphalt
+material=asphalt
 noise=trackside
 intersection_width=20
 intersection_length=20
@@ -184,26 +184,26 @@ intersection_length=20
 type=zone
 name=South west corner
 shape=corner_sw_zone
-surface=asphalt
+material=asphalt
 noise=trackside
 
 [area: east_turn_area]
 type=zone
 name=East corner turn
 shape=east_turn_zone
-surface=asphalt
+material=asphalt
 noise=trackside
 auto_walls=true
 wall_edges=west
 wall_width=2
-wall_material=concrete
+wall_material_id=concrete
 wall_collision=block
 
 [area: start_area]
 type=start
 name=Start zone
 shape=start_zone
-surface=asphalt
+material=asphalt
 noise=trackside
 start_x=60
 start_z=15

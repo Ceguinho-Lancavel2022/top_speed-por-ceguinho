@@ -14,7 +14,7 @@ namespace TopSpeed.Tracks.Areas
             TrackAreaType type,
             string shapeId,
             string? name = null,
-            TrackSurface? surface = null,
+            string? materialId = null,
             TrackNoise? noise = null,
             float? widthMeters = null,
             TrackAreaFlags flags = TrackAreaFlags.None,
@@ -30,7 +30,8 @@ namespace TopSpeed.Tracks.Areas
             ShapeId = shapeId.Trim();
             var trimmedName = name?.Trim();
             Name = string.IsNullOrWhiteSpace(trimmedName) ? null : trimmedName;
-            Surface = surface;
+            var trimmedMaterial = materialId?.Trim();
+            MaterialId = string.IsNullOrWhiteSpace(trimmedMaterial) ? null : trimmedMaterial;
             Noise = noise;
             WidthMeters = widthMeters;
             Flags = flags;
@@ -41,7 +42,7 @@ namespace TopSpeed.Tracks.Areas
         public TrackAreaType Type { get; }
         public string ShapeId { get; }
         public string? Name { get; }
-        public TrackSurface? Surface { get; }
+        public string? MaterialId { get; }
         public TrackNoise? Noise { get; }
         public float? WidthMeters { get; }
         public TrackAreaFlags Flags { get; }

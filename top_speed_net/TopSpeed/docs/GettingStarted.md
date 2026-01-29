@@ -24,7 +24,7 @@ When you define a rectangle, remember that X and Z are the top-left corner. Widt
 
 ## Step 3: Create areas for each shape
 
-For every shape, create an area. Most of these areas should be type=zone because they are drivable. Give them a surface and noise so the audio feels consistent. If you want to hear a different sound on a corner, you can use a different noise value, but keep it simple at first.
+For every shape, create an area. Most of these areas should be type=zone because they are drivable. Give them a material and noise so the audio feels consistent. If you want to hear a different sound on a corner, you can use a different noise value, but keep it simple at first.
 
 If you want a safe zone around the track, you can add another area later. Do not try to do everything in the first pass.
 
@@ -49,6 +49,8 @@ If a sector has more than one exit, add a branch. The branch lists the exit port
 ## Step 8: Walls and gaps
 
 If you discover that the player can walk into empty space, add a wall or extend the area. Auto-walls are the easiest option. Add auto_walls=true and choose wall_edges on the areas you want to seal. Walls are meant to make boundaries feel intentional. Do not rely on walls to hide mistakes; use them to clarify where the road ends.
+
+You can optionally set wall_height for auto-walls, and you can assign material to areas or walls. If you want softer collisions for specific walls, set collision on that material in a [material] section. This does not change driving yet, but it prepares the track for future Steam Audio occlusion and reverb.
 
 ## Step 9: Test and iterate
 
@@ -75,7 +77,7 @@ height=40
 [area: south_area]
 type=zone
 shape=south_straight
-surface=asphalt
+material=asphalt
 noise=nonoise
 
 [sector: south_sector]

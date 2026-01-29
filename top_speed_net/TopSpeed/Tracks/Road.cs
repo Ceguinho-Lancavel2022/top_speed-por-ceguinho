@@ -6,7 +6,7 @@ namespace TopSpeed.Tracks
     {
         public float Left;
         public float Right;
-        public TrackSurface Surface;
+        public string MaterialId;
         public TrackType Type;
         public float Length;
         public bool IsSafeZone;

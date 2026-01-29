@@ -115,7 +115,7 @@ namespace TopSpeed.Tracks.Map
         public string TrackName => _trackName;
         public TrackWeather Weather => _map.Weather;
         public TrackAmbience Ambience => _map.Ambience;
-        public TrackSurface InitialSurface => _map.DefaultSurface;
+        public string InitialMaterialId => _map.DefaultMaterialId;
         public bool UserDefined => _userDefined;
         public float LaneWidth => Math.Max(0.5f, _map.DefaultWidthMeters * 0.5f);
         public TrackMap Map => _map;
@@ -167,15 +167,15 @@ namespace TopSpeed.Tracks.Map
             var safeZone = false;
             var length = _map.CellSizeMeters;
             var width = Math.Max(0.5f, _map.DefaultWidthMeters);
-            var surface = _map.DefaultSurface;
+            var materialId = _map.DefaultMaterialId;
             var noise = _map.DefaultNoise;
 
-            ApplyAreaOverrides(state.WorldPosition, state.HeadingDegrees, ref width, ref length, ref surface, ref noise, ref safeZone);
+            ApplyAreaOverrides(state.WorldPosition, state.HeadingDegrees, ref width, ref length, ref materialId, ref noise, ref safeZone);
 
             road.Left = -width * 0.5f;
             road.Right = width * 0.5f;
             road.Length = length;
-            road.Surface = surface;
+            road.MaterialId = materialId;
             road.Type = TrackType.Straight;
             road.IsSafeZone = safeZone;
             road.IsOutOfBounds = !IsWithinTrackInternal(state.WorldPosition, safeZone);
@@ -389,11 +389,11 @@ namespace TopSpeed.Tracks.Map
         public void Run(MapMovementState state, float elapsed)
         {
             var noise = _map.DefaultNoise;
-            var surface = _map.DefaultSurface;
+            var materialId = _map.DefaultMaterialId;
             var safeZone = false;
             var length = _map.CellSizeMeters;
             var width = Math.Max(0.5f, _map.DefaultWidthMeters);
-            ApplyAreaOverrides(state.WorldPosition, state.HeadingDegrees, ref width, ref length, ref surface, ref noise, ref safeZone);
+            ApplyAreaOverrides(state.WorldPosition, state.HeadingDegrees, ref width, ref length, ref materialId, ref noise, ref safeZone);
             if (noise != _currentNoise)
             {
                 StopNoise(_currentNoise);
@@ -463,7 +463,7 @@ namespace TopSpeed.Tracks.Map
             {
                 Left = -width * 0.5f,
                 Right = width * 0.5f,
-                Surface = _map.DefaultSurface,
+                MaterialId = _map.DefaultMaterialId,
                 Type = TrackType.Straight,
                 Length = _map.CellSizeMeters
             };
@@ -474,13 +474,13 @@ namespace TopSpeed.Tracks.Map
             float headingDegrees,
             ref float width,
             ref float length,
-            ref TrackSurface surface,
+            ref string materialId,
             ref TrackNoise noise,
             ref bool safeZone)
         {
             var position = new Vector2(worldPosition.X, worldPosition.Z);
             var heading = MapMovement.ToCardinal(headingDegrees);
-            ApplySectorOverrides(position, heading, ref width, ref length, ref surface, ref noise, ref safeZone);
+            ApplySectorOverrides(position, heading, ref width, ref length, ref materialId, ref noise, ref safeZone);
 
             if (_areaManager == null)
                 return;
@@ -506,8 +506,8 @@ namespace TopSpeed.Tracks.Map
 
             if (surfaceArea != null)
             {
-                if (surfaceArea.Surface.HasValue)
-                    surface = surfaceArea.Surface.Value;
+                if (!string.IsNullOrWhiteSpace(surfaceArea.MaterialId))
+                    materialId = surfaceArea.MaterialId!;
                 if (surfaceArea.Noise.HasValue)
                     noise = surfaceArea.Noise.Value;
             }
@@ -527,7 +527,7 @@ namespace TopSpeed.Tracks.Map
             MapDirection heading,
             ref float width,
             ref float length,
-            ref TrackSurface surface,
+            ref string materialId,
             ref TrackNoise noise,
             ref bool safeZone)
         {
@@ -539,8 +539,8 @@ namespace TopSpeed.Tracks.Map
                 return;
 
             var sector = sectors[sectors.Count - 1];
-            if (sector.Surface.HasValue)
-                surface = sector.Surface.Value;
+            if (!string.IsNullOrWhiteSpace(sector.MaterialId))
+                materialId = sector.MaterialId!;
             if (sector.Noise.HasValue)
                 noise = sector.Noise.Value;
             if ((sector.Flags & TrackSectorFlags.SafeZone) != 0)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using TopSpeed.Data;
+using TopSpeed.Tracks.Materials;
 using TopSpeed.Tracks.Areas;
 using TopSpeed.Tracks.Beacons;
 using TopSpeed.Tracks.Guidance;
@@ -24,6 +25,7 @@ namespace TopSpeed.Tracks.Map
         private readonly List<TrackApproachDefinition> _approaches;
         private readonly List<TrackBranchDefinition> _branches;
         private readonly List<TrackWallDefinition> _walls;
+        private readonly List<TrackMaterialDefinition> _materials;
 
         public TrackMap(string name, float cellSizeMeters)
         {
@@ -39,6 +41,7 @@ namespace TopSpeed.Tracks.Map
             _approaches = new List<TrackApproachDefinition>();
             _branches = new List<TrackBranchDefinition>();
             _walls = new List<TopSpeed.Tracks.Walls.TrackWallDefinition>();
+            _materials = new List<TrackMaterialDefinition>();
         }
 
         public string Name { get; }
@@ -53,9 +56,10 @@ namespace TopSpeed.Tracks.Map
         public IReadOnlyList<TrackApproachDefinition> Approaches => _approaches;
         public IReadOnlyList<TrackBranchDefinition> Branches => _branches;
         public IReadOnlyList<TrackWallDefinition> Walls => _walls;
+        public IReadOnlyList<TrackMaterialDefinition> Materials => _materials;
         public TrackWeather Weather { get; set; } = TrackWeather.Sunny;
         public TrackAmbience Ambience { get; set; } = TrackAmbience.NoAmbience;
-        public TrackSurface DefaultSurface { get; set; } = TrackSurface.Asphalt;
+        public string DefaultMaterialId { get; set; } = "asphalt";
         public TrackNoise DefaultNoise { get; set; } = TrackNoise.NoNoise;
         public float DefaultWidthMeters { get; set; } = 12f;
         public float StartX { get; set; }
@@ -121,6 +125,13 @@ namespace TopSpeed.Tracks.Map
             if (wall == null)
                 throw new ArgumentNullException(nameof(wall));
             _walls.Add(wall);
+        }
+
+        public void AddMaterial(TrackMaterialDefinition material)
+        {
+            if (material == null)
+                throw new ArgumentNullException(nameof(material));
+            _materials.Add(material);
         }
 
         public void AddApproach(TrackApproachDefinition approach)

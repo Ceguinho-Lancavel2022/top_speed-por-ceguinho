@@ -27,6 +27,15 @@ namespace TopSpeed.Vehicles
         private const float AutoShiftCooldownSeconds = 0.15f;
         private const float YieldSpeedKph = 10.0f;
         private static bool s_stickReleased;
+        private enum SurfaceKind
+        {
+            Asphalt,
+            Gravel,
+            Water,
+            Sand,
+            Snow,
+            Other
+        }
 
         private readonly AudioManager _audio;
         private readonly MapTrack _track;
@@ -35,11 +44,13 @@ namespace TopSpeed.Vehicles
         private readonly Func<float> _currentTime;
         private readonly Func<bool> _started;
         private readonly string _legacyRoot;
+        private readonly string _materialsRoot;
         private readonly string _effectsRoot;
         private readonly List<CarEvent> _events;
 
         private CarState _state;
-        private TrackSurface _surface;
+        private string _materialId;
+        private SurfaceKind _surfaceKind;
         private int _gear;
         private float _speed;
         private float _positionX;
@@ -135,11 +146,9 @@ namespace TopSpeed.Vehicles
         private AudioSourceHandle _soundBrake;
         private AudioSourceHandle _soundCrash;
         private AudioSourceHandle _soundMiniCrash;
-        private AudioSourceHandle _soundAsphalt;
-        private AudioSourceHandle _soundGravel;
-        private AudioSourceHandle _soundWater;
-        private AudioSourceHandle _soundSand;
-        private AudioSourceHandle _soundSnow;
+        private readonly Dictionary<string, AudioSourceHandle> _surfaceSounds;
+        private AudioSourceHandle? _surfaceSound;
+        private string _surfaceSoundId;
         private AudioSourceHandle? _soundWipers;
         private AudioSourceHandle _soundBump;
         private AudioSourceHandle _soundBadSwitch;
@@ -168,10 +177,14 @@ namespace TopSpeed.Vehicles
             _currentTime = currentTime;
             _started = started;
             _legacyRoot = Path.Combine(AssetPaths.SoundsRoot, "Legacy");
+            _materialsRoot = Path.Combine(_legacyRoot, "Materials");
             _effectsRoot = Path.Combine(AssetPaths.Root, "Effects");
             _events = new List<CarEvent>();
 
-            _surface = track.InitialSurface;
+            _surfaceSounds = new Dictionary<string, AudioSourceHandle>(StringComparer.OrdinalIgnoreCase);
+            _materialId = NormalizeMaterialId(track.InitialMaterialId);
+            _surfaceKind = ResolveSurfaceKind(_materialId);
+            _surfaceSoundId = string.Empty;
             _gear = 1;
             _state = CarState.Stopped;
             _manualTransmission = false;
@@ -311,11 +324,7 @@ namespace TopSpeed.Vehicles
             if (_hasWipers == 1)
                 _soundWipers = CreateRequiredSound(Path.Combine(_legacyRoot, "wipers.wav"), looped: true);
 
-            _soundAsphalt = CreateRequiredSound(Path.Combine(_legacyRoot, "asphalt.wav"), looped: true, allowHrtf: false);
-            _soundGravel = CreateRequiredSound(Path.Combine(_legacyRoot, "gravel.wav"), looped: true, allowHrtf: false);
-            _soundWater = CreateRequiredSound(Path.Combine(_legacyRoot, "water.wav"), looped: true, allowHrtf: false);
-            _soundSand = CreateRequiredSound(Path.Combine(_legacyRoot, "sand.wav"), looped: true, allowHrtf: false);
-            _soundSnow = CreateRequiredSound(Path.Combine(_legacyRoot, "snow.wav"), looped: true, allowHrtf: false);
+            EnsureSurfaceSound(_materialId);
             _soundMiniCrash = CreateRequiredSound(Path.Combine(_legacyRoot, "crashshort.wav"));
             _soundBump = CreateRequiredSound(Path.Combine(_legacyRoot, "bump.wav"));
             _soundBadSwitch = CreateRequiredSound(Path.Combine(_legacyRoot, "badswitch.wav"));
@@ -347,11 +356,7 @@ namespace TopSpeed.Vehicles
             _soundThrottle?.SetDopplerFactor(0f);
             _soundHorn.SetDopplerFactor(0f);
             _soundBrake.SetDopplerFactor(0f);
-            _soundAsphalt.SetDopplerFactor(0f);
-            _soundGravel.SetDopplerFactor(0f);
-            _soundWater.SetDopplerFactor(0f);
-            _soundSand.SetDopplerFactor(0f);
-            _soundSnow.SetDopplerFactor(0f);
+            _surfaceSound?.SetDopplerFactor(0f);
         }
 
         public CarState State => _state;
@@ -493,11 +498,7 @@ namespace TopSpeed.Vehicles
             _surfaceFrequency = 0;
             _switchingGear = 0;
             _throttleVolume = 0.0f;
-            _soundAsphalt.SetFrequency(_surfaceFrequency);
-            _soundGravel.SetFrequency(_surfaceFrequency);
-            _soundWater.SetFrequency(_surfaceFrequency);
-            _soundSand.SetFrequency(_surfaceFrequency);
-            _soundSnow.SetFrequency(_surfaceFrequency);
+            SetSurfaceSoundFrequency(_surfaceFrequency);
             _state = CarState.Starting;
             _listener?.OnStart();
             _vibration?.PlayEffect(VibrationEffectType.Start);
@@ -535,11 +536,7 @@ namespace TopSpeed.Vehicles
             _surfaceFrequency = 0;
             _switchingGear = 0;
             _throttleVolume = 0.0f;
-            _soundAsphalt.SetFrequency(_surfaceFrequency);
-            _soundGravel.SetFrequency(_surfaceFrequency);
-            _soundWater.SetFrequency(_surfaceFrequency);
-            _soundSand.SetFrequency(_surfaceFrequency);
-            _soundSnow.SetFrequency(_surfaceFrequency);
+            SetSurfaceSoundFrequency(_surfaceFrequency);
             _state = CarState.Starting;
             _listener?.OnStart();
             _vibration?.PlayEffect(VibrationEffectType.Start);
@@ -560,34 +557,9 @@ namespace TopSpeed.Vehicles
                 _soundThrottle.SeekToStart();
             }
             _soundStart.SetPanPercent(0);
-            switch (_surface)
-            {
-                case TrackSurface.Asphalt:
-                    _soundAsphalt.Stop();
-                    _soundAsphalt.SetPanPercent(0);
-                    _soundAsphalt.SetVolumePercent(90);
-                    break;
-                case TrackSurface.Gravel:
-                    _soundGravel.Stop();
-                    _soundGravel.SetPanPercent(0);
-                    _soundGravel.SetVolumePercent(90);
-                    break;
-                case TrackSurface.Water:
-                    _soundWater.Stop();
-                    _soundWater.SetPanPercent(0);
-                    _soundWater.SetVolumePercent(90);
-                    break;
-                case TrackSurface.Sand:
-                    _soundSand.Stop();
-                    _soundSand.SetPanPercent(0);
-                    _soundSand.SetVolumePercent(90);
-                    break;
-                case TrackSurface.Snow:
-                    _soundSnow.Stop();
-                    _soundSnow.SetPanPercent(0);
-                    _soundSnow.SetVolumePercent(90);
-                    break;
-            }
+            StopSurfaceSound();
+            SetSurfaceSoundPan(0);
+            SetSurfaceSoundVolume(90);
             _soundBrake.Stop();
             _soundBrake.SeekToStart();
             _soundBrake.SetPanPercent(0);
@@ -639,7 +611,7 @@ namespace TopSpeed.Vehicles
                 return;
             }
 
-            if (IsHardWallMaterial(wall.Material))
+            if (IsHardWallMaterial(wall.CollisionMaterial))
                 Crash();
             else
                 SoftWallHit();
@@ -710,11 +682,7 @@ namespace TopSpeed.Vehicles
             _soundEngine.SetVolumePercent(90);
             _soundThrottle?.Stop();
             _soundBackfire?.SetVolumePercent(90);
-            _soundAsphalt.SetVolumePercent(90);
-            _soundGravel.SetVolumePercent(90);
-            _soundWater.SetVolumePercent(90);
-            _soundSand.SetVolumePercent(90);
-            _soundSnow.SetVolumePercent(90);
+            SetSurfaceSoundVolume(90);
             _vibration?.StopEffect(VibrationEffectType.CurbLeft);
             _vibration?.StopEffect(VibrationEffectType.CurbRight);
             _vibration?.StopEffect(VibrationEffectType.Engine);
@@ -745,21 +713,21 @@ namespace TopSpeed.Vehicles
                 _currentSurfaceTractionFactor = _surfaceTractionFactor;
                 _currentDeceleration = _deceleration;
                 _speedDiff = 0;
-                switch (_surface)
+                switch (_surfaceKind)
                 {
-                    case TrackSurface.Gravel:
+                    case SurfaceKind.Gravel:
                         _currentSurfaceTractionFactor = (_currentSurfaceTractionFactor * 2) / 3;
                         _currentDeceleration = (_currentDeceleration * 2) / 3;
                         break;
-                    case TrackSurface.Water:
+                    case SurfaceKind.Water:
                         _currentSurfaceTractionFactor = (_currentSurfaceTractionFactor * 3) / 5;
                         _currentDeceleration = (_currentDeceleration * 3) / 5;
                         break;
-                    case TrackSurface.Sand:
+                    case SurfaceKind.Sand:
                         _currentSurfaceTractionFactor = _currentSurfaceTractionFactor / 2;
                         _currentDeceleration = (_currentDeceleration * 3) / 2;
                         break;
-                    case TrackSurface.Snow:
+                    case SurfaceKind.Snow:
                         _currentDeceleration = _currentDeceleration / 2;
                         break;
                 }
@@ -959,11 +927,7 @@ namespace TopSpeed.Vehicles
                 {
                     if (_soundBrake.IsPlaying)
                         _soundBrake.Stop();
-                    _soundAsphalt.SetVolumePercent(90);
-                    _soundGravel.SetVolumePercent(90);
-                    _soundWater.SetVolumePercent(90);
-                    _soundSand.SetVolumePercent(90);
-                    _soundSnow.SetVolumePercent(90);
+                    SetSurfaceSoundVolume(90);
                 }
                 var headingDegrees = MapMovement.HeadingFromYaw(_dynamicsState.Yaw);
                 var distanceMeters = (_speed / 3.6f) * elapsed;
@@ -1031,7 +995,7 @@ namespace TopSpeed.Vehicles
                     UpdateSoundRoad();
                     if (_vibration != null)
                     {
-                        if (_surface == TrackSurface.Gravel)
+                        if (_surfaceKind == SurfaceKind.Gravel)
                             _vibration.Gain(VibrationEffectType.Gravel, (int)(_speed * 10000 / _topSpeed));
                         else
                             _vibration.Gain(VibrationEffectType.Gravel, 0);
@@ -1048,43 +1012,10 @@ namespace TopSpeed.Vehicles
                     }
                 }
 
-                switch (_surface)
+                if (_surfaceSound != null && !_surfaceSound.IsPlaying)
                 {
-                    case TrackSurface.Asphalt:
-                        if (!_soundAsphalt.IsPlaying)
-                        {
-                            _soundAsphalt.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                            _soundAsphalt.Play(loop: true);
-                        }
-                        break;
-                    case TrackSurface.Gravel:
-                        if (!_soundGravel.IsPlaying)
-                        {
-                            _soundGravel.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                            _soundGravel.Play(loop: true);
-                        }
-                        break;
-                    case TrackSurface.Water:
-                        if (!_soundWater.IsPlaying)
-                        {
-                            _soundWater.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                            _soundWater.Play(loop: true);
-                        }
-                        break;
-                    case TrackSurface.Sand:
-                        if (!_soundSand.IsPlaying)
-                        {
-                            _soundSand.SetFrequency((int)(_surfaceFrequency / 2.5f));
-                            _soundSand.Play(loop: true);
-                        }
-                        break;
-                    case TrackSurface.Snow:
-                        if (!_soundSnow.IsPlaying)
-                        {
-                            _soundSnow.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                            _soundSnow.Play(loop: true);
-                        }
-                        break;
+                    SetSurfaceSoundFrequency(_surfaceFrequency);
+                    _surfaceSound.Play(loop: true);
                 }
             }
             else if (_state == CarState.Stopping)
@@ -1156,80 +1087,33 @@ namespace TopSpeed.Vehicles
 
         public void BrakeSound()
         {
-            switch (_surface)
+            if (_surfaceKind == SurfaceKind.Asphalt)
             {
-                case TrackSurface.Asphalt:
-                    if (!_soundBrake.IsPlaying)
-                    {
-                        _soundAsphalt.SetVolumePercent(90);
-                        _soundBrake.Play(loop: true);
-                    }
-                    break;
-                case TrackSurface.Gravel:
-                    if (_soundBrake.IsPlaying)
-                        _soundBrake.Stop();
-                    if (_speed <= 50.0f)
-                        _soundGravel.SetVolumePercent((int)(100 - (10 - (_speed / 5))));
-                    else
-                        _soundGravel.SetVolumePercent(100);
-                    break;
-                case TrackSurface.Water:
-                    if (_soundBrake.IsPlaying)
-                        _soundBrake.Stop();
-                    if (_speed <= 50.0f)
-                        _soundWater.SetVolumePercent((int)(100 - (10 - (_speed / 5))));
-                    else
-                        _soundWater.SetVolumePercent(100);
-                    break;
-                case TrackSurface.Sand:
-                    if (_soundBrake.IsPlaying)
-                        _soundBrake.Stop();
-                    if (_speed <= 50.0f)
-                        _soundSand.SetVolumePercent((int)(100 - (10 - (_speed / 5))));
-                    else
-                        _soundSand.SetVolumePercent(100);
-                    break;
-                case TrackSurface.Snow:
-                    if (_soundBrake.IsPlaying)
-                        _soundBrake.Stop();
-                    if (_speed <= 50.0f)
-                        _soundSnow.SetVolumePercent((int)(100 - (10 - (_speed / 5))));
-                    else
-                        _soundSnow.SetVolumePercent(100);
-                    break;
+                if (!_soundBrake.IsPlaying)
+                {
+                    SetSurfaceSoundVolume(90);
+                    _soundBrake.Play(loop: true);
+                }
+                return;
             }
+
+            if (_soundBrake.IsPlaying)
+                _soundBrake.Stop();
+
+            if (_surfaceSound == null)
+                return;
+
+            var volume = _speed <= 50.0f
+                ? (int)(100 - (10 - (_speed / 5)))
+                : 100;
+            _surfaceSound.SetVolumePercent(volume);
         }
 
         public void BrakeCurveSound()
         {
-            switch (_surface)
-            {
-                case TrackSurface.Asphalt:
-                    if (_soundBrake.IsPlaying)
-                        _soundBrake.Stop();
-                    _soundAsphalt.SetVolumePercent(92 * Math.Abs(_currentSteering) / 100);
-                    break;
-                case TrackSurface.Gravel:
-                    if (_soundBrake.IsPlaying)
-                        _soundBrake.Stop();
-                    _soundGravel.SetVolumePercent(92 * Math.Abs(_currentSteering) / 100);
-                    break;
-                case TrackSurface.Water:
-                    if (_soundBrake.IsPlaying)
-                        _soundBrake.Stop();
-                    _soundWater.SetVolumePercent(92 * Math.Abs(_currentSteering) / 100);
-                    break;
-                case TrackSurface.Sand:
-                    if (_soundBrake.IsPlaying)
-                        _soundBrake.Stop();
-                    _soundSand.SetVolumePercent(92 * Math.Abs(_currentSteering) / 100);
-                    break;
-                case TrackSurface.Snow:
-                    if (_soundBrake.IsPlaying)
-                        _soundBrake.Stop();
-                    _soundSnow.SetVolumePercent(92 * Math.Abs(_currentSteering) / 100);
-                    break;
-            }
+            if (_soundBrake.IsPlaying)
+                _soundBrake.Stop();
+            SetSurfaceSoundVolume(92 * Math.Abs(_currentSteering) / 100);
         }
 
         public void Evaluate(TrackRoad road)
@@ -1267,33 +1151,12 @@ namespace TopSpeed.Vehicles
                 }
                 if (updateAudioThisFrame)
                 {
-                    if (_surface == TrackSurface.Asphalt && road.Surface != TrackSurface.Asphalt)
+                    if (!string.Equals(_materialId, road.MaterialId, StringComparison.OrdinalIgnoreCase))
                     {
-                        _soundAsphalt.Stop();
-                        SwitchSurfaceSound(road.Surface);
+                        SwitchSurfaceSound(road.MaterialId);
+                        _materialId = NormalizeMaterialId(road.MaterialId);
+                        _surfaceKind = ResolveSurfaceKind(_materialId);
                     }
-                    else if (_surface == TrackSurface.Gravel && road.Surface != TrackSurface.Gravel)
-                    {
-                        _soundGravel.Stop();
-                        SwitchSurfaceSound(road.Surface);
-                    }
-                    else if (_surface == TrackSurface.Water && road.Surface != TrackSurface.Water)
-                    {
-                        _soundWater.Stop();
-                        SwitchSurfaceSound(road.Surface);
-                    }
-                    else if (_surface == TrackSurface.Sand && road.Surface != TrackSurface.Sand)
-                    {
-                        _soundSand.Stop();
-                        SwitchSurfaceSound(road.Surface);
-                    }
-                    else if (_surface == TrackSurface.Snow && road.Surface != TrackSurface.Snow)
-                    {
-                        _soundSnow.Stop();
-                        SwitchSurfaceSound(road.Surface);
-                    } 
-
-                    _surface = road.Surface;
                     _relPos = roadWidth <= 0f
                         ? 0.5f
                         : (_positionX - road.Left) / roadWidth;
@@ -1343,24 +1206,7 @@ namespace TopSpeed.Vehicles
                 _soundTurnTick.SeekToStart();
             }
             _soundWipers?.Stop();
-            switch (_surface)
-            {
-                case TrackSurface.Asphalt:
-                    _soundAsphalt.Stop();
-                    break;
-                case TrackSurface.Gravel:
-                    _soundGravel.Stop();
-                    break;
-                case TrackSurface.Water:
-                    _soundWater.Stop();
-                    break;
-                case TrackSurface.Sand:
-                    _soundSand.Stop();
-                    break;
-                case TrackSurface.Snow:
-                    _soundSnow.Stop();
-                    break;
-            }
+            StopSurfaceSound();
         }
 
         public void Unpause()
@@ -1368,24 +1214,7 @@ namespace TopSpeed.Vehicles
             _soundEngine.Play(loop: true);
             _soundThrottle?.Play(loop: true);
             _soundWipers?.Play(loop: true);
-            switch (_surface)
-            {
-                case TrackSurface.Asphalt:
-                    _soundAsphalt.Play(loop: true);
-                    break;
-                case TrackSurface.Gravel:
-                    _soundGravel.Play(loop: true);
-                    break;
-                case TrackSurface.Water:
-                    _soundWater.Play(loop: true);
-                    break;
-                case TrackSurface.Sand:
-                    _soundSand.Play(loop: true);
-                    break;
-                case TrackSurface.Snow:
-                    _soundSnow.Play(loop: true);
-                    break;
-            }
+            PlaySurfaceSound();
         }
 
         public void Dispose()
@@ -1397,17 +1226,14 @@ namespace TopSpeed.Vehicles
             _soundStart.Dispose();
             _soundCrash.Dispose();
             _soundBrake.Dispose();
-            _soundAsphalt.Dispose();
-            _soundGravel.Dispose();
-            _soundWater.Dispose();
-            _soundSand.Dispose();
-            _soundSnow.Dispose();
             _soundMiniCrash.Dispose();
             _soundWipers?.Dispose();
             _soundBump.Dispose();
             _soundBadSwitch.Dispose();
             _soundBackfire?.Dispose();
             _soundTurnTick?.Dispose();
+            foreach (var sound in _surfaceSounds.Values)
+                sound.Dispose();
         }
 
         private void StopAllVibrations()
@@ -1613,53 +1439,17 @@ namespace TopSpeed.Vehicles
             _surfaceFrequency = (int)(_speed * 500);
             if (_surfaceFrequency != _prevSurfaceFrequency)
             {
-                switch (_surface)
-                {
-                    case TrackSurface.Asphalt:
-                        _soundAsphalt.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                        break;
-                    case TrackSurface.Gravel:
-                        _soundGravel.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                        break;
-                    case TrackSurface.Water:
-                        _soundWater.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                        break;
-                    case TrackSurface.Sand:
-                        _soundSand.SetFrequency((int)(_surfaceFrequency / 2.5f));
-                        break;
-                    case TrackSurface.Snow:
-                        _soundSnow.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                        break;
-                }
+                SetSurfaceSoundFrequency(_surfaceFrequency);
                 _prevSurfaceFrequency = _surfaceFrequency;
             }
         }
 
-        private void SwitchSurfaceSound(TrackSurface surface)
+        private void SwitchSurfaceSound(string? materialId)
         {
-            switch (surface)
-            {
-                case TrackSurface.Gravel:
-                    _soundGravel.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                    _soundGravel.Play(loop: true);
-                    break;
-                case TrackSurface.Water:
-                    _soundWater.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                    _soundWater.Play(loop: true);
-                    break;
-                case TrackSurface.Sand:
-                    _soundSand.SetFrequency((int)(_surfaceFrequency / 2.5f));
-                    _soundSand.Play(loop: true);
-                    break;
-                case TrackSurface.Snow:
-                    _soundSnow.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                    _soundSnow.Play(loop: true);
-                    break;
-                case TrackSurface.Asphalt:
-                    _soundAsphalt.SetFrequency(Math.Min(_surfaceFrequency, MaxSurfaceFreq));
-                    _soundAsphalt.Play(loop: true);
-                    break;
-            }
+            StopSurfaceSound();
+            EnsureSurfaceSound(materialId);
+            SetSurfaceSoundFrequency(_surfaceFrequency);
+            PlaySurfaceSound();
         }
 
         private void ApplyPan(int pan)
@@ -1668,24 +1458,7 @@ namespace TopSpeed.Vehicles
             _soundBrake.SetPanPercent(pan);
             _soundBackfire?.SetPanPercent(pan);
             _soundWipers?.SetPanPercent(pan);
-            switch (_surface)
-            {
-                case TrackSurface.Asphalt:
-                    _soundAsphalt.SetPanPercent(pan);
-                    break;
-                case TrackSurface.Gravel:
-                    _soundGravel.SetPanPercent(pan);
-                    break;
-                case TrackSurface.Water:
-                    _soundWater.SetPanPercent(pan);
-                    break;
-                case TrackSurface.Sand:
-                    _soundSand.SetPanPercent(pan);
-                    break;
-                case TrackSurface.Snow:
-                    _soundSnow.SetPanPercent(pan);
-                    break;
-            }
+            SetSurfaceSoundPan(pan);
         }
 
         private static int CalculatePan(float relPos)
@@ -1849,25 +1622,102 @@ namespace TopSpeed.Vehicles
             SetSpatial(_soundBadSwitch, AudioWorld.ToMeters(enginePos), velocity);
             SetSpatial(_soundWipers, AudioWorld.ToMeters(vehiclePos), velocity);
 
-            switch (_surface)
+            SetSpatial(_surfaceSound, AudioWorld.ToMeters(vehiclePos), velocity);
+        }
+
+        private static string NormalizeMaterialId(string? materialId)
+        {
+            if (materialId == null)
+                return "asphalt";
+            var trimmed = materialId.Trim();
+            if (trimmed.Length == 0)
+                return "asphalt";
+            return trimmed;
+        }
+
+        private static SurfaceKind ResolveSurfaceKind(string materialId)
+        {
+            if (string.IsNullOrWhiteSpace(materialId))
+                return SurfaceKind.Asphalt;
+            switch (materialId.Trim().ToLowerInvariant())
             {
-                case TrackSurface.Asphalt:
-                    SetSpatial(_soundAsphalt, AudioWorld.ToMeters(vehiclePos), velocity);
-                    break;
-                case TrackSurface.Gravel:
-                    SetSpatial(_soundGravel, AudioWorld.ToMeters(vehiclePos), velocity);
-                    break;
-                case TrackSurface.Water:
-                    SetSpatial(_soundWater, AudioWorld.ToMeters(vehiclePos), velocity);
-                    break;
-                case TrackSurface.Sand:
-                    SetSpatial(_soundSand, AudioWorld.ToMeters(vehiclePos), velocity);
-                    break;
-                case TrackSurface.Snow:
-                    SetSpatial(_soundSnow, AudioWorld.ToMeters(vehiclePos), velocity);
-                    break;
+                case "gravel":
+                    return SurfaceKind.Gravel;
+                case "water":
+                    return SurfaceKind.Water;
+                case "sand":
+                    return SurfaceKind.Sand;
+                case "snow":
+                    return SurfaceKind.Snow;
+                case "asphalt":
+                    return SurfaceKind.Asphalt;
+                default:
+                    return SurfaceKind.Other;
             }
         }
+
+        private string ResolveSurfaceSoundId(string materialId)
+        {
+            if (string.IsNullOrWhiteSpace(materialId))
+                return "asphalt";
+            var trimmed = materialId.Trim();
+            var path = Path.Combine(_materialsRoot, trimmed + ".wav");
+            if (File.Exists(path))
+                return trimmed;
+            return "asphalt";
+        }
+
+        private void EnsureSurfaceSound(string? materialId)
+        {
+            var normalized = NormalizeMaterialId(materialId);
+            var soundId = ResolveSurfaceSoundId(normalized);
+            if (string.Equals(soundId, _surfaceSoundId, StringComparison.OrdinalIgnoreCase) && _surfaceSound != null)
+                return;
+            _surfaceSoundId = soundId;
+            if (_surfaceSounds.TryGetValue(soundId, out var sound))
+            {
+                _surfaceSound = sound;
+                return;
+            }
+
+            var path = Path.Combine(_materialsRoot, soundId + ".wav");
+            sound = CreateRequiredSound(path, looped: true, allowHrtf: false);
+            sound.SetDopplerFactor(0f);
+            _surfaceSounds[soundId] = sound;
+            _surfaceSound = sound;
+        }
+
+        private void SetSurfaceSoundFrequency(int frequency)
+        {
+            if (_surfaceSound == null)
+                return;
+            var clamped = Math.Min(frequency, MaxSurfaceFreq);
+            if (_surfaceKind == SurfaceKind.Sand)
+                clamped = (int)(clamped / 2.5f);
+            _surfaceSound.SetFrequency(clamped);
+        }
+
+        private void SetSurfaceSoundVolume(int volume)
+        {
+            _surfaceSound?.SetVolumePercent(volume);
+        }
+
+        private void SetSurfaceSoundPan(int pan)
+        {
+            _surfaceSound?.SetPanPercent(pan);
+        }
+
+        private void PlaySurfaceSound()
+        {
+            if (_surfaceSound != null && !_surfaceSound.IsPlaying)
+                _surfaceSound.Play(loop: true);
+        }
+
+        private void StopSurfaceSound()
+        {
+            _surfaceSound?.Stop();
+        }
+
         private static void SetSpatial(AudioSourceHandle? sound, Vector3 position, Vector3 velocity)
         {
             if (sound == null)

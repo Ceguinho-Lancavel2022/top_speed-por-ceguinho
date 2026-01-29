@@ -268,7 +268,7 @@ namespace TopSpeed.Race
 
             var snapshot = new MapSnapshot
             {
-                Surface = _map.DefaultSurface,
+                MaterialId = _map.DefaultMaterialId,
                 Noise = _map.DefaultNoise,
                 WidthMeters = Math.Max(0.5f, _map.DefaultWidthMeters),
                 IsSafeZone = IsSafeZone(position2D),
@@ -330,8 +330,8 @@ namespace TopSpeed.Race
                 return;
 
             var area = areas[areas.Count - 1];
-            if (area.Surface.HasValue)
-                snapshot.Surface = area.Surface.Value;
+            if (!string.IsNullOrWhiteSpace(area.MaterialId))
+                snapshot.MaterialId = area.MaterialId!;
             if (area.Noise.HasValue)
                 snapshot.Noise = area.Noise.Value;
             if (area.WidthMeters.HasValue)
@@ -405,8 +405,8 @@ namespace TopSpeed.Race
 
         private void AnnounceMapChanges(MapSnapshot previous, MapSnapshot current)
         {
-            if (previous.Surface != current.Surface)
-                _speech.Speak($"{FormatSurface(current.Surface)} surface.");
+            if (!string.Equals(previous.MaterialId, current.MaterialId, StringComparison.OrdinalIgnoreCase))
+                _speech.Speak($"{FormatMaterial(current.MaterialId)} material.");
 
             if (previous.Noise != current.Noise)
                 _speech.Speak($"{FormatNoise(current.Noise)} zone.");
@@ -790,17 +790,22 @@ namespace TopSpeed.Race
             return name.Replace('_', ' ').Replace('-', ' ').Trim();
         }
 
-        private static string FormatSurface(TrackSurface surface)
+        private string FormatMaterial(string materialId)
         {
-            return surface switch
+            if (string.IsNullOrWhiteSpace(materialId))
+                return "Unknown";
+
+            foreach (var material in _map.Materials)
             {
-                TrackSurface.Asphalt => "Asphalt",
-                TrackSurface.Gravel => "Gravel",
-                TrackSurface.Water => "Water",
-                TrackSurface.Sand => "Sand",
-                TrackSurface.Snow => "Snow",
-                _ => "Surface"
-            };
+                if (material != null && string.Equals(material.Id, materialId, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrWhiteSpace(material.Name))
+                        return material.Name!;
+                    return material.Id;
+                }
+            }
+
+            return materialId;
         }
 
         private static string FormatNoise(TrackNoise noise)
@@ -825,7 +830,7 @@ namespace TopSpeed.Race
 
         private struct MapSnapshot
         {
-            public TrackSurface Surface;
+            public string MaterialId;
             public TrackNoise Noise;
             public float WidthMeters;
             public bool IsSafeZone;

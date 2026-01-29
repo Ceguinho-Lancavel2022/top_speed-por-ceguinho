@@ -12,7 +12,7 @@ The most important sections are meta, shape, area, sector, portal, branch, and g
 
 ## Meta settings
 
-The meta section contains global settings such as the track name, default surface, default noise, and start position. The start position uses X and Z plus a heading. A heading of 0 is north, 90 is east, 180 is south, and 270 is west. Any angle between these is allowed and useful for diagonals or gentle bends.
+The meta section contains global settings such as the track name, default material, default noise, and start position. The start position uses X and Z plus a heading. A heading of 0 is north, 90 is east, 180 is south, and 270 is west. Any angle between these is allowed and useful for diagonals or gentle bends.
 
 Meta can also define a safe zone ring or an outer ring. These create a band around the drivable track so players can recover when they leave the main road. If you do not want an automatic ring, leave the ring values at zero and define the safe zone as a normal area instead.
 
@@ -28,9 +28,9 @@ Polylines and polygons are lists of points. A polyline is a path you could trace
 
 Areas turn shapes into drivable or non-drivable regions. An area is what the car can actually occupy. If you attach an area to a rectangle or circle, the full shape is used. If you attach an area to a polyline, the area width becomes a corridor around that line. The width is measured across the corridor, not along the length, so a width of 20 means you can move 10 meters to each side of the line.
 
-Area types control meaning. A normal zone is drivable. Start, finish, checkpoint, and intersection are special types that do not change movement but are used by race logic and guidance. Boundary and off-track are not drivable and are used to mark unsafe regions. Safe zones are drivable but often have different surface or noise so you can hear that you left the main track.
+Area types control meaning. A normal zone is drivable. Start, finish, checkpoint, and intersection are special types that do not change movement but are used by race logic and guidance. Boundary and off-track are not drivable and are used to mark unsafe regions. Safe zones are drivable but often have different material or noise so you can hear that you left the main track.
 
-Areas can also contain metadata. This is how you enable auto-walls for a specific edge, define grid placement for starting positions, or add guidance-related flags without cluttering the sector.
+Areas can also contain metadata. This is how you enable auto-walls for a specific edge, define grid placement for starting positions, or add guidance-related flags without cluttering the sector. The material on an area defines both the surface sound (if a sound file exists) and the acoustic properties used later for occlusion and reverb.
 
 ## Sectors and movement rules
 
@@ -68,11 +68,23 @@ Markers are points of interest. They can be used for cues like "apex", "center",
 
 Safe zones are areas that allow slower movement or recovery when you leave the main track. They are authored as areas too. A ring is a convenient way to add a band around a track, but it is still just an area under the hood. If you want a safe zone around your track, you can either define it manually or use the ring settings in meta to generate it.
 
+## Materials
+
+Materials are used later when Steam Audio simulation is enabled. They describe how sound is absorbed, scattered, and transmitted by a surface. You can assign a material to any area or wall. If you do not assign one, the engine will fall back to defaults.
+
+You can use presets such as concrete, asphalt, brick, metal, wood, glass, plaster, fabric, grass, dirt, sand, gravel, snow, water, or rubber. If you need full control, define a custom material in a [material] section with numeric values and then reference it by id from an area or wall.
+
+To define a custom material, create a section like [material: my_asphalt] and provide absorption, scattering, and transmission. Each value is a number between 0 and 1. You can provide one number or three numbers for low, mid, and high frequencies. Then use material=my_asphalt in an area or wall section. If a sound file named my_asphalt.wav exists under Sounds\\Legacy\\Materials, it will be used as the surface sound when driving on that area.
+
+If you want walls made of a specific material to behave as soft or hard collisions, set collision or collision_material in the [material] section. Valid values are hard, soft, rubber, metal, concrete, wood, dirt, grass, or sand. Walls then use the collision behavior of their material automatically.
+
 ## Walls
 
 Walls prevent movement into empty space. They are separate from areas. A wall has a shape and a width, and it blocks movement when the player reaches it. Auto-walls can be generated per area using metadata. They place a wall along specific edges and only where the edge borders empty space, so connections between areas stay open.
 
-If you want a wall to block a specific gap, enable auto-walls on that edge and make sure the neighboring areas do not touch that edge. If you want a custom wall, define it explicitly with a wall shape. In either case, walls should be used to make the boundary feel intentional, so a blind player understands the road is blocked rather than simply "missing".
+If you want a wall to block a specific gap, enable auto-walls on that edge and make sure the neighboring areas do not touch that edge. If you want a custom wall, define it explicitly with a wall shape. In either case, walls should be used to make the boundary feel intentional, so a blind player understands the road is blocked rather than simply "missing". For auto-walls, you can set wall_material_id in the area metadata to override the material used by the generated walls.
+
+Walls can also define a height. Height does not affect driving today, but it is important for acoustics and occlusion later, because taller walls block more sound. Collision hardness is defined by the material itself (see the collision option in a [material] section).
 
 ## A concrete example you can imagine
 

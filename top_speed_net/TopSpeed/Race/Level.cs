@@ -294,7 +294,7 @@ namespace TopSpeed.Race
             _started = false;
             _finished = false;
             _engineStarted = false;
-            _currentRoad.Surface = _track.InitialSurface;
+            _currentRoad.MaterialId = _track.InitialMaterialId;
             _car.ManualTransmission = _manualTransmission;
             _listenerInitialized = false;
             _lastListenerPosition = Vector3.Zero;
@@ -863,17 +863,43 @@ namespace TopSpeed.Race
 
         protected void CallNextRoad(TrackRoad nextRoad)
         {
-            if ((int)_settings.Copilot > 1 && nextRoad.Surface != _currentRoad.Surface)
+            if ((int)_settings.Copilot > 1 &&
+                !string.Equals(nextRoad.MaterialId, _currentRoad.MaterialId, StringComparison.OrdinalIgnoreCase))
             {
-                var index = (int)nextRoad.Surface + 8;
-                if (index >= 0 && index < RandomSoundGroups && _totalRandomSounds[index] > 0)
+                var group = GetMaterialSoundGroup(nextRoad.MaterialId);
+                if (group.HasValue)
                 {
-                    var sound = _randomSounds[index][Algorithm.RandomInt(_totalRandomSounds[index])];
-                    PushEvent(RaceEventType.PlaySound, 1.0f, sound);
+                    var index = (int)group.Value;
+                    if (index >= 0 && index < RandomSoundGroups && _totalRandomSounds[index] > 0)
+                    {
+                        var sound = _randomSounds[index][Algorithm.RandomInt(_totalRandomSounds[index])];
+                        PushEvent(RaceEventType.PlaySound, 1.0f, sound);
+                    }
                 }
             }
 
             _currentRoad = nextRoad;
+        }
+
+        private static RandomSound? GetMaterialSoundGroup(string materialId)
+        {
+            if (string.IsNullOrWhiteSpace(materialId))
+                return null;
+            switch (materialId.Trim().ToLowerInvariant())
+            {
+                case "asphalt":
+                    return RandomSound.Asphalt;
+                case "gravel":
+                    return RandomSound.Gravel;
+                case "water":
+                    return RandomSound.Water;
+                case "sand":
+                    return RandomSound.Sand;
+                case "snow":
+                    return RandomSound.Snow;
+                default:
+                    return null;
+            }
         }
 
         protected void PushEvent(RaceEventType type, float time, AudioSourceHandle? sound = null)

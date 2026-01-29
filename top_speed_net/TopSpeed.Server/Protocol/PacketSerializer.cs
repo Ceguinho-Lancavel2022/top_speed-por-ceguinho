@@ -153,7 +153,13 @@ namespace TopSpeed.Server.Protocol
         {
             var maxLength = Math.Min(track.TrackLength, (ushort)ProtocolConstants.MaxMultiTrackLength);
             var definitionCount = Math.Min(track.Definitions.Length, maxLength);
-            var payload = 1 + 12 + 1 + 1 + 2 + (definitionCount * (1 + 1 + 1 + 4));
+            var payload = 1 + 12 + 1 + 1 + 2;
+            for (var i = 0; i < definitionCount; i++)
+            {
+                var materialId = track.Definitions[i].MaterialId ?? string.Empty;
+                var materialLength = Math.Min(255, System.Text.Encoding.UTF8.GetByteCount(materialId));
+                payload += 1 + 1 + 4 + 1 + materialLength;
+            }
             var buffer = WritePacketHeader(Command.LoadCustomTrack, payload);
             var writer = new PacketWriter(buffer);
             writer.WriteByte(ProtocolConstants.Version);
@@ -166,10 +172,20 @@ namespace TopSpeed.Server.Protocol
             for (var i = 0; i < definitionCount; i++)
             {
                 var def = track.Definitions[i];
+                var materialId = def.MaterialId ?? string.Empty;
+                var materialBytes = System.Text.Encoding.UTF8.GetBytes(materialId);
+                var materialLength = Math.Min(255, materialBytes.Length);
                 writer.WriteByte((byte)def.Type);
-                writer.WriteByte((byte)def.Surface);
                 writer.WriteByte((byte)def.Noise);
                 writer.WriteSingle(def.Length);
+                writer.WriteByte((byte)materialLength);
+                if (materialLength > 0)
+                {
+                    if (materialLength != materialBytes.Length)
+                        writer.WriteString(System.Text.Encoding.UTF8.GetString(materialBytes, 0, materialLength));
+                    else
+                        writer.WriteString(materialId);
+                }
             }
             return buffer;
         }

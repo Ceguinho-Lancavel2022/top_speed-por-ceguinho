@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using TopSpeed.Data;
+using TopSpeed.Tracks.Materials;
 using TopSpeed.Tracks.Areas;
 using TopSpeed.Tracks.Beacons;
 using TopSpeed.Tracks.Guidance;
@@ -77,7 +78,7 @@ namespace TopSpeed.Tracks.Map
         public float CellSizeMeters { get; set; } = 1f;
         public TrackWeather Weather { get; set; } = TrackWeather.Sunny;
         public TrackAmbience Ambience { get; set; } = TrackAmbience.NoAmbience;
-        public TrackSurface DefaultSurface { get; set; } = TrackSurface.Asphalt;
+        public string DefaultMaterialId { get; set; } = "asphalt";
         public TrackNoise DefaultNoise { get; set; } = TrackNoise.NoNoise;
         public float DefaultWidthMeters { get; set; } = 12f;
         public float StartX { get; set; }
@@ -85,11 +86,11 @@ namespace TopSpeed.Tracks.Map
         public float StartHeadingDegrees { get; set; }
         public MapDirection StartHeading { get; set; } = MapDirection.North;
         public float SafeZoneRingMeters { get; set; }
-        public TrackSurface SafeZoneSurface { get; set; } = TrackSurface.Gravel;
+        public string SafeZoneMaterialId { get; set; } = "gravel";
         public TrackNoise SafeZoneNoise { get; set; } = TrackNoise.NoNoise;
         public string? SafeZoneName { get; set; }
         public float OuterRingMeters { get; set; }
-        public TrackSurface OuterRingSurface { get; set; } = TrackSurface.Gravel;
+        public string OuterRingMaterialId { get; set; } = "gravel";
         public TrackNoise OuterRingNoise { get; set; } = TrackNoise.NoNoise;
         public string? OuterRingName { get; set; }
         public TrackAreaType OuterRingType { get; set; } = TrackAreaType.Boundary;
@@ -111,6 +112,7 @@ namespace TopSpeed.Tracks.Map
             Approaches = Array.Empty<TrackApproachDefinition>();
             Branches = Array.Empty<TrackBranchDefinition>();
             Walls = Array.Empty<TrackWallDefinition>();
+            Materials = Array.Empty<TrackMaterialDefinition>();
         }
 
         public TrackMapDefinition(
@@ -124,7 +126,8 @@ namespace TopSpeed.Tracks.Map
             List<TrackMarkerDefinition> markers,
             List<TrackApproachDefinition> approaches,
             List<TrackBranchDefinition> branches,
-            List<TrackWallDefinition> walls)
+            List<TrackWallDefinition> walls,
+            List<TrackMaterialDefinition> materials)
         {
             Metadata = metadata;
             Sectors = sectors ?? new List<TrackSectorDefinition>();
@@ -137,6 +140,7 @@ namespace TopSpeed.Tracks.Map
             Approaches = approaches ?? new List<TrackApproachDefinition>();
             Branches = branches ?? new List<TrackBranchDefinition>();
             Walls = walls ?? new List<TrackWallDefinition>();
+            Materials = materials ?? new List<TrackMaterialDefinition>();
         }
 
         public TrackMapMetadata Metadata { get; }
@@ -150,6 +154,7 @@ namespace TopSpeed.Tracks.Map
         public IReadOnlyList<TrackApproachDefinition> Approaches { get; }
         public IReadOnlyList<TrackBranchDefinition> Branches { get; }
         public IReadOnlyList<TrackWallDefinition> Walls { get; }
+        public IReadOnlyList<TrackMaterialDefinition> Materials { get; }
     }
 
     public static class TrackMapFormat
@@ -163,7 +168,7 @@ namespace TopSpeed.Tracks.Map
             "code",
             "area",
             "shape",
-            "surface",
+            "material",
             "noise",
             "flags",
             "flag",
@@ -176,7 +181,7 @@ namespace TopSpeed.Tracks.Map
             "type",
             "name",
             "shape",
-            "surface",
+            "material",
             "noise",
             "width",
             "flags",
@@ -252,11 +257,30 @@ namespace TopSpeed.Tracks.Map
             "shape",
             "width",
             "wall_width",
+            "height",
+            "wall_height",
             "material",
             "collision",
             "collision_mode",
             "behavior",
             "mode"
+        };
+        private static readonly HashSet<string> MaterialKnownKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "id",
+            "name",
+            "preset",
+            "absorption",
+            "absorption_low",
+            "absorption_mid",
+            "absorption_high",
+            "scattering",
+            "transmission",
+            "transmission_low",
+            "transmission_mid",
+            "transmission_high",
+            "collision",
+            "collision_material"
         };
 
         public static bool TryResolvePath(string nameOrPath, out string path)
@@ -303,6 +327,7 @@ namespace TopSpeed.Tracks.Map
             var approaches = new List<TrackApproachDefinition>();
             var walls = new List<TrackWallDefinition>();
             var branches = new List<TrackBranchDefinition>();
+            var materials = new List<TrackMaterialDefinition>();
             var guideBlocks = new List<SectionBlock>();
             var branchBlocks = new List<SectionBlock>();
 
@@ -312,7 +337,7 @@ namespace TopSpeed.Tracks.Map
                 switch (block.Name)
                 {
                     case "meta":
-                        ApplyMeta(metadata, block);
+                        ApplyMeta(metadata, block, issues);
                         break;
                     case "cell":
                     case "line":
@@ -362,6 +387,12 @@ namespace TopSpeed.Tracks.Map
                     case "wall":
                         ApplyWall(walls, block, issues);
                         break;
+                    case "material":
+                        ApplyMaterial(materials, block, issues);
+                        break;
+                    case "acoustic_material":
+                        issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, "acoustic_material sections are not supported. Use [material] instead.", block.StartLine));
+                        break;
                     case "turn":
                         ApplyTurn(metadata, sectors, areas, shapes, portals, approaches, block, issues);
                         break;
@@ -376,7 +407,7 @@ namespace TopSpeed.Tracks.Map
             if (branchBlocks.Count > 0)
                 ApplyBranches(branchBlocks, sectors, areas, portals, branches, issues);
 
-            map = new TrackMapDefinition(metadata, sectors, areas, shapes, portals, links, beacons, markers, approaches, branches, walls);
+            map = new TrackMapDefinition(metadata, sectors, areas, shapes, portals, links, beacons, markers, approaches, branches, walls, materials);
             return issues.All(issue => issue.Severity != TrackMapIssueSeverity.Error);
         }
 
@@ -519,8 +550,16 @@ namespace TopSpeed.Tracks.Map
             return !string.IsNullOrWhiteSpace(key);
         }
 
-        private static void ApplyMeta(TrackMapMetadata metadata, SectionBlock block)
+        private static void ApplyMeta(TrackMapMetadata metadata, SectionBlock block, List<TrackMapIssue> issues)
         {
+            if (block.Values.ContainsKey("default_surface") ||
+                block.Values.ContainsKey("safe_zone_surface") ||
+                block.Values.ContainsKey("outer_ring_surface"))
+            {
+                issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, "Surface keys are not supported in meta. Use default_material, safe_zone_material, or outer_ring_material instead.", block.StartLine));
+                return;
+            }
+
             if (TryGetValue(block, "name", out var name) && !string.IsNullOrWhiteSpace(name))
                 metadata.Name = name.Trim().Trim('"');
 
@@ -530,9 +569,9 @@ namespace TopSpeed.Tracks.Map
                     metadata.CellSizeMeters = Math.Max(0.1f, cellSize);
             }
 
-            if (TryGetValue(block, "default_surface", out var defaultSurface) &&
-                Enum.TryParse(defaultSurface, true, out TrackSurface surface))
-                metadata.DefaultSurface = surface;
+            if (TryGetValue(block, "default_material", out var defaultMaterial) &&
+                !string.IsNullOrWhiteSpace(defaultMaterial))
+                metadata.DefaultMaterialId = defaultMaterial.Trim();
 
             if (TryGetValue(block, "default_noise", out var defaultNoise) &&
                 Enum.TryParse(defaultNoise, true, out TrackNoise noise))
@@ -570,9 +609,9 @@ namespace TopSpeed.Tracks.Map
                     metadata.SafeZoneRingMeters = Math.Max(0f, ringMeters);
             }
 
-            if (TryGetValue(block, "safe_zone_surface", out var safeSurface) &&
-                Enum.TryParse(safeSurface, true, out TrackSurface safeSurfaceValue))
-                metadata.SafeZoneSurface = safeSurfaceValue;
+            if (TryGetValue(block, "safe_zone_material", out var safeMaterial) &&
+                !string.IsNullOrWhiteSpace(safeMaterial))
+                metadata.SafeZoneMaterialId = safeMaterial.Trim();
 
             if (TryGetValue(block, "safe_zone_noise", out var safeNoise) &&
                 Enum.TryParse(safeNoise, true, out TrackNoise safeNoiseValue))
@@ -592,9 +631,9 @@ namespace TopSpeed.Tracks.Map
                     metadata.OuterRingMeters = Math.Max(0f, ringMeters);
             }
 
-            if (TryGetValue(block, "outer_ring_surface", out var outerSurface) &&
-                Enum.TryParse(outerSurface, true, out TrackSurface outerSurfaceValue))
-                metadata.OuterRingSurface = outerSurfaceValue;
+            if (TryGetValue(block, "outer_ring_material", out var outerMaterial) &&
+                !string.IsNullOrWhiteSpace(outerMaterial))
+                metadata.OuterRingMaterialId = outerMaterial.Trim();
 
             if (TryGetValue(block, "outer_ring_noise", out var outerNoise) &&
                 Enum.TryParse(outerNoise, true, out TrackNoise outerNoiseValue))
@@ -723,6 +762,12 @@ namespace TopSpeed.Tracks.Map
             SectionBlock block,
             List<TrackMapIssue> issues)
         {
+            if (block.Values.ContainsKey("surface"))
+            {
+                issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, "Sector surface is not supported. Use material instead.", block.StartLine));
+                return;
+            }
+
             if (!TryReadId(block, out var id))
             {
                 issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, "Sector requires an id.", block.StartLine));
@@ -747,7 +792,7 @@ namespace TopSpeed.Tracks.Map
             var code = TryGetValue(block, "code", out var codeValue) ? codeValue : null;
             var areaId = TryGetValue(block, "area", out var areaValue) ? areaValue :
                 (TryGetValue(block, "shape", out areaValue) ? areaValue : null);
-            var surface = TrySurface(block, "surface", out var surfaceValue) ? surfaceValue : (TrackSurface?)null;
+            var materialId = TryMaterialId(block, "material", out var materialValue) ? materialValue : null;
             var noise = TryNoise(block, "noise", out var noiseValue) ? noiseValue : (TrackNoise?)null;
             var flags = TrySectorFlags(block, out var sectorFlags) ? sectorFlags : TrackSectorFlags.None;
             var metadata = CollectSectorMetadata(block);
@@ -757,7 +802,7 @@ namespace TopSpeed.Tracks.Map
             if (HasBranchKeys(block))
                 issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Sector '{id}' contains branch keys. Use a [branch] section instead.", block.StartLine));
 
-            sectors.Add(new TrackSectorDefinition(id, sectorType, name, areaId, code, surface, noise, flags, metadata));
+            sectors.Add(new TrackSectorDefinition(id, sectorType, name, areaId, code, materialId, noise, flags, metadata));
         }
 
         private static void ApplyJunction(
@@ -775,6 +820,18 @@ namespace TopSpeed.Tracks.Map
             SectionBlock block,
             List<TrackMapIssue> issues)
         {
+            if (block.Values.ContainsKey("surface") ||
+                block.Values.ContainsKey("acoustic_material") ||
+                block.Values.ContainsKey("audio_material") ||
+                block.Values.ContainsKey("sound_material") ||
+                block.Values.ContainsKey("wall_acoustic_material") ||
+                block.Values.ContainsKey("wall_audio_material") ||
+                block.Values.ContainsKey("wall_sound_material"))
+            {
+                issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, "Area surface/acoustic_material is not supported. Use material instead.", block.StartLine));
+                return;
+            }
+
             if (!TryReadId(block, out var id))
             {
                 issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, "Area requires an id.", block.StartLine));
@@ -810,7 +867,7 @@ namespace TopSpeed.Tracks.Map
             }
 
             var name = TryGetValue(block, "name", out var nameValue) ? nameValue : null;
-            var surface = TrySurface(block, "surface", out var surfaceValue) ? surfaceValue : (TrackSurface?)null;
+            var materialId = TryMaterialId(block, "material", out var materialValue) ? materialValue : null;
             var noise = TryNoise(block, "noise", out var noiseValue) ? noiseValue : (TrackNoise?)null;
             var width = TryFloat(block, "width", out var widthValue) ? Math.Max(0.1f, widthValue) : (float?)null;
             var flags = TryAreaFlags(block, out var areaFlags) ? areaFlags : TrackAreaFlags.None;
@@ -821,7 +878,7 @@ namespace TopSpeed.Tracks.Map
             if (HasBranchKeys(block))
                 issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Area '{id}' contains branch keys. Use a [branch] section instead.", block.StartLine));
 
-            areas.Add(new TrackAreaDefinition(id, areaType, shapeId, name, surface, noise, width, flags, metadata));
+            areas.Add(new TrackAreaDefinition(id, areaType, shapeId, name, materialId, noise, width, flags, metadata));
         }
 
         private static bool HasGuideKeys(SectionBlock block)
@@ -2015,6 +2072,23 @@ namespace TopSpeed.Tracks.Map
             SectionBlock block,
             List<TrackMapIssue> issues)
         {
+            if (block.Values.ContainsKey("acoustic_material") ||
+                block.Values.ContainsKey("audio_material") ||
+                block.Values.ContainsKey("sound_material") ||
+                block.Values.ContainsKey("wall_acoustic_material") ||
+                block.Values.ContainsKey("wall_audio_material") ||
+                block.Values.ContainsKey("wall_sound_material"))
+            {
+                issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, "Wall acoustic_material is not supported. Use material instead.", block.StartLine));
+                return;
+            }
+            if (block.Values.ContainsKey("wall_material") ||
+                block.Values.ContainsKey("collision_material"))
+            {
+                issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, "Wall collision material is defined by the material. Remove wall_material/collision_material and set collision on the [material] section instead.", block.StartLine));
+                return;
+            }
+
             if (!TryReadId(block, out var id))
             {
                 issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, "Wall requires an id.", block.StartLine));
@@ -2035,16 +2109,9 @@ namespace TopSpeed.Tracks.Map
 
             var name = TryGetValue(block, "name", out var nameValue) ? nameValue : null;
             var width = TryFloatAny(block, out var widthValue, "width", "wall_width") ? Math.Max(0f, widthValue) : 0f;
-
+            var height = TryFloatAny(block, out var heightValue, "height", "wall_height") ? Math.Max(0f, heightValue) : 2f;
+            var materialId = TryMaterialId(block, "material", out var materialValue) ? materialValue : null;
             var material = TrackWallMaterial.Hard;
-            if (TryGetValue(block, "material", out var materialRaw) && !string.IsNullOrWhiteSpace(materialRaw))
-            {
-                if (!Enum.TryParse(materialRaw, true, out material))
-                {
-                    issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Wall '{id}' has invalid material '{materialRaw}'.", block.StartLine));
-                    return;
-                }
-            }
 
             var collisionMode = TrackWallCollisionMode.Block;
             if (TryGetValue(block, "collision", out var collisionRaw) ||
@@ -2060,7 +2127,69 @@ namespace TopSpeed.Tracks.Map
             }
 
             var metadata = CollectWallMetadata(block);
-            walls.Add(new TrackWallDefinition(id, shapeId, width, material, collisionMode, name, metadata));
+            walls.Add(new TrackWallDefinition(id, shapeId, width, material, collisionMode, name, metadata, height, materialId));
+        }
+
+        private static void ApplyMaterial(
+            List<TrackMaterialDefinition> materials,
+            SectionBlock block,
+            List<TrackMapIssue> issues)
+        {
+            if (!TryReadId(block, out var id))
+            {
+                issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, "Material requires an id.", block.StartLine));
+                return;
+            }
+
+            if (materials.Any(m => string.Equals(m.Id, id, StringComparison.OrdinalIgnoreCase)))
+            {
+                issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Duplicate material id '{id}'.", block.StartLine));
+                return;
+            }
+
+            var name = TryGetValue(block, "name", out var nameValue) ? nameValue : null;
+            TrackMaterialDefinition? preset = null;
+            if (TryGetValue(block, "preset", out var presetValue) && !string.IsNullOrWhiteSpace(presetValue))
+            {
+                if (!TrackMaterialLibrary.TryGetPreset(presetValue.Trim(), out preset))
+                {
+                    issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Material '{id}' has unknown preset '{presetValue}'.", block.StartLine));
+                    return;
+                }
+            }
+
+            var absorption = ResolveTriple(block, "absorption", "absorption_low", "absorption_mid", "absorption_high", preset, out var absLow, out var absMid, out var absHigh);
+            var transmission = ResolveTriple(block, "transmission", "transmission_low", "transmission_mid", "transmission_high", preset, out var transLow, out var transMid, out var transHigh);
+            var scattering = TryFloat(block, "scattering", out var scatterValue) ? Clamp01(scatterValue) : preset?.Scattering ?? 0f;
+            var collisionMaterial = preset?.CollisionMaterial ?? TrackWallMaterial.Hard;
+
+            if (TryGetValue(block, "collision", out var collisionRaw) ||
+                TryGetValue(block, "collision_material", out collisionRaw))
+            {
+                if (!Enum.TryParse(collisionRaw, true, out collisionMaterial))
+                {
+                    issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Material '{id}' has invalid collision material '{collisionRaw}'.", block.StartLine));
+                    return;
+                }
+            }
+
+            if (!absorption && !transmission && preset == null)
+            {
+                issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Material '{id}' requires preset or absorption/transmission values.", block.StartLine));
+                return;
+            }
+
+            materials.Add(new TrackMaterialDefinition(
+                id,
+                name,
+                absLow,
+                absMid,
+                absHigh,
+                scattering,
+                transLow,
+                transMid,
+                transHigh,
+                collisionMaterial));
         }
 
         private static void ApplyApproach(
@@ -2267,12 +2396,16 @@ namespace TopSpeed.Tracks.Map
             return TryBool(raw, out value);
         }
 
-        private static bool TrySurface(SectionBlock block, string key, out TrackSurface surface)
+        private static bool TryMaterialId(SectionBlock block, string key, out string materialId)
         {
-            surface = TrackSurface.Asphalt;
+            materialId = string.Empty;
             if (!TryGetValue(block, key, out var raw))
                 return false;
-            return Enum.TryParse(raw, true, out surface);
+            var trimmed = raw?.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed))
+                return false;
+            materialId = trimmed!;
+            return true;
         }
 
         private static bool TryNoise(SectionBlock block, string key, out TrackNoise noise)
@@ -2281,6 +2414,88 @@ namespace TopSpeed.Tracks.Map
             if (!TryGetValue(block, key, out var raw))
                 return false;
             return Enum.TryParse(raw, true, out noise);
+        }
+
+        private static bool ResolveTriple(
+            SectionBlock block,
+            string baseKey,
+            string lowKey,
+            string midKey,
+            string highKey,
+            TrackMaterialDefinition? preset,
+            out float low,
+            out float mid,
+            out float high)
+        {
+            low = preset?.AbsorptionLow ?? 0f;
+            mid = preset?.AbsorptionMid ?? 0f;
+            high = preset?.AbsorptionHigh ?? 0f;
+            if (baseKey.StartsWith("transmission", StringComparison.OrdinalIgnoreCase))
+            {
+                low = preset?.TransmissionLow ?? 0f;
+                mid = preset?.TransmissionMid ?? 0f;
+                high = preset?.TransmissionHigh ?? 0f;
+            }
+
+            if (TryGetValue(block, baseKey, out var raw) && !string.IsNullOrWhiteSpace(raw))
+            {
+                if (TryParseTriple(raw, out var tLow, out var tMid, out var tHigh))
+                {
+                    low = Clamp01(tLow);
+                    mid = Clamp01(tMid);
+                    high = Clamp01(tHigh);
+                    return true;
+                }
+            }
+
+            var has = false;
+            if (TryFloat(block, lowKey, out var lowVal))
+            {
+                low = Clamp01(lowVal);
+                has = true;
+            }
+            if (TryFloat(block, midKey, out var midVal))
+            {
+                mid = Clamp01(midVal);
+                has = true;
+            }
+            if (TryFloat(block, highKey, out var highVal))
+            {
+                high = Clamp01(highVal);
+                has = true;
+            }
+
+            return has;
+        }
+
+        private static bool TryParseTriple(string raw, out float low, out float mid, out float high)
+        {
+            low = mid = high = 0f;
+            var tokens = raw.Split(new[] { ',', ';', '|', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 0)
+                return false;
+            if (tokens.Length == 1 && float.TryParse(tokens[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var single))
+            {
+                low = mid = high = single;
+                return true;
+            }
+            if (tokens.Length >= 3 &&
+                float.TryParse(tokens[0], NumberStyles.Float, CultureInfo.InvariantCulture, out low) &&
+                float.TryParse(tokens[1], NumberStyles.Float, CultureInfo.InvariantCulture, out mid) &&
+                float.TryParse(tokens[2], NumberStyles.Float, CultureInfo.InvariantCulture, out high))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        private static float Clamp01(float value)
+        {
+            if (value < 0f)
+                return 0f;
+            if (value > 1f)
+                return 1f;
+            return value;
         }
 
         private static bool TrySectorFlags(SectionBlock block, out TrackSectorFlags flags)
@@ -3090,6 +3305,19 @@ namespace TopSpeed.Tracks.Map
             var sectorIds = new HashSet<string>(map.Sectors.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
             var shapeIds = new HashSet<string>(map.Shapes.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
             var portalIds = new HashSet<string>(map.Portals.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
+            var materialIds = new HashSet<string>(map.Materials.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
+
+            if (map.Materials.Count > 0)
+            {
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var material in map.Materials)
+                {
+                    if (material == null)
+                        continue;
+                    if (!seen.Add(material.Id))
+                        issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Duplicate material id '{material.Id}'."));
+                }
+            }
 
             foreach (var area in map.Areas)
             {
@@ -3097,6 +3325,12 @@ namespace TopSpeed.Tracks.Map
                     issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Area '{area.Id}' width must be positive."));
                 if (!shapeIds.Contains(area.ShapeId))
                     issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Area '{area.Id}' references missing shape '{area.ShapeId}'."));
+                if (!string.IsNullOrWhiteSpace(area.MaterialId))
+                {
+                    var materialId = area.MaterialId!;
+                    if (!materialIds.Contains(materialId) && !TrackMaterialLibrary.IsPreset(materialId))
+                        issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Area '{area.Id}' references missing material '{materialId}'."));
+                }
             }
 
             foreach (var portal in map.Portals)
@@ -3159,6 +3393,12 @@ namespace TopSpeed.Tracks.Map
                     issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Wall '{wall.Id}' references missing shape '{wall.ShapeId}'."));
                 if (wall.WidthMeters < 0f)
                     issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Wall '{wall.Id}' width must be non-negative."));
+                if (!string.IsNullOrWhiteSpace(wall.MaterialId))
+                {
+                    var materialId = wall.MaterialId!;
+                    if (!materialIds.Contains(materialId) && !TrackMaterialLibrary.IsPreset(materialId))
+                        issues.Add(new TrackMapIssue(TrackMapIssueSeverity.Error, $"Wall '{wall.Id}' references missing material '{materialId}'."));
+                }
             }
 
             foreach (var approach in map.Approaches)

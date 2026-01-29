@@ -23,6 +23,15 @@ namespace TopSpeed.Vehicles
         private const float AutoShiftHysteresis = 0.05f;
         private const float AutoShiftCooldownSeconds = 0.15f;
         private const float YieldSpeedKph = 10.0f;
+        private enum SurfaceKind
+        {
+            Asphalt,
+            Gravel,
+            Water,
+            Sand,
+            Snow,
+            Other
+        }
 
         private readonly AudioManager _audio;
         private readonly MapTrack _track;
@@ -37,7 +46,8 @@ namespace TopSpeed.Vehicles
         private readonly string _legacyRoot;
 
         private ComputerState _state;
-        private TrackSurface _surface;
+        private string _materialId;
+        private SurfaceKind _surfaceKind;
         private int _gear;
         private float _speed;
         private float _positionX;
@@ -151,7 +161,8 @@ namespace TopSpeed.Vehicles
             _events = new List<BotEvent>();
             _legacyRoot = Path.Combine(AssetPaths.SoundsRoot, "Legacy");
 
-            _surface = TrackSurface.Asphalt;
+            _materialId = NormalizeMaterialId("asphalt");
+            _surfaceKind = ResolveSurfaceKind(_materialId);
             _gear = 1;
             _state = ComputerState.Stopped;
             _switchingGear = 0;
@@ -464,21 +475,21 @@ namespace TopSpeed.Vehicles
                 _currentSurfaceTractionFactor = _surfaceTractionFactor;
                 _currentDeceleration = _deceleration;
                 _speedDiff = 0;
-                switch (_surface)
+                switch (_surfaceKind)
                 {
-                    case TrackSurface.Gravel:
+                    case SurfaceKind.Gravel:
                         _currentSurfaceTractionFactor = (_currentSurfaceTractionFactor * 2) / 3;
                         _currentDeceleration = (_currentDeceleration * 2) / 3;
                         break;
-                    case TrackSurface.Water:
+                    case SurfaceKind.Water:
                         _currentSurfaceTractionFactor = (_currentSurfaceTractionFactor * 3) / 5;
                         _currentDeceleration = (_currentDeceleration * 3) / 5;
                         break;
-                    case TrackSurface.Sand:
+                    case SurfaceKind.Sand:
                         _currentSurfaceTractionFactor = _currentSurfaceTractionFactor / 2;
                         _currentDeceleration = (_currentDeceleration * 3) / 2;
                         break;
-                    case TrackSurface.Snow:
+                    case SurfaceKind.Snow:
                         _currentDeceleration = _currentDeceleration / 2;
                         break;
                 }
@@ -488,9 +499,9 @@ namespace TopSpeed.Vehicles
                     _thrust = _currentBrake;
                     if (_currentBrake != 0)
                     {
-                        if (_surface == TrackSurface.Asphalt && !_soundBrake.IsPlaying)
+                        if (_surfaceKind == SurfaceKind.Asphalt && !_soundBrake.IsPlaying)
                             _soundBrake.Play(loop: true);
-                        else if (_surface != TrackSurface.Asphalt)
+                        else if (_surfaceKind != SurfaceKind.Asphalt)
                             _soundBrake.Stop();
                     }
                 }
@@ -779,7 +790,8 @@ namespace TopSpeed.Vehicles
                 }
             }
 
-            _surface = road.Surface;
+            _materialId = NormalizeMaterialId(road.MaterialId);
+            _surfaceKind = ResolveSurfaceKind(_materialId);
             _frame++;
         }
 
@@ -1094,6 +1106,37 @@ namespace TopSpeed.Vehicles
             SetSpatial(_soundBackfire, position, velocity);
             SetSpatial(_soundBump, position, velocity);
             SetSpatial(_soundMiniCrash, position, velocity);
+        }
+
+        private static string NormalizeMaterialId(string? materialId)
+        {
+            if (materialId == null)
+                return "asphalt";
+            var trimmed = materialId.Trim();
+            if (trimmed.Length == 0)
+                return "asphalt";
+            return trimmed;
+        }
+
+        private static SurfaceKind ResolveSurfaceKind(string materialId)
+        {
+            if (string.IsNullOrWhiteSpace(materialId))
+                return SurfaceKind.Asphalt;
+            switch (materialId.Trim().ToLowerInvariant())
+            {
+                case "gravel":
+                    return SurfaceKind.Gravel;
+                case "water":
+                    return SurfaceKind.Water;
+                case "sand":
+                    return SurfaceKind.Sand;
+                case "snow":
+                    return SurfaceKind.Snow;
+                case "asphalt":
+                    return SurfaceKind.Asphalt;
+                default:
+                    return SurfaceKind.Other;
+            }
         }
 
         private static void SetSpatial(AudioSourceHandle? sound, Vector3 position, Vector3 velocity)

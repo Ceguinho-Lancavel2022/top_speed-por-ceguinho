@@ -12,10 +12,12 @@ namespace TopSpeed.Tracks.Walls
             string id,
             string shapeId,
             float widthMeters,
-            TrackWallMaterial material,
+            TrackWallMaterial collisionMaterial,
             TrackWallCollisionMode collisionMode,
             string? name = null,
-            IReadOnlyDictionary<string, string>? metadata = null)
+            IReadOnlyDictionary<string, string>? metadata = null,
+            float heightMeters = 2f,
+            string? materialId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("Wall id is required.", nameof(id));
@@ -25,20 +27,25 @@ namespace TopSpeed.Tracks.Walls
             Id = id.Trim();
             ShapeId = shapeId.Trim();
             WidthMeters = widthMeters;
-            Material = material;
+            CollisionMaterial = collisionMaterial;
             CollisionMode = collisionMode;
             var trimmedName = name?.Trim();
             Name = string.IsNullOrWhiteSpace(trimmedName) ? null : trimmedName;
             Metadata = NormalizeMetadata(metadata);
+            HeightMeters = heightMeters < 0f ? 0f : heightMeters;
+            var trimmedMaterial = materialId?.Trim();
+            MaterialId = string.IsNullOrWhiteSpace(trimmedMaterial) ? null : trimmedMaterial;
         }
 
         public string Id { get; }
         public string ShapeId { get; }
         public float WidthMeters { get; }
-        public TrackWallMaterial Material { get; }
+        public float HeightMeters { get; }
+        public TrackWallMaterial CollisionMaterial { get; }
         public TrackWallCollisionMode CollisionMode { get; }
         public string? Name { get; }
         public IReadOnlyDictionary<string, string> Metadata { get; }
+        public string? MaterialId { get; }
 
         private static IReadOnlyDictionary<string, string> NormalizeMetadata(IReadOnlyDictionary<string, string>? metadata)
         {

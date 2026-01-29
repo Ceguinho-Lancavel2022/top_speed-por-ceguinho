@@ -15,7 +15,7 @@ namespace TopSpeed.Tracks.Sectors
             string? name = null,
             string? areaId = null,
             string? code = null,
-            TrackSurface? surface = null,
+            string? materialId = null,
             TrackNoise? noise = null,
             TrackSectorFlags flags = TrackSectorFlags.None,
             IReadOnlyDictionary<string, string>? metadata = null)
@@ -31,7 +31,8 @@ namespace TopSpeed.Tracks.Sectors
             AreaId = string.IsNullOrWhiteSpace(trimmedArea) ? null : trimmedArea;
             var trimmedCode = code?.Trim();
             Code = string.IsNullOrWhiteSpace(trimmedCode) ? null : trimmedCode;
-            Surface = surface;
+            var trimmedMaterial = materialId?.Trim();
+            MaterialId = string.IsNullOrWhiteSpace(trimmedMaterial) ? null : trimmedMaterial;
             Noise = noise;
             Flags = flags;
             Metadata = NormalizeMetadata(metadata);
@@ -42,7 +43,7 @@ namespace TopSpeed.Tracks.Sectors
         public string? Name { get; }
         public string? AreaId { get; }
         public string? Code { get; }
-        public TrackSurface? Surface { get; }
+        public string? MaterialId { get; }
         public TrackNoise? Noise { get; }
         public TrackSectorFlags Flags { get; }
         public IReadOnlyDictionary<string, string> Metadata { get; }

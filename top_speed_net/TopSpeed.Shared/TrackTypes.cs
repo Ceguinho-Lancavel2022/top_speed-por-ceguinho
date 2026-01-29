@@ -3,14 +3,14 @@ namespace TopSpeed.Data
     public readonly struct TrackDefinition
     {
         public TrackType Type { get; }
-        public TrackSurface Surface { get; }
+        public string MaterialId { get; }
         public TrackNoise Noise { get; }
         public float Length { get; }
 
-        public TrackDefinition(TrackType type, TrackSurface surface, TrackNoise noise, float length)
+        public TrackDefinition(TrackType type, string materialId, TrackNoise noise, float length)
         {
             Type = type;
-            Surface = surface;
+            MaterialId = string.IsNullOrWhiteSpace(materialId) ? "asphalt" : materialId.Trim();
             Noise = noise;
             Length = length;
         }
