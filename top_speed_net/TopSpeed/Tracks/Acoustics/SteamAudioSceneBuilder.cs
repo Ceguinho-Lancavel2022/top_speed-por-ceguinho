@@ -110,8 +110,8 @@ namespace TopSpeed.Tracks.Acoustics
 
                 IPL.StaticMeshAdd(mesh, scene);
                 IPL.SceneCommit(scene);
-                var hasBaked = TryBakeReflections(scene, context, vertexArray, out var probeBatch, out var bakedIdentifier);
-                return new TrackSteamAudioScene(scene, mesh, probeBatch, bakedIdentifier, hasBaked);
+                var hasBaked = TryBakeReflections(scene, context, map, vertexArray, out var probeBatch, out var bakedIdentifier, out var portalBakedIdentifiers);
+                return new TrackSteamAudioScene(scene, mesh, probeBatch, bakedIdentifier, hasBaked, portalBakedIdentifiers);
             }
             finally
             {
@@ -129,12 +129,15 @@ namespace TopSpeed.Tracks.Acoustics
         private static bool TryBakeReflections(
             IPL.Scene scene,
             SteamAudioContext context,
+            TrackMap map,
             IPL.Vector3[] vertices,
             out IPL.ProbeBatch probeBatch,
-            out IPL.BakedDataIdentifier bakedIdentifier)
+            out IPL.BakedDataIdentifier bakedIdentifier,
+            out Dictionary<string, IPL.BakedDataIdentifier> portalBakedIdentifiers)
         {
             probeBatch = default;
             bakedIdentifier = default;
+            portalBakedIdentifiers = new Dictionary<string, IPL.BakedDataIdentifier>(StringComparer.OrdinalIgnoreCase);
 
             if (vertices == null || vertices.Length == 0)
                 return false;
@@ -218,6 +221,7 @@ namespace TopSpeed.Tracks.Acoustics
                     };
 
                     IPL.ReflectionsBakerBake(context.Context, ref bakeParams, null, IntPtr.Zero);
+                    BakeStaticSourceReflections(context, map, bounds, bakeParams, portalBakedIdentifiers);
                     return true;
                 }
             }
@@ -251,6 +255,52 @@ namespace TopSpeed.Tracks.Acoustics
             }
 
             return (min, max);
+        }
+
+        private static void BakeStaticSourceReflections(
+            SteamAudioContext context,
+            TrackMap map,
+            (IPL.Vector3 Min, IPL.Vector3 Max) bounds,
+            IPL.ReflectionsBakeParams bakeParams,
+            Dictionary<string, IPL.BakedDataIdentifier> portalBakedIdentifiers)
+        {
+            if (map == null || map.Portals.Count == 0)
+                return;
+
+            var span = Math.Max(bounds.Max.X - bounds.Min.X, bounds.Max.Z - bounds.Min.Z);
+            var influenceRadius = Math.Max(50f, Math.Min(120f, span * 0.5f));
+            var baseHeight = map.BaseHeightMeters;
+
+            foreach (var portal in map.Portals)
+            {
+                if (portal == null || string.IsNullOrWhiteSpace(portal.Id))
+                    continue;
+
+                var portalId = portal.Id.Trim();
+                if (portalBakedIdentifiers.ContainsKey(portalId))
+                    continue;
+
+                var identifier = new IPL.BakedDataIdentifier
+                {
+                    Type = IPL.BakedDataType.Reflections,
+                    Variation = IPL.BakedDataVariation.StaticSource,
+                    EndpointInfluence = new IPL.Sphere
+                    {
+                        Center = new IPL.Vector3
+                        {
+                            X = portal.X,
+                            Y = baseHeight,
+                            Z = portal.Z
+                        },
+                        Radius = influenceRadius
+                    }
+                };
+
+                var portalBakeParams = bakeParams;
+                portalBakeParams.Identifier = identifier;
+                IPL.ReflectionsBakerBake(context.Context, ref portalBakeParams, null, IntPtr.Zero);
+                portalBakedIdentifiers[portalId] = identifier;
+            }
         }
 
         private static unsafe IPL.Matrix4x4 CreateBoundsTransform(in IPL.Vector3 min, in IPL.Vector3 max)

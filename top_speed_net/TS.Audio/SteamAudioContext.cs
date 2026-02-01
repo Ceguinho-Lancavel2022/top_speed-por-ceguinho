@@ -175,26 +175,27 @@ namespace TS.Audio
 
                 RemoveInactiveSources(active);
 
+                var runReflectionsNow = runReflections;
                 var shared = BuildSharedInputs();
-                var flags = runReflections
+                var flags = runReflectionsNow
                     ? (IPL.SimulationFlags.Direct | IPL.SimulationFlags.Reflections)
                     : IPL.SimulationFlags.Direct;
                 IPL.SimulatorSetSharedInputs(_simulator, flags, in shared);
                 IPL.SimulatorCommit(_simulator);
                 IPL.SimulatorRunDirect(_simulator);
-                if (runReflections)
+                if (runReflectionsNow)
                     IPL.SimulatorRunReflections(_simulator);
 
                 foreach (var source in active)
                 {
                     if (!_sources.TryGetValue(source, out var simSource) || simSource.Handle == IntPtr.Zero)
                         continue;
-                    var sourceFlags = source.UseReflections
+                    var sourceFlags = source.UseReflections && runReflectionsNow
                         ? (IPL.SimulationFlags.Direct | IPL.SimulationFlags.Reflections)
                         : IPL.SimulationFlags.Direct;
                     IPL.SourceGetOutputs(simSource, sourceFlags, out var outputs);
                     ApplyDirectOutputs(source, in outputs.Direct);
-                    if (source.UseReflections)
+                    if (source.UseReflections && runReflectionsNow)
                         ApplyReflectionOutputs(source, in outputs.Reflections);
                 }
             }
@@ -367,7 +368,10 @@ namespace TS.Audio
 
             if (inputs.Baked)
             {
-                inputs.BakedDataIdentifier = _bakedIdentifier;
+                if (TryGetBakedIdentifierOverride(spatial, out var bakedOverride))
+                    inputs.BakedDataIdentifier = bakedOverride;
+                else
+                    inputs.BakedDataIdentifier = _bakedIdentifier;
             }
 
             unsafe
@@ -378,6 +382,34 @@ namespace TS.Audio
             }
 
             IPL.SourceSetInputs(source, inputs.Flags, in inputs);
+        }
+
+        private static bool TryGetBakedIdentifierOverride(AudioSourceSpatialParams spatial, out IPL.BakedDataIdentifier identifier)
+        {
+            identifier = default;
+            if (Volatile.Read(ref spatial.BakedIdentifierEnabled) == 0)
+                return false;
+
+            var radius = Volatile.Read(ref spatial.BakedInfluenceRadius);
+            if (radius <= 0f)
+                radius = 0.1f;
+
+            identifier = new IPL.BakedDataIdentifier
+            {
+                Type = (IPL.BakedDataType)Volatile.Read(ref spatial.BakedIdentifierType),
+                Variation = (IPL.BakedDataVariation)Volatile.Read(ref spatial.BakedIdentifierVariation),
+                EndpointInfluence = new IPL.Sphere
+                {
+                    Center = new IPL.Vector3
+                    {
+                        X = Volatile.Read(ref spatial.BakedInfluenceX),
+                        Y = Volatile.Read(ref spatial.BakedInfluenceY),
+                        Z = Volatile.Read(ref spatial.BakedInfluenceZ)
+                    },
+                    Radius = radius
+                }
+            };
+            return true;
         }
 
         private IPL.SimulationSharedInputs BuildSharedInputs()

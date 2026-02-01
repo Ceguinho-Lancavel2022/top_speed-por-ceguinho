@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using MiniAudioEx.Core.AdvancedAPI;
 using MiniAudioEx.Native;
+using SteamAudio;
 
 namespace TS.Audio
 {
@@ -37,6 +38,13 @@ namespace TS.Audio
         public long ReflectionIrHandle = 0;
         public int ReflectionIrSize = 0;
         public int ReflectionIrChannels = 0;
+        public int BakedIdentifierEnabled = 0;
+        public int BakedIdentifierType = 0;
+        public int BakedIdentifierVariation = 0;
+        public float BakedInfluenceX = 0f;
+        public float BakedInfluenceY = 0f;
+        public float BakedInfluenceZ = 0f;
+        public float BakedInfluenceRadius = 0f;
         public int RoomFlags = 0;
         public float RoomReverbTimeSeconds = 0f;
         public float RoomReverbGain = 0f;
@@ -336,6 +344,22 @@ namespace TS.Audio
             _useBakedReflections = enabled;
             if (enabled)
                 _useReflections = true;
+        }
+
+        public void SetBakedIdentifier(in IPL.BakedDataIdentifier identifier)
+        {
+            Volatile.Write(ref _spatial.BakedIdentifierType, (int)identifier.Type);
+            Volatile.Write(ref _spatial.BakedIdentifierVariation, (int)identifier.Variation);
+            Volatile.Write(ref _spatial.BakedInfluenceX, identifier.EndpointInfluence.Center.X);
+            Volatile.Write(ref _spatial.BakedInfluenceY, identifier.EndpointInfluence.Center.Y);
+            Volatile.Write(ref _spatial.BakedInfluenceZ, identifier.EndpointInfluence.Center.Z);
+            Volatile.Write(ref _spatial.BakedInfluenceRadius, Math.Max(0.1f, identifier.EndpointInfluence.Radius));
+            Volatile.Write(ref _spatial.BakedIdentifierEnabled, 1);
+        }
+
+        public void ClearBakedIdentifier()
+        {
+            Volatile.Write(ref _spatial.BakedIdentifierEnabled, 0);
         }
 
         public void SetRoomAcoustics(RoomAcoustics acoustics)

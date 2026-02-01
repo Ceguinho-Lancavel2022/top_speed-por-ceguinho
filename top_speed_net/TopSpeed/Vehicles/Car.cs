@@ -319,13 +319,13 @@ namespace TopSpeed.Vehicles
             _soundBackfire = TryCreateSound(definition.GetSoundPath(VehicleAction.Backfire));
 
             _soundEngine.SetUseReflections(true);
-            _soundEngine.SetUseBakedReflections(true);
+            _soundEngine.SetUseBakedReflections(false);
             _soundHorn.SetUseReflections(true);
-            _soundHorn.SetUseBakedReflections(true);
+            _soundHorn.SetUseBakedReflections(false);
             if (_soundThrottle != null)
             {
                 _soundThrottle.SetUseReflections(true);
-                _soundThrottle.SetUseBakedReflections(true);
+                _soundThrottle.SetUseBakedReflections(false);
             }
 
             if (definition.HasWipers == 1)

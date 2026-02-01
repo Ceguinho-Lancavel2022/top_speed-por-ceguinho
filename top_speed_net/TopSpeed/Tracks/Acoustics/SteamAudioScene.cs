@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SteamAudio;
 
 namespace TopSpeed.Tracks.Acoustics
@@ -10,20 +11,40 @@ namespace TopSpeed.Tracks.Acoustics
         private IPL.ProbeBatch _probeBatch;
         private bool _hasBakedReflections;
         private IPL.BakedDataIdentifier _bakedIdentifier;
+        private readonly Dictionary<string, IPL.BakedDataIdentifier> _portalBakedIdentifiers;
 
-        public TrackSteamAudioScene(IPL.Scene scene, IPL.StaticMesh staticMesh, IPL.ProbeBatch probeBatch, in IPL.BakedDataIdentifier bakedIdentifier, bool hasBakedReflections)
+        public TrackSteamAudioScene(
+            IPL.Scene scene,
+            IPL.StaticMesh staticMesh,
+            IPL.ProbeBatch probeBatch,
+            in IPL.BakedDataIdentifier bakedIdentifier,
+            bool hasBakedReflections,
+            IReadOnlyDictionary<string, IPL.BakedDataIdentifier>? portalBakedIdentifiers = null)
         {
             _scene = scene;
             _staticMesh = staticMesh;
             _probeBatch = probeBatch;
             _bakedIdentifier = bakedIdentifier;
             _hasBakedReflections = hasBakedReflections;
+            _portalBakedIdentifiers = new Dictionary<string, IPL.BakedDataIdentifier>(StringComparer.OrdinalIgnoreCase);
+            if (portalBakedIdentifiers != null)
+            {
+                foreach (var pair in portalBakedIdentifiers)
+                    _portalBakedIdentifiers[pair.Key] = pair.Value;
+            }
         }
 
         public IPL.Scene Scene => _scene;
         public IPL.ProbeBatch ProbeBatch => _probeBatch;
         public bool HasBakedReflections => _hasBakedReflections;
         public IPL.BakedDataIdentifier BakedIdentifier => _bakedIdentifier;
+        public bool TryGetPortalBakedIdentifier(string portalId, out IPL.BakedDataIdentifier identifier)
+        {
+            identifier = default;
+            if (string.IsNullOrWhiteSpace(portalId))
+                return false;
+            return _portalBakedIdentifiers.TryGetValue(portalId.Trim(), out identifier);
+        }
 
         public void Dispose()
         {

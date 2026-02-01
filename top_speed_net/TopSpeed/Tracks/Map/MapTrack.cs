@@ -1113,7 +1113,7 @@ namespace TopSpeed.Tracks.Map
             if (_soundBeacon != null)
             {
                 _soundBeacon.SetUseReflections(true);
-                _soundBeacon.SetUseBakedReflections(true);
+                _soundBeacon.SetUseBakedReflections(false);
             }
         }
 
@@ -1248,6 +1248,7 @@ namespace TopSpeed.Tracks.Map
                 var position = AudioWorld.ToMeters(new Vector3(cue.BeaconPosition.X, 0f, cue.BeaconPosition.Y));
                 _soundBeacon.SetPosition(position);
                 _soundBeacon.SetVelocity(Vector3.Zero);
+                ApplyBeaconBakedIdentifier(cue.PortalId);
                 _beaconCooldown -= elapsed;
                 if (_beaconCooldown <= 0f)
                 {
@@ -1261,6 +1262,18 @@ namespace TopSpeed.Tracks.Map
 
             _beaconCooldown = 0f;
             StopSound(_soundBeacon);
+            _soundBeacon.ClearBakedIdentifier();
+        }
+
+        private void ApplyBeaconBakedIdentifier(string portalId)
+        {
+            if (_soundBeacon == null || _steamAudioScene == null)
+                return;
+
+            if (_steamAudioScene.TryGetPortalBakedIdentifier(portalId, out var identifier))
+                _soundBeacon.SetBakedIdentifier(identifier);
+            else
+                _soundBeacon.ClearBakedIdentifier();
         }
 
         public bool IsWithinTrack(Vector3 worldPosition)

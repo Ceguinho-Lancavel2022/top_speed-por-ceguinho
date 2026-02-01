@@ -8,6 +8,7 @@ using TopSpeed.Core;
 using TopSpeed.Data;
 using TopSpeed.Input;
 using TopSpeed.Speech;
+using TopSpeed.Tracks.Acoustics;
 using TopSpeed.Tracks.Areas;
 using TopSpeed.Tracks.Guidance;
 using TopSpeed.Tracks.Map;
@@ -45,6 +46,7 @@ namespace TopSpeed.Race
         private TrackBranchManager? _branchManager;
         private TrackPortalManager? _portalManager;
         private TrackWallManager? _wallManager;
+        private TrackSteamAudioScene? _steamAudioScene;
         private TrackApproachBeacon? _approachBeacon;
         private AudioSourceHandle? _soundBeacon;
         private string? _lastApproachPortalId;
@@ -89,6 +91,14 @@ namespace TopSpeed.Race
             _sectorRuleManager = new TrackSectorRuleManager(_map.Sectors, _portalManager);
             _branchManager = _map.BuildBranchManager();
             _wallManager = new TrackWallManager(_map.Shapes, _map.Walls);
+            var steam = _audio.SteamAudio;
+            if (steam != null)
+            {
+                _steamAudioScene?.Dispose();
+                _steamAudioScene = SteamAudioSceneBuilder.Build(_map, steam);
+                if (_steamAudioScene != null)
+                    steam.SetScene(_steamAudioScene.Scene, _steamAudioScene.ProbeBatch, _steamAudioScene.BakedIdentifier, _steamAudioScene.HasBakedReflections);
+            }
             _approachBeacon = new TrackApproachBeacon(_map, ApproachBeaconRangeMeters);
             InitializeBeacon();
             _mapSnapshot = BuildMapSnapshot(_worldPosition, _headingDegrees);
@@ -119,6 +129,7 @@ namespace TopSpeed.Race
                 _soundBeacon.Stop();
                 _soundBeacon.Dispose();
             }
+            _steamAudioScene?.Dispose();
         }
 
         private void HandleStepAdjust()
@@ -622,7 +633,7 @@ namespace TopSpeed.Race
             if (_soundBeacon != null)
             {
                 _soundBeacon.SetUseReflections(true);
-                _soundBeacon.SetUseBakedReflections(true);
+                _soundBeacon.SetUseBakedReflections(false);
             }
         }
 
@@ -637,6 +648,7 @@ namespace TopSpeed.Race
                 var position = AudioWorld.ToMeters(new Vector3(cue.BeaconPosition.X, 0f, cue.BeaconPosition.Y));
                 _soundBeacon.SetPosition(position);
                 _soundBeacon.SetVelocity(Vector3.Zero);
+                ApplyBeaconBakedIdentifier(cue.PortalId);
                 _beaconCooldown -= elapsed;
                 if (_beaconCooldown <= 0f)
                 {
@@ -665,8 +677,20 @@ namespace TopSpeed.Race
             _beaconCooldown = 0f;
             if (_soundBeacon.IsPlaying)
                 _soundBeacon.Stop();
+            _soundBeacon.ClearBakedIdentifier();
             _lastApproachPortalId = null;
             _lastApproachHeading = null;
+        }
+
+        private void ApplyBeaconBakedIdentifier(string portalId)
+        {
+            if (_soundBeacon == null || _steamAudioScene == null)
+                return;
+
+            if (_steamAudioScene.TryGetPortalBakedIdentifier(portalId, out var identifier))
+                _soundBeacon.SetBakedIdentifier(identifier);
+            else
+                _soundBeacon.ClearBakedIdentifier();
         }
 
         private bool IsWithinTrack(Vector3 worldPosition)
