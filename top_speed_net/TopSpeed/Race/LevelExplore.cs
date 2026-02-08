@@ -14,6 +14,7 @@ using TopSpeed.Tracks.Guidance;
 using TopSpeed.Tracks.Map;
 using TopSpeed.Tracks.Rooms;
 using TopSpeed.Tracks.Sectors;
+using TopSpeed.Tracks.Surfaces;
 using TopSpeed.Tracks.Topology;
 using TopSpeed.Tracks.Walls;
 using TS.Audio;
@@ -26,6 +27,7 @@ namespace TopSpeed.Race
         private const float ApproachBeaconRangeMeters = 50f;
         private const float DefaultApproachToleranceDegrees = 10f;
         private const float ExploreListenerHeightM = 1.0f;
+        private const float MetersToFeet = 3.28084f;
 
         private readonly AudioManager _audio;
         private readonly SpeechService _speech;
@@ -47,6 +49,7 @@ namespace TopSpeed.Race
         private TrackBranchManager? _branchManager;
         private TrackPortalManager? _portalManager;
         private TrackWallManager? _wallManager;
+        private TrackSurfaceSystem? _surfaceSystem;
         private TrackSteamAudioScene? _steamAudioScene;
         private TrackApproachBeacon? _approachBeacon;
         private AudioSourceHandle? _soundBeacon;
@@ -92,6 +95,7 @@ namespace TopSpeed.Race
             _sectorRuleManager = new TrackSectorRuleManager(_map.Sectors, _portalManager);
             _branchManager = _map.BuildBranchManager();
             _wallManager = new TrackWallManager(_map.Geometries, _map.Walls);
+            _surfaceSystem = _map.BuildSurfaceSystem();
             var steam = _audio.SteamAudio;
             if (steam != null)
             {
@@ -159,6 +163,8 @@ namespace TopSpeed.Race
                 _speech.Speak($"Z {Math.Round(_worldPosition.Z, 2):0.##} meters.");
             if (_input.WasPressed(Key.L))
                 _speech.Speak($"X {Math.Round(_worldPosition.X, 2):0.##} meters.");
+            if (_input.WasPressed(Key.Semicolon))
+                ReportHeight();
         }
 
         private void HandleMovement()
@@ -632,6 +638,30 @@ namespace TopSpeed.Race
             }
         }
 
+        private void ReportHeight()
+        {
+            var heightMeters = _worldPosition.Y;
+            var heightText = _settings.Units == UnitSystem.Imperial
+                ? $"{heightMeters * MetersToFeet:F1} feet"
+                : $"{heightMeters:F1} meters";
+            var message = $"Height {heightText}";
+
+            if (_surfaceSystem != null &&
+                _surfaceSystem.TrySample(_worldPosition, out var sample, new TrackSurfaceQueryOptions
+                {
+                    PreferClosestHeightToReference = true,
+                    ReferenceHeightMeters = _worldPosition.Y
+                }))
+            {
+                var headingForward = MapMovement.HeadingVector(_headingDegrees);
+                var details = SurfaceReport.FormatSlopeBank(sample.Normal, headingForward);
+                if (!string.IsNullOrWhiteSpace(details))
+                    message = $"{message}, {details}";
+            }
+
+            _speech.Speak(message);
+        }
+
         private void InitializeBeacon()
         {
             var path = Path.Combine(AssetPaths.SoundsRoot, "Legacy", "beacon.wav");
@@ -715,6 +745,9 @@ namespace TopSpeed.Race
                 return false;
 
             if (_areaManager != null && _areaManager.ContainsTrackArea(worldPosition))
+                return true;
+
+            if (_surfaceSystem != null && _surfaceSystem.TrySample(worldPosition, out _))
                 return true;
 
             if (safeZone)
@@ -1026,6 +1059,7 @@ namespace TopSpeed.Race
                 _ => "Quiet"
             };
         }
+
 
 
         private struct MapSnapshot

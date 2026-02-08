@@ -1,6 +1,6 @@
 # Tracks (audio-only authoring guide)
 
-This guide explains how track files work in Top Speed using words and spatial descriptions rather than visuals. The goal is to help you picture a track as a set of walkable regions and boundaries in a flat map. Every track is two-dimensional and measured in meters. The horizontal axis is X and the vertical axis is Z. If you imagine standing on a sheet of paper, X is left to right and Z is front to back.
+This guide explains how track files work in Top Speed using words and spatial descriptions rather than visuals. The goal is to help you picture a track as a set of walkable regions and boundaries in a flat map. Most authoring is two-dimensional in the XZ plane, but geometry points are 3D, so Y is available for height and mesh geometry can be fully 3D. The horizontal axis is X and the forward axis is Z. If you imagine standing on a sheet of paper, X is left to right and Z is front to back.
 
 If you are new, read the Getting Started guide after this document. It assumes you already understand the terms used here and then walks through creating a simple track step by step.
 
@@ -18,13 +18,48 @@ Meta can also define a safe zone ring or an outer ring. These create a band arou
 
 Meta can also define vertical defaults. Use base_height for the default floor level, default_area_height for the default vertical thickness of areas, and default_ceiling_height if you want a closed space by default. Areas can override any of these per section.
 
-## Shapes
+## Geometry
 
-Shapes define geometry without meaning. They are the raw outlines you attach to areas, portals, guides, or walls. The most common shape is a rectangle because it is easy to author by coordinates. A rectangle is defined by a top-left corner (X,Z) plus width and height. If you say X 0, Z 0, width 40, height 30, the shape covers X 0 to 40 and Z 0 to 30.
+Geometry defines raw shapes without meaning. They are the outlines you attach to areas, portals, guides, or walls. Geometry sections are authored as 3D points (X, Y, Z), but for most tracks you keep Y at 0 and think in XZ.
 
-Circles are defined by a center (X,Z) and a radius. Rings are like a circle or rectangle with a hollow middle, defined by the inner size plus a ring width. You can use a ring for a safe zone around a track or an outer boundary.
+Supported geometry types are polygon, polyline, spline, and mesh. A polygon is a closed outline. A polyline is a path you could trace with your finger. A spline is a smoothed polyline. A polyline or spline by itself is not drivable; it becomes drivable only when an area attaches to it and supplies a width.
 
-Polylines and polygons are lists of points. A polyline is a path you could trace with your finger. A polygon is a closed outline. Both are useful for irregular shapes or curved paths. A polyline by itself is not drivable; it becomes drivable only when an area attaches to it and supplies a width.
+For simple rectangles and rings, just list the corner points in order. Example rectangle:
+
+```ini
+[geometry: south_straight]
+type=polygon
+points3d=30 0 0, 205 0 0, 205 0 40, 30 0 40
+```
+
+### Mesh geometry
+
+Meshes are real 3D triangle geometry. Use them for tunnels, overpasses, multi-level scenery, and collision/occlusion in full 3D.
+
+Mesh payloads must be explicit and unambiguous. You can author either:
+
+1. A vertex list plus triangle indices:
+
+```ini
+[geometry: tunnel_mesh]
+type=mesh
+points3d=0 0 0, 0 3 0, 5 0 0, 5 3 0, 0 0 10, 0 3 10, 5 0 10, 5 3 10
+indices=0 1 2, 2 1 3, 4 5 6, 6 5 7
+```
+
+If your indices are 1-based, add:
+
+```ini
+index_base=1
+```
+
+2. Or a triangle point list where every 3 points is a triangle:
+
+```ini
+[geometry: ramp_mesh]
+type=mesh
+triangles3d=0 0 0, 5 0 0, 0 2 5, 5 0 0, 5 2 5, 0 2 5
+```
 
 ## Areas and width
 
