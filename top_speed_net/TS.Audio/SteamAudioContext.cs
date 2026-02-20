@@ -37,9 +37,6 @@ namespace TS.Audio
         internal ListenerState ListenerSnapshot => _listenerState;
         private IPL.Simulator _simulator;
         private IPL.Scene _scene;
-        private IPL.ProbeBatch _probeBatch;
-        private IPL.BakedDataIdentifier _bakedIdentifier;
-        private bool _hasBakedReflections;
         private readonly Dictionary<AudioSourceHandle, IPL.Source> _sources = new Dictionary<AudioSourceHandle, IPL.Source>();
         private readonly object _simLock = new object();
         public IDisposable AcquireSimulationLock()
@@ -51,11 +48,11 @@ namespace TS.Audio
         {
             SampleRate = sampleRate;
             FrameSize = frameSize;
-            ReflectionOrder = 1;
+            ReflectionOrder = 0;
             ReflectionChannels = (ReflectionOrder + 1) * (ReflectionOrder + 1);
             ReflectionDurationSeconds = 0.5f;
             ReflectionIrSize = Math.Max(1, (int)Math.Ceiling(ReflectionDurationSeconds * SampleRate));
-            ReflectionType = IPL.ReflectionEffectType.Hybrid;
+            ReflectionType = IPL.ReflectionEffectType.Parametric;
             _listenerState = CreateIdentityState();
 
             var contextSettings = new IPL.ContextSettings
@@ -101,7 +98,22 @@ namespace TS.Audio
 
         public void SetScene(IPL.Scene scene)
         {
-            SetScene(scene, default, default, hasBakedReflections: false);
+            if (scene.Handle == IntPtr.Zero || Context.Handle == IntPtr.Zero)
+                return;
+
+            lock (_simLock)
+            {
+                if (_simulator.Handle == IntPtr.Zero)
+                    CreateSimulator();
+
+                _scene = scene;
+
+                if (_simulator.Handle != IntPtr.Zero)
+                {
+                    IPL.SimulatorSetScene(_simulator, scene);
+                    IPL.SimulatorCommit(_simulator);
+                }
+            }
         }
 
         private sealed class SimulationLock : IDisposable
@@ -119,54 +131,17 @@ namespace TS.Audio
             }
         }
 
-        public void SetScene(IPL.Scene scene, IPL.ProbeBatch probeBatch, in IPL.BakedDataIdentifier bakedIdentifier, bool hasBakedReflections)
-        {
-            if (scene.Handle == IntPtr.Zero || Context.Handle == IntPtr.Zero)
-                return;
-
-            lock (_simLock)
-            {
-                if (_simulator.Handle == IntPtr.Zero)
-                    CreateSimulator();
-
-                if (_probeBatch.Handle != IntPtr.Zero && _simulator.Handle != IntPtr.Zero)
-                {
-                    IPL.SimulatorRemoveProbeBatch(_simulator, _probeBatch);
-                }
-
-                _scene = scene;
-                _probeBatch = probeBatch;
-                _bakedIdentifier = bakedIdentifier;
-                _hasBakedReflections = hasBakedReflections && _probeBatch.Handle != IntPtr.Zero;
-
-                if (_simulator.Handle != IntPtr.Zero)
-                {
-                    IPL.SimulatorSetScene(_simulator, scene);
-                    if (_hasBakedReflections)
-                    {
-                        IPL.SimulatorAddProbeBatch(_simulator, _probeBatch);
-                    }
-                    IPL.SimulatorCommit(_simulator);
-                }
-            }
-        }
-
         public void ClearScene()
         {
             lock (_simLock)
             {
                 if (_simulator.Handle != IntPtr.Zero)
                 {
-                    if (_probeBatch.Handle != IntPtr.Zero)
-                        IPL.SimulatorRemoveProbeBatch(_simulator, _probeBatch);
                     IPL.SimulatorSetScene(_simulator, default);
                     IPL.SimulatorCommit(_simulator);
                 }
 
                 _scene = default;
-                _probeBatch = default;
-                _bakedIdentifier = default;
-                _hasBakedReflections = false;
             }
         }
 
@@ -180,7 +155,6 @@ namespace TS.Audio
             lock (_simLock)
             {
                 var active = new HashSet<AudioSourceHandle>();
-                var runReflections = false;
                 foreach (var source in sources)
                 {
                     if (source == null || !source.IsSpatialized || !source.UsesSteamAudio)
@@ -188,34 +162,25 @@ namespace TS.Audio
                     active.Add(source);
                     EnsureSource(source);
                     SetSourceInputs(source);
-                    if (source.UseReflections)
-                        runReflections = true;
                 }
 
                 RemoveInactiveSources(active);
 
-                var runReflectionsNow = runReflections;
                 var shared = BuildSharedInputs();
-                var flags = runReflectionsNow
-                    ? (IPL.SimulationFlags.Direct | IPL.SimulationFlags.Reflections)
-                    : IPL.SimulationFlags.Direct;
+                var flags = IPL.SimulationFlags.Direct | IPL.SimulationFlags.Reflections;
                 IPL.SimulatorSetSharedInputs(_simulator, flags, in shared);
                 IPL.SimulatorCommit(_simulator);
                 IPL.SimulatorRunDirect(_simulator);
-                if (runReflectionsNow)
-                    IPL.SimulatorRunReflections(_simulator);
+                IPL.SimulatorRunReflections(_simulator);
 
                 foreach (var source in active)
                 {
                     if (!_sources.TryGetValue(source, out var simSource) || simSource.Handle == IntPtr.Zero)
                         continue;
-                    var sourceFlags = source.UseReflections && runReflectionsNow
-                        ? (IPL.SimulationFlags.Direct | IPL.SimulationFlags.Reflections)
-                        : IPL.SimulationFlags.Direct;
+                    var sourceFlags = IPL.SimulationFlags.Direct | IPL.SimulationFlags.Reflections;
                     IPL.SourceGetOutputs(simSource, sourceFlags, out var outputs);
                     ApplyDirectOutputs(source, in outputs.Direct);
-                    if (source.UseReflections && runReflectionsNow)
-                        ApplyReflectionOutputs(source, in outputs.Reflections);
+                    ApplyReverbOutputs(source, in outputs.Reflections);
                 }
             }
         }
@@ -253,10 +218,6 @@ namespace TS.Audio
 
                 if (_simulator.Handle != IntPtr.Zero)
                 {
-                    if (_probeBatch.Handle != IntPtr.Zero)
-                    {
-                        IPL.SimulatorRemoveProbeBatch(_simulator, _probeBatch);
-                    }
                     IPL.SimulatorRelease(ref _simulator);
                     _simulator = default;
                 }
@@ -367,10 +328,9 @@ namespace TS.Audio
                 Ahead = new IPL.Vector3 { X = 0f, Y = 0f, Z = 1f }
             };
 
-            var useReflections = handle.UseReflections;
             var inputs = new IPL.SimulationInputs
             {
-                Flags = useReflections ? (IPL.SimulationFlags.Direct | IPL.SimulationFlags.Reflections) : IPL.SimulationFlags.Direct,
+                Flags = IPL.SimulationFlags.Direct | IPL.SimulationFlags.Reflections,
                 DirectFlags = IPL.DirectSimulationFlags.Occlusion | IPL.DirectSimulationFlags.Transmission | IPL.DirectSimulationFlags.AirAbsorption,
                 Source = coord,
                 DistanceAttenuationModel = new IPL.DistanceAttenuationModel { Type = IPL.DistanceAttenuationModelType.Default, MinDistance = 1.0f },
@@ -381,17 +341,8 @@ namespace TS.Audio
                 NumOcclusionSamples = 8,
                 HybridReverbTransitionTime = 0.25f,
                 HybridReverbOverlapPercent = 0.25f,
-                NumTransmissionRays = 4,
-                Baked = useReflections && _hasBakedReflections && handle.UseBakedReflections ? 1 : 0
+                NumTransmissionRays = 4
             };
-
-            if (inputs.Baked != 0)
-            {
-                if (TryGetBakedIdentifierOverride(spatial, out var bakedOverride))
-                    inputs.BakedDataIdentifier = bakedOverride;
-                else
-                    inputs.BakedDataIdentifier = _bakedIdentifier;
-            }
 
             unsafe
             {
@@ -401,34 +352,6 @@ namespace TS.Audio
             }
 
             IPL.SourceSetInputs(source, inputs.Flags, in inputs);
-        }
-
-        private static bool TryGetBakedIdentifierOverride(AudioSourceSpatialParams spatial, out IPL.BakedDataIdentifier identifier)
-        {
-            identifier = default;
-            if (Volatile.Read(ref spatial.BakedIdentifierEnabled) == 0)
-                return false;
-
-            var radius = Volatile.Read(ref spatial.BakedInfluenceRadius);
-            if (radius <= 0f)
-                radius = 0.1f;
-
-            identifier = new IPL.BakedDataIdentifier
-            {
-                Type = (IPL.BakedDataType)Volatile.Read(ref spatial.BakedIdentifierType),
-                Variation = (IPL.BakedDataVariation)Volatile.Read(ref spatial.BakedIdentifierVariation),
-                EndpointInfluence = new IPL.Sphere
-                {
-                    Center = new IPL.Vector3
-                    {
-                        X = Volatile.Read(ref spatial.BakedInfluenceX),
-                        Y = Volatile.Read(ref spatial.BakedInfluenceY),
-                        Z = Volatile.Read(ref spatial.BakedInfluenceZ)
-                    },
-                    Radius = radius
-                }
-            };
-            return true;
         }
 
         private IPL.SimulationSharedInputs BuildSharedInputs()
@@ -522,35 +445,22 @@ namespace TS.Audio
             handle.ApplyDirectSimulation(occlusion, airLow, airMid, airHigh, transLow, transMid, transHigh);
         }
 
-        private static unsafe void ApplyReflectionOutputs(AudioSourceHandle handle, in IPL.ReflectionEffectParams reflections)
+        private static unsafe void ApplyReverbOutputs(AudioSourceHandle handle, in IPL.ReflectionEffectParams reflections)
         {
             var spatial = handle.SpatialParams;
             var roomFlags = Volatile.Read(ref spatial.RoomFlags);
             var hasRoom = (roomFlags & AudioSourceSpatialParams.RoomHasProfile) != 0;
 
-            if (reflections.Ir.Handle != IntPtr.Zero && reflections.IrSize > 0 && reflections.NumChannels > 0)
-            {
-                handle.ApplyReflectionIr(reflections.Ir.Handle, reflections.IrSize, reflections.NumChannels);
-            }
-            else
-            {
-                handle.ClearReflectionIr();
-            }
-
             if (!hasRoom)
             {
-                if (reflections.Type == IPL.ReflectionEffectType.Parametric ||
-                    reflections.Type == IPL.ReflectionEffectType.Hybrid)
-                {
-                    var timeLow = reflections.ReverbTimes[0];
-                    var timeMid = reflections.ReverbTimes[1];
-                    var timeHigh = reflections.ReverbTimes[2];
-                    var eqLow = reflections.Eq[0];
-                    var eqMid = reflections.Eq[1];
-                    var eqHigh = reflections.Eq[2];
-                    var delay = reflections.Delay;
-                    handle.ApplyReflectionSimulation(timeLow, timeMid, timeHigh, eqLow, eqMid, eqHigh, delay);
-                }
+                var timeLow = reflections.ReverbTimes[0];
+                var timeMid = reflections.ReverbTimes[1];
+                var timeHigh = reflections.ReverbTimes[2];
+                var eqLow = reflections.Eq[0];
+                var eqMid = reflections.Eq[1];
+                var eqHigh = reflections.Eq[2];
+                var delay = reflections.Delay;
+                handle.ApplyReverbSimulation(timeLow, timeMid, timeHigh, eqLow, eqMid, eqHigh, delay);
                 return;
             }
 
@@ -560,13 +470,11 @@ namespace TS.Audio
             var roomTimeMid = timeMidRoom;
             var roomTimeHigh = timeMidRoom * hfRatio;
 
-            // Early/late gains are now applied in the spatializer as separate convolution/parametric mix gains.
-            // Keep EQ neutral here so room tone shaping comes from decay-time parameters.
             var roomEqLow = 1f;
             var roomEqMid = 1f;
             var roomEqHigh = 1f;
             var roomDelay = 0;
-            handle.ApplyReflectionSimulation(roomTimeLow, roomTimeMid, roomTimeHigh, roomEqLow, roomEqMid, roomEqHigh, roomDelay);
+            handle.ApplyReverbSimulation(roomTimeLow, roomTimeMid, roomTimeHigh, roomEqLow, roomEqMid, roomEqHigh, roomDelay);
         }
 
         private static float Clamp01(float value)

@@ -1,0 +1,289 @@
+[meta]
+name = Zandvoort
+version = 1
+weather = sunny
+ambience = noambience
+
+[room: outdoor_default]
+preset = outdoor_open
+reverb_gain = 0.1
+
+[sound: crowd_loop]
+type = ambient
+path = tracks/zandvoort/sounds/crowd.wav
+loop = true
+volume = 0.5
+spatial = true
+allow_hrtf = true
+
+[segment: seg1]
+type = 0
+surface = 0
+noise = 0
+length = 700
+width = 10
+height = 0
+room = outdoor_default
+sound_sources = crowd_loop
+
+[segment: seg2]
+type = 7
+surface = 0
+noise = 1
+length = 800
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg3]
+type = 0
+surface = 0
+noise = 0
+length = 400
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg4]
+type = 1
+surface = 0
+noise = 0
+length = 300
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg5]
+type = 6
+surface = 0
+noise = 0
+length = 350
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg6]
+type = 0
+surface = 0
+noise = 0
+length = 300
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg7]
+type = 3
+surface = 0
+noise = 0
+length = 800
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg8]
+type = 0
+surface = 0
+noise = 0
+length = 300
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg9]
+type = 5
+surface = 0
+noise = 0
+length = 300
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg10]
+type = 0
+surface = 0
+noise = 0
+length = 300
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg11]
+type = 1
+surface = 0
+noise = 0
+length = 300
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg12]
+type = 0
+surface = 0
+noise = 0
+length = 200
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg13]
+type = 5
+surface = 0
+noise = 0
+length = 200
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg14]
+type = 0
+surface = 0
+noise = 0
+length = 300
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg15]
+type = 6
+surface = 0
+noise = 1
+length = 500
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg16]
+type = 0
+surface = 0
+noise = 0
+length = 400
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg17]
+type = 7
+surface = 0
+noise = 0
+length = 200
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg18]
+type = 5
+surface = 0
+noise = 0
+length = 400
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg19]
+type = 7
+surface = 0
+noise = 0
+length = 300
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg20]
+type = 0
+surface = 0
+noise = 0
+length = 200
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg21]
+type = 2
+surface = 0
+noise = 1
+length = 700
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg22]
+type = 0
+surface = 0
+noise = 1
+length = 1000
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg23]
+type = 1
+surface = 0
+noise = 0
+length = 300
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg24]
+type = 7
+surface = 0
+noise = 0
+length = 400
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg25]
+type = 3
+surface = 0
+noise = 0
+length = 800
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg26]
+type = 0
+surface = 0
+noise = 0
+length = 800
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg27]
+type = 6
+surface = 0
+noise = 0
+length = 400
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg28]
+type = 0
+surface = 0
+noise = 0
+length = 300
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg29]
+type = 6
+surface = 0
+noise = 1
+length = 500
+width = 10
+height = 0
+room = outdoor_default
+
+[segment: seg30]
+type = 0
+surface = 0
+noise = 1
+length = 500
+width = 10
+height = 0
+room = outdoor_default
+

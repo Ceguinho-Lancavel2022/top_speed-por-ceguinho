@@ -14,8 +14,6 @@ namespace TopSpeed.Protocol
             _offset = 0;
         }
 
-        public int Remaining => _data.Length - _offset;
-
         public byte ReadByte() => _data[_offset++];
         public bool ReadBool() => ReadByte() != 0;
 
@@ -59,15 +57,6 @@ namespace TopSpeed.Protocol
             _offset += length;
             var nullIndex = value.IndexOf('\0');
             return nullIndex >= 0 ? value.Substring(0, nullIndex) : value.Trim();
-        }
-
-        public string ReadString(int length)
-        {
-            if (length <= 0)
-                return string.Empty;
-            var value = Encoding.UTF8.GetString(_data, _offset, length);
-            _offset += length;
-            return value;
         }
     }
 
@@ -122,15 +111,6 @@ namespace TopSpeed.Protocol
             for (var i = count; i < length; i++)
                 _buffer[_offset + i] = 0;
             _offset += length;
-        }
-
-        public void WriteString(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-                return;
-            var bytes = Encoding.UTF8.GetBytes(value);
-            Array.Copy(bytes, 0, _buffer, _offset, bytes.Length);
-            _offset += bytes.Length;
         }
     }
 }

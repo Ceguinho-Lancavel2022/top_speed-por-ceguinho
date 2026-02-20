@@ -55,46 +55,16 @@ namespace TopSpeed.Vehicles
                 RollingResistanceCoefficient = parameters.RollingResistanceCoefficient,
                 LaunchRpm = parameters.LaunchRpm,
                 FinalDriveRatio = parameters.FinalDriveRatio,
-                ReverseMaxSpeedKph = parameters.ReverseMaxSpeedKph,
-                ReversePowerFactor = parameters.ReversePowerFactor,
-                ReverseGearRatio = parameters.ReverseGearRatio,
                 TireCircumferenceM = parameters.TireCircumferenceM,
                 LateralGripCoefficient = parameters.LateralGripCoefficient,
                 HighSpeedStability = parameters.HighSpeedStability,
                 WheelbaseM = parameters.WheelbaseM,
                 MaxSteerDeg = parameters.MaxSteerDeg,
-                TrackWidthM = parameters.TrackWidthM,
                 WidthM = parameters.WidthM,
                 LengthM = parameters.LengthM,
-                VehicleHeightM = parameters.VehicleHeightM,
-                HornHeightM = parameters.HornHeightM,
-                EngineHeightM = parameters.EngineHeightM,
-                DynamicsModel = parameters.DynamicsModel,
                 PowerFactor = parameters.PowerFactor,
                 GearRatios = parameters.GearRatios,
-                BrakeStrength = parameters.BrakeStrength,
-                SteerInputRate = parameters.SteerInputRate,
-                SteerReturnRate = parameters.SteerReturnRate,
-                SteerGamma = parameters.SteerGamma,
-                MaxSteerLowDeg = parameters.MaxSteerLowDeg,
-                MaxSteerHighDeg = parameters.MaxSteerHighDeg,
-                SteerSpeedKph = parameters.SteerSpeedKph,
-                SteerSpeedExponent = parameters.SteerSpeedExponent,
-                CorneringStiffnessFront = parameters.CorneringStiffnessFront,
-                CorneringStiffnessRear = parameters.CorneringStiffnessRear,
-                YawInertiaKgM2 = parameters.YawInertiaKgM2,
-                CgToFrontAxleM = parameters.CgToFrontAxleM,
-                CgToRearAxleM = parameters.CgToRearAxleM,
-                CgHeightM = parameters.CgHeightM,
-                WeightDistributionFront = parameters.WeightDistributionFront,
-                BrakeBiasFront = parameters.BrakeBiasFront,
-                DriveBiasFront = parameters.DriveBiasFront,
-                RollStiffnessFrontFraction = parameters.RollStiffnessFrontFraction,
-                TireLoadSensitivity = parameters.TireLoadSensitivity,
-                DownforceCoefficient = parameters.DownforceCoefficient,
-                DownforceFrontBias = parameters.DownforceFrontBias,
-                LongitudinalStiffnessFront = parameters.LongitudinalStiffnessFront,
-                LongitudinalStiffnessRear = parameters.LongitudinalStiffnessRear
+                BrakeStrength = parameters.BrakeStrength
             };
 
             foreach (VehicleAction action in Enum.GetValues(typeof(VehicleAction)))
@@ -122,86 +92,55 @@ namespace TopSpeed.Vehicles
             var builtinRoot = Path.Combine(AssetPaths.SoundsRoot, "Vehicles");
             var customVehiclesRoot = Path.Combine(AssetPaths.Root, "Vehicles");
 
-            var surfaceTractionFactor = ReadInt(settings, "surface_traction_factor", 10) / 100.0f;
+            var surfaceTractionFactor = ReadInt(settings, "surfacetractionfactor", 10) / 100.0f;
             var deceleration = ReadInt(settings, "deceleration", 40) / 100.0f;
-            var topSpeed = ReadInt(settings, "max_speed", 15000) / 100.0f;
-            var idleFreq = ReadInt(settings, "idle_freq", 11000);
-            var topFreq = ReadInt(settings, "top_freq", 50000);
-            var shiftFreq = ReadInt(settings, "shift_freq", 40000);
-            var gears = ReadInt(settings, "number_of_gears", 5);
+            var topSpeed = ReadInt(settings, "topspeed", 15000) / 100.0f;
+            var idleFreq = ReadInt(settings, "idlefreq", 11000);
+            var topFreq = ReadInt(settings, "topfreq", 50000);
+            var shiftFreq = ReadInt(settings, "shiftfreq", 40000);
+            var gears = ReadInt(settings, "numberofgears", 5);
             var steering = ReadInt(settings, "steering", 100) / 100.0f;
-            var steeringFactor = ReadInt(settings, "steering_factor", 40);
+            var steeringFactor = ReadInt(settings, "steeringfactor", 40);
 
             var hasWipers = 0;
             if (weather == TrackWeather.Rain)
-                hasWipers = ReadInt(settings, "has_wipers", 1);
+                hasWipers = ReadInt(settings, "haswipers", 1);
 
             // Engine simulation parameters
-            var idleRpm = ReadFloat(settings, "idle_rpm", 800f);
-            var maxRpm = ReadFloat(settings, "max_rpm", 7000f);
-            var revLimiter = ReadFloat(settings, "rev_limiter", 6500f);
-            var autoShiftRpm = ReadFloat(settings, "auto_shift_rpm", 0f);
-            var engineBraking = ReadFloat(settings, "engine_braking", 0.3f);
-            var massKg = ReadFloat(settings, "mass_kg", 1500f);
-            var drivetrainEfficiency = ReadFloat(settings, "drivetrain_efficiency", 0.85f);
-            var engineBrakingTorque = ReadFloat(settings, "engine_braking_torque", 150f);
-            var tireGrip = ReadFloat(settings, "tire_grip", 0.9f);
-            var peakTorqueNm = ReadFloat(settings, "peak_torque", 200f);
-            var peakTorqueRpm = ReadFloat(settings, "peak_torque_rpm", 4000f);
-            var idleTorqueNm = ReadFloat(settings, "idle_torque", peakTorqueNm * 0.3f);
-            var redlineTorqueNm = ReadFloat(settings, "redline_torque", peakTorqueNm * 0.6f);
-            var dragCoefficient = ReadFloat(settings, "drag_coefficient", 0.30f);
-            var frontalArea = ReadFloat(settings, "frontal_area", 2.2f);
-            var rollingResistance = ReadFloat(settings, "rolling_resistance", 0.015f);
-            var launchRpm = ReadFloat(settings, "launch_rpm", 1800f);
-            var finalDriveRatio = ReadFloat(settings, "final_drive", 3.5f);      
-            var reverseMaxSpeedKph = ReadFloat(settings, "reverse_max_speed", 35f);
-            var reversePowerFactor = ReadFloat(settings, "reverse_power_factor", 0.55f);
-            var reverseGearRatio = ReadFloat(settings, "reverse_gear_ratio", 3.2f);
-            var powerFactor = ReadFloat(settings, "power_factor", 0.5f);
-            var gearRatios = ReadFloatArray(settings, "gear_ratios");
-            var brakeStrength = ReadFloat(settings, "brake_strength", 1.0f);     
-            var lateralGrip = ReadFloat(settings, "lateral_grip", 1.0f);
-            var highSpeedStability = ReadFloat(settings, "high_speed_stability", 0.0f);
+            var idleRpm = ReadFloat(settings, "idlerpm", 800f);
+            var maxRpm = ReadFloat(settings, "maxrpm", 7000f);
+            var revLimiter = ReadFloat(settings, "revlimiter", 6500f);
+            var autoShiftRpm = ReadFloat(settings, "autoshiftrpm", 0f);
+            var engineBraking = ReadFloat(settings, "enginebraking", 0.3f);
+            var massKg = ReadFloat(settings, "masskg", 1500f);
+            var drivetrainEfficiency = ReadFloat(settings, "drivetrain", 0.85f);
+            var engineBrakingTorque = ReadFloat(settings, "enginebrakingtorque", 150f);
+            var tireGrip = ReadFloat(settings, "tiregrip", 0.9f);
+            var peakTorqueNm = ReadFloat(settings, "peaktorque", 200f);
+            var peakTorqueRpm = ReadFloat(settings, "peaktorquerpm", 4000f);
+            var idleTorqueNm = ReadFloat(settings, "idletorque", peakTorqueNm * 0.3f);
+            var redlineTorqueNm = ReadFloat(settings, "redlinetorque", peakTorqueNm * 0.6f);
+            var dragCoefficient = ReadFloat(settings, "dragcoefficient", 0.30f);
+            var frontalArea = ReadFloat(settings, "frontalarea", 2.2f);
+            var rollingResistance = ReadFloat(settings, "rollingresistance", 0.015f);
+            var launchRpm = ReadFloat(settings, "launchrpm", 1800f);
+            var finalDriveRatio = ReadFloat(settings, "finaldrive", 3.5f);      
+            var powerFactor = ReadFloat(settings, "powerfactor", 0.5f);
+            var gearRatios = ReadFloatArray(settings, "gearratios");
+            var brakeStrength = ReadFloat(settings, "brakestrength", 1.0f);     
+            var lateralGrip = ReadFloat(settings, "lateralgrip", 1.0f);
+            var highSpeedStability = ReadFloat(settings, "highspeedstability", 0.0f);
             var wheelbase = ReadFloat(settings, "wheelbase", 2.7f);
-            var maxSteerDeg = ReadFloat(settings, "max_steer_deg", 35f);
-            var trackWidthM = ReadFloat(settings, "track_width", 0f);
-            var widthM = ReadFloat(settings, "vehicle_width", 1.8f);
-            var lengthM = ReadFloat(settings, "vehicle_length", 4.5f);
-            var vehicleHeightM = ReadFloat(settings, "vehicle_height", 0f);
-            var hornHeightM = ReadFloat(settings, "horn_height", 0f);
-            var engineHeightM = ReadFloat(settings, "engine_height", 0f);
-            var steerInputRate = ReadFloat(settings, "steer_input_rate", 0f);
-            var steerReturnRate = ReadFloat(settings, "steer_return_rate", 0f);
-            var steerGamma = ReadFloat(settings, "steer_gamma", 0f);
-            var maxSteerLowDeg = ReadFloat(settings, "max_steer_low_deg", 0f);
-            var maxSteerHighDeg = ReadFloat(settings, "max_steer_high_deg", 0f);
-            var steerSpeedKph = ReadFloat(settings, "steer_speed_kph", 0f);
-            var steerSpeedExponent = ReadFloat(settings, "steer_speed_exp", 0f);
-            var corneringStiffnessFront = ReadFloat(settings, "cornering_stiffness_front", 0f);
-            var corneringStiffnessRear = ReadFloat(settings, "cornering_stiffness_rear", 0f);
-            var yawInertiaKgM2 = ReadFloat(settings, "yaw_inertia_kg_m2", 0f);
-            var cgToFrontAxleM = ReadFloat(settings, "cg_to_front_axle", 0f);
-            var cgToRearAxleM = ReadFloat(settings, "cg_to_rear_axle", 0f);
-            var cgHeightM = ReadFloat(settings, "cg_height", 0f);
-            var weightDistributionFront = ReadFloat(settings, "weight_distribution_front", 0f);
-            var brakeBiasFront = ReadFloat(settings, "brake_bias_front", 0f);
-            var driveBiasFront = ReadFloat(settings, "drive_bias_front", 0f);
-            var modelRaw = ReadString(settings, "dynamics_model", ReadString(settings, "vehicle_model", "fourwheel"));
-            var dynamicsModel = ParseDynamicsModel(modelRaw);
-            var rollStiffnessFront = ReadFloat(settings, "roll_stiffness_front", 0f);
-            var tireLoadSensitivity = ReadFloat(settings, "tire_load_sensitivity", 0f);
-            var downforceCoefficient = ReadFloat(settings, "downforce_coefficient", 0f);
-            var downforceFrontBias = ReadFloat(settings, "downforce_front_bias", 0f);
-            var longStiffnessFront = ReadFloat(settings, "longitudinal_stiffness_front", 0f);
-            var longStiffnessRear = ReadFloat(settings, "longitudinal_stiffness_rear", 0f);
+            var maxSteerDeg = ReadFloat(settings, "maxsteerdeg", 35f);
+            var widthM = ReadFloat(settings, "vehiclewidth", 1.8f);
+            var lengthM = ReadFloat(settings, "vehiclelength", 4.5f);
 
-            var tireCircumferenceM = ReadFloat(settings, "tire_circumference", 0f);
+            var tireCircumferenceM = ReadFloat(settings, "tirecircumference", 0f);
             if (tireCircumferenceM <= 0f)
             {
-                var tireWidth = ReadInt(settings, "tire_width", 0);
-                var tireAspect = ReadInt(settings, "tire_aspect", 0);
-                var tireRim = ReadInt(settings, "tire_rim", 0);
+                var tireWidth = ReadInt(settings, "tirewidth", 0);
+                var tireAspect = ReadInt(settings, "tireaspect", 0);
+                var tireRim = ReadInt(settings, "tirerim", 0);
                 if (tireWidth > 0 && tireAspect > 0 && tireRim > 0)
                     tireCircumferenceM = CalculateTireCircumferenceM(tireWidth, tireAspect, tireRim);
             }
@@ -242,56 +181,26 @@ namespace TopSpeed.Vehicles
                 RollingResistanceCoefficient = rollingResistance,
                 LaunchRpm = launchRpm,
                 FinalDriveRatio = finalDriveRatio,
-                ReverseMaxSpeedKph = reverseMaxSpeedKph,
-                ReversePowerFactor = reversePowerFactor,
-                ReverseGearRatio = reverseGearRatio,
                 TireCircumferenceM = tireCircumferenceM,
                 LateralGripCoefficient = lateralGrip,
                 HighSpeedStability = highSpeedStability,
                 WheelbaseM = wheelbase,
                 MaxSteerDeg = maxSteerDeg,
-                TrackWidthM = trackWidthM,
                 WidthM = widthM,
                 LengthM = lengthM,
-                VehicleHeightM = vehicleHeightM,
-                HornHeightM = hornHeightM,
-                EngineHeightM = engineHeightM,
-                DynamicsModel = dynamicsModel,
                 PowerFactor = powerFactor,
                 GearRatios = gearRatios,
-                BrakeStrength = brakeStrength,
-                SteerInputRate = steerInputRate,
-                SteerReturnRate = steerReturnRate,
-                SteerGamma = steerGamma,
-                MaxSteerLowDeg = maxSteerLowDeg,
-                MaxSteerHighDeg = maxSteerHighDeg,
-                SteerSpeedKph = steerSpeedKph,
-                SteerSpeedExponent = steerSpeedExponent,
-                CorneringStiffnessFront = corneringStiffnessFront,
-                CorneringStiffnessRear = corneringStiffnessRear,
-                YawInertiaKgM2 = yawInertiaKgM2,
-                CgToFrontAxleM = cgToFrontAxleM,
-                CgToRearAxleM = cgToRearAxleM,
-                CgHeightM = cgHeightM,
-                WeightDistributionFront = weightDistributionFront,
-                BrakeBiasFront = brakeBiasFront,
-                DriveBiasFront = driveBiasFront,
-                RollStiffnessFrontFraction = rollStiffnessFront,
-                TireLoadSensitivity = tireLoadSensitivity,
-                DownforceCoefficient = downforceCoefficient,
-                DownforceFrontBias = downforceFrontBias,
-                LongitudinalStiffnessFront = longStiffnessFront,
-                LongitudinalStiffnessRear = longStiffnessRear
+                BrakeStrength = brakeStrength
             };
 
-            def.SetSoundPath(VehicleAction.Engine, ResolveSound(ReadString(settings, "engine_sound", "engine.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Engine)));
-            def.SetSoundPath(VehicleAction.Start, ResolveSound(ReadString(settings, "start_sound", "start.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Start)));
-            def.SetSoundPath(VehicleAction.Horn, ResolveSound(ReadString(settings, "horn_sound", "horn.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Horn)));
-            def.SetSoundPath(VehicleAction.Throttle, ResolveSound(ReadString(settings, "throttle_sound", "throttle.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Throttle)));
-            def.SetSoundPath(VehicleAction.Crash, ResolveSound(ReadString(settings, "crash_sound", "crash.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Crash)));
-            def.SetSoundPath(VehicleAction.CrashMono, ResolveSound(ReadString(settings, "mono_crash_sound", "crash_mono.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.CrashMono)));
-            def.SetSoundPath(VehicleAction.Brake, ResolveSound(ReadString(settings, "brake_sound", "brake.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Brake)));
-            def.SetSoundPath(VehicleAction.Backfire, ResolveSound(ReadString(settings, "backfire_sound", "backfire.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Backfire)));
+            def.SetSoundPath(VehicleAction.Engine, ResolveSound(ReadString(settings, "enginesound", "engine.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Engine)));
+            def.SetSoundPath(VehicleAction.Start, ResolveSound(ReadString(settings, "startsound", "start.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Start)));
+            def.SetSoundPath(VehicleAction.Horn, ResolveSound(ReadString(settings, "hornsound", "horn.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Horn)));
+            def.SetSoundPath(VehicleAction.Throttle, ResolveSound(ReadString(settings, "throttlesound", "throttle.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Throttle)));
+            def.SetSoundPath(VehicleAction.Crash, ResolveSound(ReadString(settings, "crashsound", "crash.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Crash)));
+            def.SetSoundPath(VehicleAction.CrashMono, ResolveSound(ReadString(settings, "monocrashsound", "crash_mono.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.CrashMono)));
+            def.SetSoundPath(VehicleAction.Brake, ResolveSound(ReadString(settings, "brakesound", "brake.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Brake)));
+            def.SetSoundPath(VehicleAction.Backfire, ResolveSound(ReadString(settings, "backfiresound", "backfire.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Backfire)));
 
             return def;
         }
@@ -447,36 +356,6 @@ namespace TopSpeed.Vehicles
                     result.Add(value);
             }
             return result.Count > 0 ? result.ToArray() : null;
-        }
-
-        private static VehicleDynamicsModel ParseDynamicsModel(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return VehicleDynamicsModel.FourWheel;
-
-            if (int.TryParse(value.Trim(), out var numeric))
-                return numeric == 1 ? VehicleDynamicsModel.Bicycle : VehicleDynamicsModel.FourWheel;
-
-            var key = value.Trim().ToLowerInvariant();
-            switch (key)
-            {
-                case "bicycle":
-                case "bike":
-                case "motorcycle":
-                case "motorbike":
-                case "2wheel":
-                case "2-wheel":
-                case "two-wheel":
-                case "twowheel":
-                    return VehicleDynamicsModel.Bicycle;
-                case "fourwheel":
-                case "four-wheel":
-                case "4wheel":
-                case "4-wheel":
-                case "car":
-                default:
-                    return VehicleDynamicsModel.FourWheel;
-            }
         }
     }
 }

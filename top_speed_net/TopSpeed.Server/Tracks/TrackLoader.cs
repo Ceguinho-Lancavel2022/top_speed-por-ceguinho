@@ -1,41 +1,24 @@
 using System;
-using System.IO;
+using System.Collections.Generic;
 using TopSpeed.Data;
-using TopSpeed.Tracks.Map;
 
 namespace TopSpeed.Server.Tracks
 {
     internal static class TrackLoader
     {
+        private const float MinPartLength = 50.0f;
+
         public static TrackData LoadTrack(string nameOrPath, byte defaultLaps)
         {
-            if (!TrackMapFormat.TryParse(nameOrPath, out var map, out var issues) || map == null)
+            if (TrackCatalog.BuiltIn.TryGetValue(nameOrPath, out var builtIn))
             {
-                var message = issues.Count > 0 ? issues[0].Message : "Track map not found.";
-                throw new FileNotFoundException(message, nameOrPath);
+                var laps = ResolveLaps(nameOrPath, defaultLaps);
+                return new TrackData(builtIn.UserDefined, builtIn.Weather, builtIn.Ambience, builtIn.Definitions, laps);
             }
 
-            var validation = TrackMapValidator.Validate(map);
-            if (!validation.IsValid)
-            {
-                var message = validation.Issues.Count > 0
-                    ? validation.Issues[0].Message
-                    : "Track map validation failed.";
-                throw new InvalidDataException(message);
-            }
-
-            var laps = ResolveLaps(nameOrPath, defaultLaps);
-            var userDefined = LooksLikePath(nameOrPath);
-            return new TrackData(userDefined, map.Metadata.Weather, map.Metadata.Ambience, Array.Empty<TrackDefinition>(), laps, map.Metadata.Name);
-        }
-
-        private static bool LooksLikePath(string identifier)
-        {
-            if (string.IsNullOrWhiteSpace(identifier))
-                return false;
-            if (identifier.IndexOfAny(new[] { '\\', '/' }) >= 0)
-                return true;
-            return Path.HasExtension(identifier);
+            var data = ReadCustomTrackData(nameOrPath);
+            data.Laps = ResolveLaps(nameOrPath, defaultLaps);
+            return data;
         }
 
         private static byte ResolveLaps(string trackName, byte defaultLaps)
@@ -43,6 +26,39 @@ namespace TopSpeed.Server.Tracks
             return trackName.IndexOf("adv", StringComparison.OrdinalIgnoreCase) < 0
                 ? defaultLaps
                 : (byte)1;
+        }
+
+        private static TrackData ReadCustomTrackData(string filename)
+        {
+            if (!TrackTsmParser.TryLoad(filename, out var parsed, out var issues, MinPartLength))
+            {
+                LogTrackIssues(filename, issues);
+                return CreateFallbackTrack();
+            }
+            return parsed;
+        }
+
+        private static TrackData CreateFallbackTrack()
+        {
+            var definitions = new[]
+            {
+                new TrackDefinition(TrackType.Straight, TrackSurface.Asphalt, TrackNoise.NoNoise, MinPartLength)
+            };
+
+            return new TrackData(true, TrackWeather.Sunny, TrackAmbience.NoAmbience, definitions);
+        }
+
+        private static void LogTrackIssues(string filename, IReadOnlyList<TrackTsmIssue> issues)
+        {
+            if (issues == null || issues.Count == 0)
+            {
+                Console.WriteLine($"[TrackLoader] Failed to load '{filename}'.");
+                return;
+            }
+
+            Console.WriteLine($"[TrackLoader] Failed to load '{filename}':");
+            for (var i = 0; i < issues.Count; i++)
+                Console.WriteLine($"  - {issues[i]}");
         }
     }
 }

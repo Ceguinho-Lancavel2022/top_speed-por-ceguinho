@@ -9,8 +9,6 @@ using TopSpeed.Data;
 using TopSpeed.Input;
 using TopSpeed.Protocol;
 using TopSpeed.Tracks;
-using TopSpeed.Tracks.Geometry;
-using TopSpeed.Tracks.Map;
 using TS.Audio;
 
 namespace TopSpeed.Vehicles
@@ -22,21 +20,9 @@ namespace TopSpeed.Vehicles
         private const float StabilitySpeedRef = 45.0f;
         private const float AutoShiftHysteresis = 0.05f;
         private const float AutoShiftCooldownSeconds = 0.15f;
-        private const float YieldSpeedKph = 10.0f;
-        private const float AiTurnApproachMeters = 80.0f;
-        private const float AiCruiseMinSpeedKph = 35.0f;
-        private enum SurfaceKind
-        {
-            Asphalt,
-            Gravel,
-            Water,
-            Sand,
-            Snow,
-            Other
-        }
 
         private readonly AudioManager _audio;
-        private readonly MapTrack _track;
+        private readonly Track _track;
         private readonly RaceSettings _settings;
         private readonly Func<float> _currentTime;
         private readonly Func<bool> _started;
@@ -48,15 +34,11 @@ namespace TopSpeed.Vehicles
         private readonly string _legacyRoot;
 
         private ComputerState _state;
-        private string _materialId;
-        private SurfaceKind _surfaceKind;
+        private TrackSurface _surface;
         private int _gear;
         private float _speed;
         private float _positionX;
         private float _positionY;
-        private MapMovementState _mapState;
-        private float _networkDistanceMeters;
-        private bool _networkControlled;
         private int _switchingGear;
         private float _autoShiftCooldown;
         private float _trackLength;
@@ -75,7 +57,6 @@ namespace TopSpeed.Vehicles
         private float _revLimiter;
         private float _finalDriveRatio;
         private float _powerFactor;
-        private VehiclePowertrainParameters _powertrainParams;
         private float _peakTorqueNm;
         private float _peakTorqueRpm;
         private float _idleTorqueNm;
@@ -89,20 +70,16 @@ namespace TopSpeed.Vehicles
         private float _highSpeedStability;
         private float _wheelbaseM;
         private float _maxSteerDeg;
-        private VehicleDynamicsModel _dynamicsModel;
-        private VehicleDynamicsState _dynamicsState;
-        private VehicleDynamicsParameters _dynamicsParams;
-        private BicycleDynamicsParameters _bicycleParams;
         private float _widthM;
         private float _lengthM;
-        private float _vehicleHeightM;
-        private float _hornHeightM;
-        private float _engineHeightM;
         private int _idleFreq;
         private int _topFreq;
         private int _shiftFreq;
         private int _gears;
+        private float _steering;
+        private int _steeringFactor;
 
+        private int _random;
         private int _prevFrequency;
         private int _frequency;
         private int _prevBrakeFrequency;
@@ -124,16 +101,8 @@ namespace TopSpeed.Vehicles
         private bool _horning;
         private bool _backfirePlayedAuto;
         private bool _networkBackfireActive;
-        private float _aiMistakeCooldown;
-        private float _aiMistakeRemaining;
-        private float _aiMistakeSteerBias;
-        private float _aiMistakeThrottleScale;
         private int _frame;
         private Vector3 _lastAudioPosition;
-        private Vector3 _worldPosition;
-        private Vector3 _worldForward;
-        private Vector3 _worldUp;
-        private Vector3 _worldVelocity;
         private bool _audioInitialized;
         private float _lastAudioUpdateTime;
 
@@ -150,7 +119,7 @@ namespace TopSpeed.Vehicles
 
         public ComputerPlayer(
             AudioManager audio,
-            MapTrack track,
+            Track track,
             RaceSettings settings,
             int vehicleIndex,
             int playerNumber,
@@ -169,8 +138,7 @@ namespace TopSpeed.Vehicles
             _events = new List<BotEvent>();
             _legacyRoot = Path.Combine(AssetPaths.SoundsRoot, "Legacy");
 
-            _materialId = NormalizeMaterialId("asphalt");
-            _surfaceKind = ResolveSurfaceKind(_materialId);
+            _surface = TrackSurface.Asphalt;
             _gear = 1;
             _state = ComputerState.Stopped;
             _switchingGear = 0;
@@ -194,14 +162,10 @@ namespace TopSpeed.Vehicles
             _speed = 0;
             _frame = 1;
             _finished = false;
+            _random = Algorithm.RandomInt(100);
             _networkBackfireActive = false;
-            _aiMistakeCooldown = 1.0f;
-            _aiMistakeRemaining = 0f;
-            _aiMistakeSteerBias = 0f;
-            _aiMistakeThrottleScale = 1f;
 
             var definition = VehicleLoader.LoadOfficial(vehicleIndex, track.Weather);
-            _dynamicsModel = definition.DynamicsModel;
             _surfaceTractionFactor = definition.SurfaceTractionFactor;
             _deceleration = definition.Deceleration;
             _topSpeed = definition.TopSpeed;
@@ -230,50 +194,12 @@ namespace TopSpeed.Vehicles
             _maxSteerDeg = Math.Max(5f, Math.Min(60f, definition.MaxSteerDeg));
             _widthM = Math.Max(0.5f, definition.WidthM);
             _lengthM = Math.Max(0.5f, definition.LengthM);
-            _vehicleHeightM = VehicleAudioHeights.ResolveVehicleHeight(definition);
-            _hornHeightM = VehicleAudioHeights.ResolveHornHeight(definition, _vehicleHeightM);
-            _engineHeightM = VehicleAudioHeights.ResolveEngineHeight(definition);
-            var dynamicsSetup = VehicleDynamicsSetupBuilder.Build(
-                definition,
-                _massKg,
-                _tireGripCoefficient,
-                _lateralGripCoefficient,
-                _dragCoefficient,
-                _frontalAreaM2,
-                _rollingResistanceCoefficient,
-                _topSpeed,
-                _wheelbaseM,
-                _maxSteerDeg,
-                _widthM,
-                _lengthM);
-            _dynamicsParams = dynamicsSetup.FourWheel;
-            _bicycleParams = dynamicsSetup.Bicycle;
-            _powertrainParams = new VehiclePowertrainParameters
-            {
-                MassKg = _massKg,
-                WheelRadiusM = _wheelRadiusM,
-                FinalDriveRatio = _finalDriveRatio,
-                DrivetrainEfficiency = _drivetrainEfficiency,
-                EngineBrakingTorqueNm = _engineBrakingTorqueNm,
-                EngineBraking = _engineBraking,
-                IdleRpm = _idleRpm,
-                RevLimiter = _revLimiter,
-                LaunchRpm = _launchRpm,
-                PowerFactor = _powerFactor,
-                PeakTorqueNm = _peakTorqueNm,
-                PeakTorqueRpm = _peakTorqueRpm,
-                IdleTorqueNm = _idleTorqueNm,
-                RedlineTorqueNm = _redlineTorqueNm,
-                TireGripCoefficient = _tireGripCoefficient,
-                BrakeStrength = _brakeStrength,
-                DragCoefficient = _dragCoefficient,
-                FrontalAreaM2 = _frontalAreaM2,
-                RollingResistanceCoefficient = _rollingResistanceCoefficient
-            };
             _idleFreq = definition.IdleFreq;
             _topFreq = definition.TopFreq;
             _shiftFreq = definition.ShiftFreq;
             _gears = definition.Gears;
+            _steering = definition.Steering;
+            _steeringFactor = definition.SteeringFactor;
             _frequency = _idleFreq;
 
             _engine = new EngineModel(
@@ -307,10 +233,7 @@ namespace TopSpeed.Vehicles
         public ComputerState State => _state;
         public float PositionX => _positionX;
         public float PositionY => _positionY;
-        public float DistanceMeters => _networkControlled ? _networkDistanceMeters : _mapState.DistanceMeters;
-        public MapMovementState MapState => _mapState;
         public float Speed => _speed;
-        public Vector3 WorldPosition => _worldPosition;
         public int PlayerNumber => _playerNumber;
         public int VehicleIndex => _vehicleIndex;
         public bool Finished => _finished;
@@ -320,33 +243,12 @@ namespace TopSpeed.Vehicles
 
         public void Initialize(float positionX, float positionY, float trackLength)
         {
-            if (Math.Abs(positionX) > 0.001f || Math.Abs(positionY) > 0.001f)
-                _mapState = _track.CreateStateFromWorld(new Vector3(positionX, 0f, positionY), _track.Map.StartHeadingDegrees);
-            else
-                _mapState = _track.CreateStartState();
-            _positionX = 0f;
-            _positionY = _mapState.DistanceMeters;
-            _networkControlled = false;
-            _networkDistanceMeters = _mapState.DistanceMeters;
+            _positionX = positionX;
+            _positionY = positionY;
             _trackLength = trackLength;
             _laneWidth = _track.LaneWidth;
             _audioInitialized = false;
-            var pose = _track.GetPose(_mapState);
-            _dynamicsState = new VehicleDynamicsState
-            {
-                VelLong = 0f,
-                VelLat = 0f,
-                Yaw = pose.HeadingRadians,
-                YawRate = 0f,
-                SteerInput = 0f,
-                SteerWheelAngleRad = 0f,
-                SteerWheelAngleDeg = 0f
-            };
-            _worldPosition = pose.Position;
-            _worldForward = pose.Tangent;
-            _worldUp = Vector3.UnitY;
-            _worldVelocity = Vector3.Zero;
-            _lastAudioPosition = _worldPosition;
+            _lastAudioPosition = new Vector3(positionX, 0f, positionY);
             _lastAudioUpdateTime = 0f;
         }
 
@@ -384,16 +286,6 @@ namespace TopSpeed.Vehicles
             PushEvent(BotEventType.CarStart, delay);
             _soundStart.Play(loop: false);
             _speed = 0;
-            _dynamicsState = new VehicleDynamicsState
-            {
-                VelLong = 0f,
-                VelLat = 0f,
-                Yaw = _track.GetPose(_mapState).HeadingRadians,
-                YawRate = 0f,
-                SteerInput = 0f,
-                SteerWheelAngleRad = 0f,
-                SteerWheelAngleDeg = 0f
-            };
             _prevFrequency = _idleFreq;
             _frequency = _idleFreq;
             _prevBrakeFrequency = 0;
@@ -466,9 +358,11 @@ namespace TopSpeed.Vehicles
 
         public void Run(float elapsed, float playerX, float playerY)
         {
-            _diffX = _worldPosition.X - playerX;
-            _diffY = _worldPosition.Z - playerY;
-
+            _diffX = _positionX - playerX;
+            _diffY = _positionY - playerY;
+            _diffY = ((_diffY % _trackLength) + _trackLength) % _trackLength;
+            if (_diffY > _trackLength / 2)
+                _diffY = (_diffY - _trackLength) % _trackLength;
 
             if (!_horning && _diffY < -100.0f)
             {
@@ -484,26 +378,26 @@ namespace TopSpeed.Vehicles
 
             if (_state == ComputerState.Running && _started())
             {
-                AI(elapsed);
+                AI();
 
                 _currentSurfaceTractionFactor = _surfaceTractionFactor;
                 _currentDeceleration = _deceleration;
                 _speedDiff = 0;
-                switch (_surfaceKind)
+                switch (_surface)
                 {
-                    case SurfaceKind.Gravel:
+                    case TrackSurface.Gravel:
                         _currentSurfaceTractionFactor = (_currentSurfaceTractionFactor * 2) / 3;
                         _currentDeceleration = (_currentDeceleration * 2) / 3;
                         break;
-                    case SurfaceKind.Water:
+                    case TrackSurface.Water:
                         _currentSurfaceTractionFactor = (_currentSurfaceTractionFactor * 3) / 5;
                         _currentDeceleration = (_currentDeceleration * 3) / 5;
                         break;
-                    case SurfaceKind.Sand:
+                    case TrackSurface.Sand:
                         _currentSurfaceTractionFactor = _currentSurfaceTractionFactor / 2;
                         _currentDeceleration = (_currentDeceleration * 3) / 2;
                         break;
-                    case SurfaceKind.Snow:
+                    case TrackSurface.Snow:
                         _currentDeceleration = _currentDeceleration / 2;
                         break;
                 }
@@ -513,9 +407,9 @@ namespace TopSpeed.Vehicles
                     _thrust = _currentBrake;
                     if (_currentBrake != 0)
                     {
-                        if (_surfaceKind == SurfaceKind.Asphalt && !_soundBrake.IsPlaying)
+                        if (_surface == TrackSurface.Asphalt && !_soundBrake.IsPlaying)
                             _soundBrake.Play(loop: true);
-                        else if (_surfaceKind != SurfaceKind.Asphalt)
+                        else if (_surface != TrackSurface.Asphalt)
                             _soundBrake.Stop();
                     }
                 }
@@ -530,103 +424,103 @@ namespace TopSpeed.Vehicles
                     _thrust = _currentBrake;
                 }
 
+                var speedMpsCurrent = _speed / 3.6f;
                 var throttle = Math.Max(0f, Math.Min(100f, _currentThrottle)) / 100f;
-                var brakeInput = Math.Max(0f, Math.Min(100f, -_currentBrake)) / 100f;
                 var surfaceTractionMod = _surfaceTractionFactor > 0f
                     ? _currentSurfaceTractionFactor / _surfaceTractionFactor
                     : 1.0f;
+                var longitudinalGripFactor = 1.0f;
 
-                var speedForwardMps = Math.Abs(_dynamicsState.VelLong);
-                var driveForce = 0f;
                 if (_thrust > 10)
                 {
-                    var driveRpm = VehiclePowertrainMath.CalculateDriveRpm(_engine, _gear, speedForwardMps, throttle, _powertrainParams);
-                    var engineTorque = VehiclePowertrainMath.CalculateEngineTorqueNm(driveRpm, _powertrainParams) * throttle * _powerFactor;
+                    var steeringCommandAccel = (_currentSteering / 100.0f) * _steering;
+                    if (steeringCommandAccel > 1.0f)
+                        steeringCommandAccel = 1.0f;
+                    else if (steeringCommandAccel < -1.0f)
+                        steeringCommandAccel = -1.0f;
+                    var steerRadAccel = (float)(Math.PI / 180.0) * (_maxSteerDeg * steeringCommandAccel);
+                    var curvatureAccel = (float)Math.Tan(steerRadAccel) / _wheelbaseM;
+                    var desiredLatAccel = curvatureAccel * speedMpsCurrent * speedMpsCurrent;
+                    var desiredLatAccelAbs = Math.Abs(desiredLatAccel);
+                    var grip = _tireGripCoefficient * surfaceTractionMod * _lateralGripCoefficient;
+                    var maxLatAccel = grip * 9.80665f;
+                    var lateralRatio = maxLatAccel > 0f ? Math.Min(1.0f, desiredLatAccelAbs / maxLatAccel) : 0f;
+                    longitudinalGripFactor = (float)Math.Sqrt(Math.Max(0.0, 1.0 - (lateralRatio * lateralRatio)));
+                    var driveRpm = CalculateDriveRpm(speedMpsCurrent, throttle);
+                    var engineTorque = CalculateEngineTorqueNm(driveRpm) * throttle * _powerFactor;
                     var gearRatio = _engine.GetGearRatio(_gear);
                     var wheelTorque = engineTorque * gearRatio * _finalDriveRatio * _drivetrainEfficiency;
-                    driveForce = wheelTorque / _wheelRadiusM;
-                    _lastDriveRpm = VehiclePowertrainMath.CalculateDriveRpm(_engine, _gear, speedForwardMps, throttle, _powertrainParams);
+                    var wheelForce = wheelTorque / _wheelRadiusM;
+                    var tractionLimit = _tireGripCoefficient * surfaceTractionMod * _massKg * 9.80665f;
+                    if (wheelForce > tractionLimit)
+                        wheelForce = tractionLimit;
+                    wheelForce *= (float)longitudinalGripFactor;
+
+                    var dragForce = 0.5f * 1.225f * _dragCoefficient * _frontalAreaM2 * speedMpsCurrent * speedMpsCurrent;
+                    var rollingForce = _rollingResistanceCoefficient * _massKg * 9.80665f;
+                    var netForce = wheelForce - dragForce - rollingForce;
+                    var accelMps2 = netForce / _massKg;
+                    var newSpeedMps = speedMpsCurrent + (accelMps2 * elapsed);
+                    if (newSpeedMps < 0f)
+                        newSpeedMps = 0f;
+                    _speedDiff = (newSpeedMps - speedMpsCurrent) * 3.6f;
+                    _lastDriveRpm = CalculateDriveRpm(newSpeedMps, throttle);
                 }
                 else
                 {
+                    var surfaceDecelMod = _deceleration > 0f ? _currentDeceleration / _deceleration : 1.0f;
+                    var brakeInput = Math.Max(0f, Math.Min(100f, -_currentBrake)) / 100f;
+                    var brakeDecel = CalculateBrakeDecel(brakeInput, surfaceDecelMod);
+                    var engineBrakeDecel = CalculateEngineBrakingDecel(surfaceDecelMod);
+                    var totalDecel = _thrust < -10 ? (brakeDecel + engineBrakeDecel) : engineBrakeDecel;
+                    _speedDiff = -totalDecel * elapsed;
                     _lastDriveRpm = 0f;
                 }
 
-                var surfaceDecelMod = _deceleration > 0f ? _currentDeceleration / _deceleration : 1.0f;
-                var brakeForce = brakeInput > 0f
-                    ? _massKg * (VehiclePowertrainMath.CalculateBrakeDecel(brakeInput, surfaceDecelMod, _powertrainParams) / 3.6f)
-                    : 0f;
-                var engineBrakeForce = throttle > 0.05f
-                    ? 0f
-                    : _massKg * (VehiclePowertrainMath.CalculateEngineBrakingDecel(_engine, _gear, surfaceDecelMod, _powertrainParams) / 3.6f);
+                _speed += _speedDiff;
+                if (_speed > _topSpeed)
+                    _speed = _topSpeed;
+                if (_speed < 0)
+                    _speed = 0;
 
-                var inputs = new VehicleDynamicsInputs
-                {
-                    Elapsed = elapsed,
-                    SteeringCommand = _currentSteering,
-                    DriveForce = driveForce,
-                    BrakeForce = brakeForce,
-                    EngineBrakeForce = engineBrakeForce,
-                    SurfaceTractionMod = surfaceTractionMod,
-                    TireGripCoefficient = _tireGripCoefficient,
-                    LateralGripCoefficient = _lateralGripCoefficient
-                };
-                var dynamics = _dynamicsModel == VehicleDynamicsModel.Bicycle
-                    ? BicycleDynamics.Step(ref _dynamicsState, _bicycleParams, inputs)
-                    : VehicleDynamics.Step(ref _dynamicsState, _dynamicsParams, inputs);
-                _speed = dynamics.SpeedKph;
-                _speedDiff = dynamics.SpeedDiffKph;
-                var longitudinalGripFactor = dynamics.LongitudinalGripFactor;
-                if (_speed < 0f)
-                    _speed = 0f;
-
-                var speedForGearKph = Math.Abs(_dynamicsState.VelLong) * 3.6f;
-                UpdateAutomaticGear(elapsed, speedForGearKph / 3.6f, throttle, surfaceTractionMod, longitudinalGripFactor);
-                _engine.SyncFromSpeed(speedForGearKph, _gear, elapsed, _currentThrottle);
+                UpdateAutomaticGear(elapsed, _speed / 3.6f, throttle, surfaceTractionMod, longitudinalGripFactor);
+                _engine.SyncFromSpeed(_speed, _gear, elapsed, _currentThrottle);
                 if (_lastDriveRpm > 0f && _lastDriveRpm > _engine.Rpm)
                     _engine.OverrideRpm(_lastDriveRpm);
                 if (_thrust < -50 && _speed > 0)
                     _currentSteering = _currentSteering * 2 / 3;
-                var headingDegrees = MapMovement.HeadingFromYaw(_dynamicsState.Yaw);
-                var distanceMeters = (_speed / 3.6f) * elapsed;
-                var previousPosition = _worldPosition;
-                _track.TryMove(ref _mapState, distanceMeters, headingDegrees, out _, out var boundaryHit);
-                if (boundaryHit)
-                {
-                    _speed = 0f;
-                    _dynamicsState.VelLong = 0f;
-                    _dynamicsState.VelLat = 0f;
-                }
-                else
-                {
-                    ApplySectorSpeedRules(_mapState.WorldPosition, headingDegrees);
-                }
-                _worldPosition = _mapState.WorldPosition;
-                _positionY = _mapState.DistanceMeters;
-                var worldVelocity = elapsed > 0f ? (_worldPosition - previousPosition) / elapsed : Vector3.Zero;
-                if (_track.TryGetSurfaceOrientation(_worldPosition, headingDegrees, out var surfaceForward, out var surfaceUp))
-                {
-                    _worldForward = surfaceForward;
-                    _worldUp = surfaceUp;
-                }
-                else
-                {
-                    _worldForward = MapMovement.HeadingVector(headingDegrees);
-                    _worldUp = Vector3.UnitY;
-                }
-                _worldVelocity = worldVelocity;
 
-                var forwardAxis = _worldForward.LengthSquared() > 0.0001f ? Vector3.Normalize(_worldForward) : Vector3.UnitZ;
-                var upAxis = _worldUp.LengthSquared() > 0.0001f ? Vector3.Normalize(_worldUp) : Vector3.UnitY;
-                var rightAxis = Vector3.Cross(upAxis, forwardAxis);
-                if (rightAxis.LengthSquared() > 0.0001f)
-                    rightAxis = Vector3.Normalize(rightAxis);
-                else
-                    rightAxis = new Vector3(forwardAxis.Z, 0f, -forwardAxis.X);
-
-                var lateralDelta = Vector3.Dot(_worldPosition - previousPosition, rightAxis);
-                if (!float.IsNaN(lateralDelta) && !float.IsInfinity(lateralDelta))
-                    _positionX += lateralDelta;
+                var speedMps = _speed / 3.6f;
+                _positionY += (speedMps * elapsed);
+                var surfaceMultiplier = _surface == TrackSurface.Snow ? 1.44f : 1.0f;
+                var steeringCommandLat = (_currentSteering / 100.0f) * _steering;
+                if (steeringCommandLat > 1.0f)
+                    steeringCommandLat = 1.0f;
+                else if (steeringCommandLat < -1.0f)
+                    steeringCommandLat = -1.0f;
+                var steerRadLat = (float)(Math.PI / 180.0) * (_maxSteerDeg * steeringCommandLat);
+                var curvatureLat = (float)Math.Tan(steerRadLat) / _wheelbaseM;
+                var surfaceTractionModLat = _surfaceTractionFactor > 0f ? _currentSurfaceTractionFactor / _surfaceTractionFactor : 1.0f;
+                var gripLat = _tireGripCoefficient * surfaceTractionModLat * _lateralGripCoefficient;
+                var maxLatAccelLat = gripLat * 9.80665f;
+                var desiredLatAccelLat = curvatureLat * speedMps * speedMps;
+                var massFactor = (float)Math.Sqrt(1500f / _massKg);
+                if (massFactor > 3.0f)
+                    massFactor = 3.0f;
+                var stabilityScale = 1.0f - (_highSpeedStability * (speedMps / StabilitySpeedRef) * massFactor);
+                if (stabilityScale < 0.2f)
+                    stabilityScale = 0.2f;
+                else if (stabilityScale > 1.0f)
+                    stabilityScale = 1.0f;
+                var responseTime = BaseLateralSpeed / 20.0f;
+                var maxLatSpeed = maxLatAccelLat * responseTime * stabilityScale;
+                var desiredLatSpeed = desiredLatAccelLat * responseTime;
+                if (desiredLatSpeed > maxLatSpeed)
+                    desiredLatSpeed = maxLatSpeed;
+                else if (desiredLatSpeed < -maxLatSpeed)
+                    desiredLatSpeed = -maxLatSpeed;
+                var lateralSpeed = desiredLatSpeed * surfaceMultiplier;
+                _positionX += (lateralSpeed * elapsed);
 
                 if (_frame % 4 == 0)
                 {
@@ -640,7 +534,7 @@ namespace TopSpeed.Vehicles
                     UpdateEngineFreq();
                 }
 
-                var road = _track.RoadAt(_mapState);
+                var road = _track.RoadComputer(_positionY);
                 if (!_finished)
                     Evaluate(road);
             }
@@ -732,19 +626,20 @@ namespace TopSpeed.Vehicles
             float playerY,
             float trackLength)
         {
-            _positionX = 0f;
+            _positionX = positionX;
+            _positionY = positionY;
             _speed = speed;
             _trackLength = trackLength;
             _state = ComputerState.Running;
-            _networkControlled = true;
 
-            var worldPosition = new Vector3(positionX, 0f, positionY);
-            _worldPosition = worldPosition;
-            _mapState = _track.CreateStateFromWorld(worldPosition, _mapState.HeadingDegrees);
-            _mapState.WorldPosition = worldPosition;
+            _diffX = _positionX - playerX;
+            _diffY = _positionY - playerY;
+            _diffY = ((_diffY % _trackLength) + _trackLength) % _trackLength;
+            if (_diffY > _trackLength / 2)
+                _diffY = (_diffY - _trackLength) % _trackLength;
 
-            var now = _currentTime();
             var elapsed = 0f;
+            var now = _currentTime();
             if (_audioInitialized)
             {
                 elapsed = now - _lastAudioUpdateTime;
@@ -752,15 +647,6 @@ namespace TopSpeed.Vehicles
                     elapsed = 0f;
             }
             _lastAudioUpdateTime = now;
-
-            var speedMps = Math.Max(0f, speed / 3.6f);
-            _networkDistanceMeters += speedMps * elapsed;
-            _mapState.DistanceMeters = _networkDistanceMeters;
-            _positionY = _networkDistanceMeters;
-
-            _diffX = _worldPosition.X - playerX;
-            _diffY = _worldPosition.Z - playerY;
-
             UpdateSpatialAudio(playerX, playerY, _trackLength, elapsed);
 
             if (engineRunning)
@@ -814,46 +700,26 @@ namespace TopSpeed.Vehicles
             _networkBackfireActive = backfiring;
         }
 
-        public void Evaluate(TrackRoad road)
+        public void Evaluate(Track.Road road)
         {
             if (_state == ComputerState.Running && _started())
             {
                 if (_frame % 4 == 0)
                 {
                     _relPos = (_positionX - road.Left) / (_laneWidth * 2.0f);
+                    if (_relPos < 0 || _relPos > 1)
+                    {
+                        var fullCrash = _gear > 1 || _speed >= 50.0f;
+                        if (fullCrash)
+                            Crash((road.Right + road.Left) / 2);
+                        else
+                            MiniCrash((road.Right + road.Left) / 2);
+                    }
                 }
             }
 
-            _materialId = NormalizeMaterialId(road.MaterialId);
-            _surfaceKind = ResolveSurfaceKind(_materialId);
+            _surface = road.Surface;
             _frame++;
-        }
-
-        private void ApplySectorSpeedRules(Vector3 worldPosition, float headingDegrees)
-        {
-            if (!_track.TryGetSectorRules(worldPosition, headingDegrees, out _, out var rules, out _, out _))
-                return;
-
-            var speedCap = rules.MaxSpeedKph;
-            if (rules.RequiresYield)
-            {
-                var yieldCap = YieldSpeedKph;
-                speedCap = speedCap.HasValue ? Math.Min(speedCap.Value, yieldCap) : yieldCap;
-            }
-
-            if (rules.RequiresStop)
-                speedCap = 0f;
-
-            if (!speedCap.HasValue)
-                return;
-            if (_speed <= speedCap.Value)
-                return;
-
-            var cap = Math.Max(0f, speedCap.Value);
-            var factor = _speed > 0f ? cap / _speed : 0f;
-            _speed = cap;
-            _dynamicsState.VelLong *= factor;
-            _dynamicsState.VelLat *= factor;
         }
 
         public void Pause()
@@ -898,186 +764,125 @@ namespace TopSpeed.Vehicles
             _soundBackfire?.Dispose();
         }
 
-        private void AI(float elapsed)
+        private void AI()
         {
-            var road = _track.RoadAt(_mapState);
-            var roadWidth = Math.Max(1f, road.Right - road.Left);
-            _laneWidth = roadWidth * 0.5f;
-            _relPos = (_positionX - road.Left) / roadWidth;
-            _nextRelPos = _relPos;
-
-            _currentSteering = 0;
+            var road = _track.RoadComputer(_positionY);
+            _relPos = (_positionX - road.Left) / (_laneWidth * 2.0f);
+            var nextRoad = _track.RoadComputer(_positionY + CallLength);
+            _nextRelPos = (_positionX - nextRoad.Left) / (_laneWidth * 2.0f);
             _currentThrottle = 100;
-            _currentBrake = 0;
+            _currentSteering = 0;
 
-            var currentHeading = NormalizeDegrees(_dynamicsState.Yaw * 180.0f / (float)Math.PI);
-            var targetCruiseSpeed = Math.Max(AiCruiseMinSpeedKph, _topSpeed * ResolveDifficultyCruiseFactor());
-            var desiredSpeed = targetCruiseSpeed;
-            var inTurnWindow = false;
-            var guidanceActive = false;
-
-            if (_track.TryGetTurnGuidance(_worldPosition, currentHeading, out var guidance) && !guidance.Passed)
+            if (road.Type == TrackType.HairpinLeft || nextRoad.Type == TrackType.HairpinLeft)
             {
-                var distanceToTurn = Math.Max(0f, guidance.DistanceMeters);
-                inTurnWindow = guidance.InTurnWindow;
-                var activationRange = AiTurnApproachMeters;
-                if (guidance.GuidanceRangeMeters > 0f)
-                    activationRange = Math.Min(activationRange, guidance.GuidanceRangeMeters);
-                guidanceActive = inTurnWindow || distanceToTurn <= activationRange;
-
-                if (guidanceActive)
+                switch (_difficulty)
                 {
-                    var headingDelta = SignedDeltaDegrees(currentHeading, guidance.TurnHeadingDegrees);
-                    var absHeadingDelta = Math.Abs(headingDelta);
-                    var turnSeverity = Clamp(absHeadingDelta / 95f, 0f, 1f);
-
-                    if (inTurnWindow)
-                    {
-                        var inWindowCap = Lerp(65f, 28f, turnSeverity);
-                        desiredSpeed = Math.Min(desiredSpeed, inWindowCap);
-                    }
-                    else if (distanceToTurn <= AiTurnApproachMeters)
-                    {
-                        var approach = 1f - Clamp(distanceToTurn / AiTurnApproachMeters, 0f, 1f);
-                        var turnCap = Lerp(130f, 32f, turnSeverity);
-                        desiredSpeed = Math.Min(desiredSpeed, Lerp(targetCruiseSpeed, turnCap, approach));
-                    }
-
-                    var steerGain = inTurnWindow ? 1.25f : 0.9f;
-                    var steerCommand = (headingDelta / 45f) * 100f * steerGain;
-                    if (!inTurnWindow && distanceToTurn > 20f)
-                    {
-                        var laneCenterBias = Clamp((0.5f - _relPos) * 120f, -35f, 35f);
-                        steerCommand += laneCenterBias * 0.25f;
-                    }
-
-                    var steerLimit = _speed < 25f ? 45f : 100f;
-                    _currentSteering = (int)Math.Round(Clamp(steerCommand, -steerLimit, steerLimit));
+                    case 0:
+                        if (_relPos > 0.65f)
+                            _currentSteering = -100;
+                        break;
+                    case 1:
+                        if (_relPos > 0.55f)
+                            _currentSteering = -100;
+                        _currentThrottle = 66;
+                        break;
+                    case 2:
+                        if (_relPos > 0.55f)
+                            _currentSteering = -100;
+                        _currentThrottle = 33;
+                        break;
                 }
             }
-
-            if (!guidanceActive)
+            else if (road.Type == TrackType.HairpinRight || nextRoad.Type == TrackType.HairpinRight)
             {
-                var laneCenterError = 0.5f - _relPos;
-                var laneSteer = Clamp(laneCenterError * 200f, -100f, 100f);
-                _currentSteering = (int)Math.Round(laneSteer);
-            }
-
-            // Keep spacing from player to reduce bot-player collisions.
-            var toPlayer = new Vector2(-_diffX, -_diffY);
-            var forward2 = new Vector2(_worldForward.X, _worldForward.Z);
-            if (forward2.LengthSquared() < 0.0001f)
-            {
-                var headingRad = _dynamicsState.Yaw;
-                forward2 = new Vector2((float)Math.Sin(headingRad), (float)Math.Cos(headingRad));
-            }
-            if (forward2.LengthSquared() > 0.0001f)
-            {
-                forward2 = Vector2.Normalize(forward2);
-                var right2 = new Vector2(forward2.Y, -forward2.X);
-                var along = Vector2.Dot(toPlayer, forward2);
-                var side = Vector2.Dot(toPlayer, right2);
-                if (along > -2f && along < 14f && Math.Abs(side) < 4.5f)
+                switch (_difficulty)
                 {
-                    desiredSpeed = Math.Min(desiredSpeed, Math.Max(8f, along * 1.5f));
-                    var avoidSteer = side >= 0f ? -20f : 20f;
-                    _currentSteering = (int)Math.Round(Clamp(_currentSteering + avoidSteer, -100f, 100f));
+                    case 0:
+                        if (_relPos < 0.35f)
+                            _currentSteering = 100;
+                        break;
+                    case 1:
+                        if (_relPos < 0.45f)
+                            _currentSteering = 100;
+                        _currentThrottle = 66;
+                        break;
+                    case 2:
+                        if (_relPos < 0.45f)
+                            _currentSteering = 100;
+                        _currentThrottle = 33;
+                        break;
                 }
             }
-
-            UpdateAiMistake(elapsed);
-            if (_aiMistakeRemaining > 0f)
+            else if (_relPos < 0.40f)
             {
-                var steer = _currentSteering + _aiMistakeSteerBias;
-                _currentSteering = (int)Math.Round(Clamp(steer, -100f, 100f));
-                desiredSpeed *= _aiMistakeThrottleScale;
-            }
-
-            desiredSpeed = Clamp(desiredSpeed, AiCruiseMinSpeedKph, _topSpeed);
-            var speedError = desiredSpeed - _speed;
-            if (speedError >= 6f)
-            {
-                _currentBrake = 0;
-                _currentThrottle = (int)Math.Round(Clamp(40f + (speedError * 2.5f), 45f, 100f));
-            }
-            else if (speedError <= -2f)
-            {
-                _currentThrottle = 0;
-                var brakeBase = Clamp((-speedError * 3f) + (inTurnWindow ? 18f : 0f), 18f, 100f);
-                _currentBrake = -(int)Math.Round(brakeBase);
-            }
-            else
-            {
-                _currentBrake = 0;
-                _currentThrottle = (int)Math.Round(Clamp(30f + (speedError * 2f), 20f, 55f));
-            }
-        }
-
-        private void UpdateAiMistake(float elapsed)
-        {
-            _aiMistakeCooldown = Math.Max(0f, _aiMistakeCooldown - elapsed);
-            if (_aiMistakeRemaining > 0f)
-            {
-                _aiMistakeRemaining = Math.Max(0f, _aiMistakeRemaining - elapsed);
-                if (_aiMistakeRemaining <= 0f)
+                if (_relPos > 0.2f)
                 {
-                    _aiMistakeSteerBias = 0f;
-                    _aiMistakeThrottleScale = 1f;
+                    switch (_difficulty)
+                    {
+                        case 0:
+                            _currentSteering = 100 - _random / 5;
+                            break;
+                        case 1:
+                            _currentSteering = 100 - _random / 10;
+                            break;
+                        case 2:
+                            _currentSteering = 100 - _random / 25;
+                            break;
+                    }
                 }
-                return;
+                else
+                {
+                    switch (_difficulty)
+                    {
+                        case 0:
+                            _currentSteering = 100 - _random / 10;
+                            break;
+                        case 1:
+                            _currentSteering = 100 - _random / 20;
+                            _currentThrottle = 75;
+                            break;
+                        case 2:
+                            _currentSteering = 100;
+                            _currentThrottle = 50;
+                            break;
+                    }
+                }
             }
-
-            if (_aiMistakeCooldown > 0f)
-                return;
-
-            var triggerChance = _difficulty switch
+            else if (_relPos > 0.6f)
             {
-                0 => 45,
-                1 => 25,
-                _ => 10
-            };
-
-            if (Algorithm.RandomInt(100) < triggerChance)
-            {
-                var steerBiasBase = _difficulty switch
+                if (_relPos < 0.8f)
                 {
-                    0 => 30f,
-                    1 => 22f,
-                    _ => 14f
-                };
-                var steerBiasRange = _difficulty switch
+                    switch (_difficulty)
+                    {
+                        case 0:
+                            _currentSteering = -100 + _random / 5;
+                            break;
+                        case 1:
+                            _currentSteering = -100 + _random / 10;
+                            break;
+                        case 2:
+                            _currentSteering = -100 + _random / 25;
+                            break;
+                    }
+                }
+                else
                 {
-                    0 => 25f,
-                    1 => 18f,
-                    _ => 12f
-                };
-                var direction = Algorithm.RandomInt(2) == 0 ? -1f : 1f;
-                _aiMistakeSteerBias = direction * (steerBiasBase + ((Algorithm.RandomInt(100) / 100f) * steerBiasRange));
-                _aiMistakeThrottleScale = _difficulty switch
-                {
-                    0 => 0.6f + (Algorithm.RandomInt(50) / 100f),
-                    1 => 0.75f + (Algorithm.RandomInt(40) / 100f),
-                    _ => 0.85f + (Algorithm.RandomInt(25) / 100f)
-                };
-                _aiMistakeRemaining = 0.35f + (Algorithm.RandomInt(85) / 100f);
+                    switch (_difficulty)
+                    {
+                        case 0:
+                            _currentSteering = -100 + _random / 10;
+                            break;
+                        case 1:
+                            _currentSteering = -100 + _random / 20;
+                            _currentThrottle = 75;
+                            break;
+                        case 2:
+                            _currentSteering = -100;
+                            _currentThrottle = 50;
+                            break;
+                    }
+                }
             }
-
-            _aiMistakeCooldown = _difficulty switch
-            {
-                0 => 2.0f + (Algorithm.RandomInt(80) / 100f),
-                1 => 3.0f + (Algorithm.RandomInt(110) / 100f),
-                _ => 4.0f + (Algorithm.RandomInt(140) / 100f)
-            };
-        }
-
-        private float ResolveDifficultyCruiseFactor()
-        {
-            return _difficulty switch
-            {
-                0 => 0.70f,
-                1 => 0.80f,
-                _ => 0.90f
-            };
         }
 
         private void Horn()
@@ -1137,6 +942,39 @@ namespace TopSpeed.Vehicles
             }
         }
 
+        private int CalculateAcceleration()
+        {
+            var gearRange = _engine.GetGearRangeKmh(_gear);
+            var gearMin = _engine.GetGearMinSpeedKmh(_gear);
+            var gearCenter = gearMin + (gearRange * 0.18f);
+            _speedDiff = _speed - gearCenter;
+            var relSpeedDiff = _speedDiff / (gearRange * 1.0f);
+            if (Math.Abs(relSpeedDiff) < 1.9f)
+            {
+                var acceleration = (int)(100 * (0.5f + Math.Cos(relSpeedDiff * Math.PI * 0.5f)));
+                return acceleration < 5 ? 5 : acceleration;
+            }
+
+            var minAcceleration = (int)(100 * (0.5f + Math.Cos(0.95f * Math.PI)));
+            return minAcceleration < 5 ? 5 : minAcceleration;
+        }
+
+        private float CalculateDriveRpm(float speedMps, float throttle)
+        {
+            var wheelCircumference = _wheelRadiusM * 2.0f * (float)Math.PI;
+            var gearRatio = _engine.GetGearRatio(_gear);
+            var speedBasedRpm = wheelCircumference > 0f
+                ? (speedMps / wheelCircumference) * 60f * gearRatio * _finalDriveRatio
+                : 0f;
+            var launchTarget = _idleRpm + (throttle * (_launchRpm - _idleRpm));
+            var rpm = Math.Max(speedBasedRpm, launchTarget);
+            if (rpm < _idleRpm)
+                rpm = _idleRpm;
+            if (rpm > _revLimiter)
+                rpm = _revLimiter;
+            return rpm;
+        }
+
         private void UpdateAutomaticGear(float elapsed, float speedMps, float throttle, float surfaceTractionMod, float longitudinalGripFactor)
         {
             if (_gears <= 1)
@@ -1148,17 +986,46 @@ namespace TopSpeed.Vehicles
                 return;
             }
 
-            var decision = VehiclePowertrainMath.SelectAutomaticGear(
-                _engine,
-                _gear,
-                _gears,
-                speedMps,
-                throttle,
-                surfaceTractionMod,
-                longitudinalGripFactor,
-                _powertrainParams);
-            if (decision.ShouldShift)
-                ShiftAutomaticGear(decision.TargetGear);
+            var currentAccel = ComputeNetAccelForGear(_gear, speedMps, throttle, surfaceTractionMod, longitudinalGripFactor);
+            var bestGear = _gear;
+            var bestAccel = currentAccel;
+
+            if (_gear < _gears)
+            {
+                var upAccel = ComputeNetAccelForGear(_gear + 1, speedMps, throttle, surfaceTractionMod, longitudinalGripFactor);
+                if (upAccel > bestAccel)
+                {
+                    bestAccel = upAccel;
+                    bestGear = _gear + 1;
+                }
+            }
+
+            if (_gear > 1)
+            {
+                var downAccel = ComputeNetAccelForGear(_gear - 1, speedMps, throttle, surfaceTractionMod, longitudinalGripFactor);
+                if (downAccel > bestAccel)
+                {
+                    bestAccel = downAccel;
+                    bestGear = _gear - 1;
+                }
+            }
+
+            var currentRpm = SpeedToRpm(speedMps, _gear);
+            if (_gear < _gears && currentRpm >= _revLimiter * 0.995f)
+            {
+                ShiftAutomaticGear(_gear + 1);
+                return;
+            }
+
+            var shiftRpm = _idleRpm + (_revLimiter - _idleRpm) * 0.35f;
+            if (_gear > 1 && currentRpm < shiftRpm)
+            {
+                ShiftAutomaticGear(_gear - 1);
+                return;
+            }
+
+            if (bestGear != _gear && bestAccel > currentAccel * (1f + AutoShiftHysteresis))
+                ShiftAutomaticGear(bestGear);
         }
 
         private void ShiftAutomaticGear(int newGear)
@@ -1171,61 +1038,118 @@ namespace TopSpeed.Vehicles
             _autoShiftCooldown = AutoShiftCooldownSeconds;
         }
 
+        private float ComputeNetAccelForGear(int gear, float speedMps, float throttle, float surfaceTractionMod, float longitudinalGripFactor)
+        {
+            var rpm = SpeedToRpm(speedMps, gear);
+            if (rpm <= 0f)
+                return float.NegativeInfinity;
+            if (rpm > _revLimiter && gear < _gears)
+                return float.NegativeInfinity;
+
+            var engineTorque = CalculateEngineTorqueNm(rpm) * throttle * _powerFactor;
+            var gearRatio = _engine.GetGearRatio(gear);
+            var wheelTorque = engineTorque * gearRatio * _finalDriveRatio * _drivetrainEfficiency;
+            var wheelForce = wheelTorque / _wheelRadiusM;
+            var tractionLimit = _tireGripCoefficient * surfaceTractionMod * _massKg * 9.80665f;
+            if (wheelForce > tractionLimit)
+                wheelForce = tractionLimit;
+            wheelForce *= longitudinalGripFactor;
+
+            var dragForce = 0.5f * 1.225f * _dragCoefficient * _frontalAreaM2 * speedMps * speedMps;
+            var rollingForce = _rollingResistanceCoefficient * _massKg * 9.80665f;
+            var netForce = wheelForce - dragForce - rollingForce;
+            return netForce / _massKg;
+        }
+
+        private float SpeedToRpm(float speedMps, int gear)
+        {
+            var wheelCircumference = _wheelRadiusM * 2.0f * (float)Math.PI;
+            if (wheelCircumference <= 0f)
+                return 0f;
+            var gearRatio = _engine.GetGearRatio(gear);
+            return (speedMps / wheelCircumference) * 60f * gearRatio * _finalDriveRatio;
+        }
+
+        private float CalculateEngineTorqueNm(float rpm)
+        {
+            if (_peakTorqueNm <= 0f)
+                return 0f;
+            var clampedRpm = Math.Max(_idleRpm, Math.Min(_revLimiter, rpm));
+            if (clampedRpm <= _peakTorqueRpm)
+            {
+                var denom = _peakTorqueRpm - _idleRpm;
+                var t = denom > 0f ? (clampedRpm - _idleRpm) / denom : 0f;
+                return SmoothStep(_idleTorqueNm, _peakTorqueNm, t);
+            }
+            else
+            {
+                var denom = _revLimiter - _peakTorqueRpm;
+                var t = denom > 0f ? (clampedRpm - _peakTorqueRpm) / denom : 0f;
+                return SmoothStep(_peakTorqueNm, _redlineTorqueNm, t);
+            }
+        }
+
+        private static float SmoothStep(float a, float b, float t)
+        {
+            var clamped = Math.Max(0f, Math.Min(1f, t));
+            clamped = clamped * clamped * (3f - 2f * clamped);
+            return a + (b - a) * clamped;
+        }
+
+        private float CalculateBrakeDecel(float brakeInput, float surfaceDecelMod)
+        {
+            if (brakeInput <= 0f)
+                return 0f;
+            var grip = Math.Max(0.1f, _tireGripCoefficient * surfaceDecelMod);
+            var decelMps2 = brakeInput * _brakeStrength * grip * 9.80665f;
+            return decelMps2 * 3.6f;
+        }
+
+        private float CalculateEngineBrakingDecel(float surfaceDecelMod)
+        {
+            if (_engineBrakingTorqueNm <= 0f || _massKg <= 0f || _wheelRadiusM <= 0f)
+                return 0f;
+            var rpmRange = _revLimiter - _idleRpm;
+            if (rpmRange <= 0f)
+                return 0f;
+            var rpmFactor = (_engine.Rpm - _idleRpm) / rpmRange;
+            if (rpmFactor <= 0f)
+                return 0f;
+            rpmFactor = Math.Max(0f, Math.Min(1f, rpmFactor));
+            var gearRatio = _engine.GetGearRatio(_gear);
+            var drivelineTorque = _engineBrakingTorqueNm * _engineBraking * rpmFactor;
+            var wheelTorque = drivelineTorque * gearRatio * _finalDriveRatio * _drivetrainEfficiency;
+            var wheelForce = wheelTorque / _wheelRadiusM;
+            var decelMps2 = (wheelForce / _massKg) * surfaceDecelMod;
+            return Math.Max(0f, decelMps2 * 3.6f);
+        }
+
         private void UpdateSpatialAudio(float listenerX, float listenerY, float trackLength, float elapsed)
         {
-            var worldPos = _worldPosition;
-            var vehiclePos = worldPos + (Vector3.UnitY * _vehicleHeightM);
-            var enginePos = worldPos + (Vector3.UnitY * _engineHeightM);
-            var hornPos = worldPos + (Vector3.UnitY * _hornHeightM);
+            var dx = _positionX - listenerX;
+            var dz = AudioWorld.WrapDelta(_positionY - listenerY, trackLength);
+            var worldX = listenerX + dx;
+            var worldZ = listenerY + dz;
+
+            var position = AudioWorld.Position(worldX, worldZ);
 
             var velocity = Vector3.Zero;
             if (_audioInitialized && elapsed > 0f)
             {
-                var velUnits = new Vector3((worldPos.X - _lastAudioPosition.X) / elapsed, 0f, (worldPos.Z - _lastAudioPosition.Z) / elapsed);
+                var velUnits = new Vector3((worldX - _lastAudioPosition.X) / elapsed, 0f, (worldZ - _lastAudioPosition.Z) / elapsed);
                 velocity = AudioWorld.ToMeters(velUnits);
             }
-            _lastAudioPosition = worldPos;
+            _lastAudioPosition = new Vector3(worldX, 0f, worldZ);
             _audioInitialized = true;
 
-            SetSpatial(_soundEngine, AudioWorld.ToMeters(enginePos), velocity);
-            SetSpatial(_soundStart, AudioWorld.ToMeters(enginePos), velocity);
-            SetSpatial(_soundHorn, AudioWorld.ToMeters(hornPos), velocity);
-            SetSpatial(_soundCrash, AudioWorld.ToMeters(vehiclePos), velocity);
-            SetSpatial(_soundBrake, AudioWorld.ToMeters(vehiclePos), velocity);
-            SetSpatial(_soundBackfire, AudioWorld.ToMeters(enginePos), velocity);
-            SetSpatial(_soundBump, AudioWorld.ToMeters(vehiclePos), velocity);
-            SetSpatial(_soundMiniCrash, AudioWorld.ToMeters(vehiclePos), velocity);
-        }
-
-        private static string NormalizeMaterialId(string? materialId)
-        {
-            if (materialId == null)
-                return "asphalt";
-            var trimmed = materialId.Trim();
-            if (trimmed.Length == 0)
-                return "asphalt";
-            return trimmed;
-        }
-
-        private static SurfaceKind ResolveSurfaceKind(string materialId)
-        {
-            if (string.IsNullOrWhiteSpace(materialId))
-                return SurfaceKind.Asphalt;
-            switch (materialId.Trim().ToLowerInvariant())
-            {
-                case "gravel":
-                    return SurfaceKind.Gravel;
-                case "water":
-                    return SurfaceKind.Water;
-                case "sand":
-                    return SurfaceKind.Sand;
-                case "snow":
-                    return SurfaceKind.Snow;
-                case "asphalt":
-                    return SurfaceKind.Asphalt;
-                default:
-                    return SurfaceKind.Other;
-            }
+            SetSpatial(_soundEngine, position, velocity);
+            SetSpatial(_soundStart, position, velocity);
+            SetSpatial(_soundHorn, position, velocity);
+            SetSpatial(_soundCrash, position, velocity);
+            SetSpatial(_soundBrake, position, velocity);
+            SetSpatial(_soundBackfire, position, velocity);
+            SetSpatial(_soundBump, position, velocity);
+            SetSpatial(_soundMiniCrash, position, velocity);
         }
 
         private static void SetSpatial(AudioSourceHandle? sound, Vector3 position, Vector3 velocity)
@@ -1234,36 +1158,6 @@ namespace TopSpeed.Vehicles
                 return;
             sound.SetPosition(position);
             sound.SetVelocity(velocity);
-        }
-
-        private static float Clamp(float value, float min, float max)
-        {
-            if (value < min)
-                return min;
-            if (value > max)
-                return max;
-            return value;
-        }
-
-        private static float Lerp(float a, float b, float t)
-        {
-            return a + ((b - a) * Clamp(t, 0f, 1f));
-        }
-
-        private static float NormalizeDegrees(float degrees)
-        {
-            degrees %= 360f;
-            if (degrees < 0f)
-                degrees += 360f;
-            return degrees;
-        }
-
-        private static float SignedDeltaDegrees(float current, float target)
-        {
-            var delta = NormalizeDegrees(target - current);
-            if (delta > 180f)
-                delta -= 360f;
-            return delta;
         }
 
         private AudioSourceHandle CreateRequiredSound(string? path, string label, bool looped = false)

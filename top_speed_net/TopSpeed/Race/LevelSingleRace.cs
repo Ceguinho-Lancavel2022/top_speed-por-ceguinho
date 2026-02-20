@@ -1,12 +1,10 @@
 using System;
-using System.Numerics;
 using TopSpeed.Audio;
 using TopSpeed.Common;
 using TopSpeed.Data;
 using TopSpeed.Input;
 using TopSpeed.Speech;
 using TopSpeed.Tracks;
-using TopSpeed.Tracks.Map;
 using TopSpeed.Vehicles;
 using TS.Audio;
 
@@ -16,6 +14,7 @@ namespace TopSpeed.Race
     {
         private const int MaxComputerPlayers = 7;
         private const int MaxPlayers = 8;
+        private const float StartLineY = 140.0f;
 
         private readonly ComputerPlayer?[] _computerPlayers;
         private readonly AudioSourceHandle?[] _soundPosition;
@@ -31,12 +30,6 @@ namespace TopSpeed.Race
         private int _positionComment;
         private int _playerNumber;
         private int _nComputerPlayers;
-        private StartGridLayout? _startGrid;
-        private bool _wasInFinish;
-        private float _lastLapTriggerDistance;
-        private bool[]? _botWasInFinish;
-        private int[]? _botLaps;
-        private float[]? _botLastLapTriggerDistance;
         private bool _pauseKeyReleased = true;
         private float _raceStartDelay;
         private bool _botsScheduled;
@@ -84,64 +77,26 @@ namespace TopSpeed.Race
             }
 
             var maxLength = _car.LengthM;
-            var maxWidth = _car.WidthM;
             for (var i = 0; i < _nComputerPlayers; i++)
             {
                 var bot = _computerPlayers[i];
                 if (bot != null && bot.LengthM > maxLength)
                     maxLength = bot.LengthM;
-                if (bot != null && bot.WidthM > maxWidth)
-                    maxWidth = bot.WidthM;
             }
 
             var rowSpacing = Math.Max(10.0f, maxLength * 1.5f);
-            if (StartGridBuilder.TryBuild(_track.Map, maxWidth, rowSpacing, out var layout))
-            {
-                _startGrid = layout;
-                var capacity = layout.Capacity;
-                var totalPlayers = _nComputerPlayers + 1;
-                if (capacity > 0 && totalPlayers > capacity)
-                {
-                    var allowedBots = Math.Max(0, capacity - 1);
-                    for (var i = allowedBots; i < _nComputerPlayers; i++)
-                    {
-                        _computerPlayers[i]?.Dispose();
-                        _computerPlayers[i] = null;
-                    }
-                    _nComputerPlayers = allowedBots;
-                    if (_position > _nComputerPlayers + 1)
-                        _position = _nComputerPlayers + 1;
-                    if (_positionComment > _nComputerPlayers + 1)
-                        _positionComment = _nComputerPlayers + 1;
-                }
-            }
-            var playerPosition = CalculateStartPosition(_playerNumber, _car.WidthM, rowSpacing);
-            _car.SetPosition(playerPosition.X, playerPosition.Z);
-            _lastLapTriggerDistance = _car.DistanceMeters;
-
-            if (_track.HasFinishArea)
-            {
-                _wasInFinish = _track.IsInsideFinishArea(_car.WorldPosition);
-                _botWasInFinish = new bool[MaxComputerPlayers];
-                _botLaps = new int[MaxComputerPlayers];
-                _botLastLapTriggerDistance = new float[MaxComputerPlayers];
-            }
+            var playerX = CalculateStartX(_playerNumber, _car.WidthM);
+            var playerY = CalculateStartY(_playerNumber, rowSpacing);
+            _car.SetPosition(playerX, playerY);
 
             for (var i = 0; i < _nComputerPlayers; i++)
             {
                 var bot = _computerPlayers[i];
                 if (bot == null)
                     continue;
-                var botPosition = CalculateStartPosition(bot.PlayerNumber, bot.WidthM, rowSpacing);
-                bot.Initialize(botPosition.X, botPosition.Z, _track.Length);
-                if (_track.HasFinishArea && _botWasInFinish != null)
-                {
-                    _botWasInFinish[i] = _track.IsInsideFinishArea(bot.WorldPosition);
-                    if (_botLaps != null)
-                        _botLaps[i] = 1;
-                    if (_botLastLapTriggerDistance != null)
-                        _botLastLapTriggerDistance[i] = bot.DistanceMeters;
-                }
+                var botX = CalculateStartX(bot.PlayerNumber, bot.WidthM);
+                var botY = CalculateStartY(bot.PlayerNumber, rowSpacing);
+                bot.Initialize(botX, botY, _track.Length);
             }
 
             for (var i = 0; i <= _nComputerPlayers; i++)
@@ -211,21 +166,7 @@ namespace TopSpeed.Race
                     case RaceEventType.RaceStart:
                         _raceTime = 0;
                         _stopwatch.Restart();
-                        _lap = 1;
-                        _lastLapTriggerDistance = _car.DistanceMeters;
-                        if (_botLastLapTriggerDistance != null)
-                        {
-                            for (var botIndex = 0; botIndex < _nComputerPlayers; botIndex++)
-                            {
-                                var bot = _computerPlayers[botIndex];
-                                if (bot != null)
-                                {
-                                    _botLastLapTriggerDistance[botIndex] = bot.DistanceMeters;
-                                    if (_botLaps != null)
-                                        _botLaps[botIndex] = 1;
-                                }
-                            }
-                        }
+                        _lap = 0;
                         _started = true;
                         if (!_botsScheduled)
                         {
@@ -262,36 +203,16 @@ namespace TopSpeed.Race
             }
 
             UpdatePositions();
-            HandleSteerAssistInput();
-            UpdateSteerAssist();
             _car.Run(elapsed);
-            _track.Run(_car.MapState, elapsed);
+            _track.Run(_car.PositionY);
 
             for (var botIndex = 0; botIndex < _nComputerPlayers; botIndex++)
             {
                 var bot = _computerPlayers[botIndex];
                 if (bot == null)
                     continue;
-                var playerPosition = _car.WorldPosition;
-                bot.Run(elapsed, playerPosition.X, playerPosition.Z);
-                if (_track.HasFinishArea)
-                {
-                    if (_botWasInFinish != null && _botLaps != null && _botLastLapTriggerDistance != null &&
-                        UpdateLapFromFinishArea(bot.WorldPosition, ref _botWasInFinish[botIndex], bot.DistanceMeters, ref _botLastLapTriggerDistance[botIndex]))
-                    {
-                        _botLaps[botIndex]++;
-                        if (_botLaps[botIndex] > _nrOfLaps && !bot.Finished)
-                        {
-                            bot.Stop();
-                            bot.SetFinished(true);
-                            Speak(_soundPlayerNr[bot.PlayerNumber]!, true);
-                            Speak(_soundFinished[_positionFinish++]!, true);
-                            if (CheckFinish())
-                                PushEvent(RaceEventType.RaceFinish, 1.0f + _speakTime - _elapsedTotal);
-                        }
-                    }
-                }
-                else if (_track.Lap(bot.DistanceMeters) > _nrOfLaps && !bot.Finished)
+                bot.Run(elapsed, _car.PositionX, _car.PositionY);
+                if (_track.Lap(bot.PositionY) > _nrOfLaps && !bot.Finished)
                 {
                     bot.Stop();
                     bot.SetFinished(true);
@@ -302,42 +223,15 @@ namespace TopSpeed.Race
                 }
             }
 
-            var road = _track.RoadAt(_car.MapState);
+            var road = _track.RoadAtPosition(_car.PositionY);
             _car.Evaluate(road);
             UpdateAudioListener(elapsed);
-            UpdateWallPing(elapsed);
-            if (_track.NextRoad(_car.MapState, _car.Speed, (int)_settings.CurveAnnouncement, out var nextRoad))
+            if (_track.NextRoad(_car.PositionY, _car.Speed, (int)_settings.CurveAnnouncement, out var nextRoad))
                 CallNextRoad(nextRoad);
-            UpdateTurnGuidance();
 
-            if (_track.HasFinishArea)
+            if (_track.Lap(_car.PositionY) > _lap)
             {
-                if (UpdateLapFromFinishArea(_car.WorldPosition, ref _wasInFinish, _car.DistanceMeters, ref _lastLapTriggerDistance))
-                {
-                    _lap++;
-                    if (_lap > _nrOfLaps)
-                    {
-                        var finishSound = _randomSounds[(int)RandomSound.Finish][Algorithm.RandomInt(_totalRandomSounds[(int)RandomSound.Finish])];
-                        if (finishSound != null)
-                            Speak(finishSound, true);
-                        _car.ManualTransmission = false;
-                        _car.Quiet();
-                        _car.Stop();
-                        _raceTime = (int)(_stopwatch.ElapsedMilliseconds - _stopwatchDiffMs);
-                        Speak(_soundPlayerNr[_playerNumber]!, true);
-                        Speak(_soundFinished[_positionFinish++]!, true);
-                        if (CheckFinish())
-                            PushEvent(RaceEventType.RaceFinish, 1.0f + _speakTime - _elapsedTotal);
-                    }
-                    else if (_settings.AutomaticInfo != AutomaticInfoMode.Off && _lap > 1 && _lap <= _nrOfLaps)
-                    {
-                        Speak(_soundLaps[_nrOfLaps - _lap], true);
-                    }
-                }
-            }
-            else if (_track.Lap(_car.DistanceMeters) > _lap)
-            {
-                _lap = _track.Lap(_car.DistanceMeters);
+                _lap = _track.Lap(_car.PositionY);
                 if (_lap > _nrOfLaps)
                 {
                     var finishSound = _randomSounds[(int)RandomSound.Finish][Algorithm.RandomInt(_totalRandomSounds[(int)RandomSound.Finish])];
@@ -416,10 +310,6 @@ namespace TopSpeed.Race
 
             HandleSpeedReportRequest();
             HandleDistanceReportRequest();
-            HandleWheelAngleReportRequest();
-            HandleHeadingReportRequest();
-            HandleSurfaceReportRequest();
-            HandleCoordinateReportRequest();
             HandlePauseRequest(ref _pauseKeyReleased);
 
             if (UpdateExitWhenQueueIdle())
@@ -464,25 +354,21 @@ namespace TopSpeed.Race
                 null);
         }
 
-        private Vector3 CalculateStartPosition(int gridIndex, float vehicleWidth, float rowSpacing)
+        private float CalculateStartX(int gridIndex, float vehicleWidth)
         {
-            if (_startGrid.HasValue)
-                return StartGridBuilder.GetPosition(_startGrid.Value, gridIndex);
-
-            var start = new Vector3(_track.Map.StartX, 0f, _track.Map.StartZ);
-            var forward = MapMovement.HeadingVector(_track.Map.StartHeadingDegrees);
-            var right = new Vector3(forward.Z, 0f, -forward.X);
-
             var halfWidth = Math.Max(0.1f, vehicleWidth * 0.5f);
             var margin = 0.3f;
             var laneHalfWidth = _track.LaneWidth;
             var laneOffset = laneHalfWidth - halfWidth - margin;
             if (laneOffset < 0f)
                 laneOffset = 0f;
+            return gridIndex % 2 == 1 ? laneOffset : -laneOffset;
+        }
 
+        private float CalculateStartY(int gridIndex, float rowSpacing)
+        {
             var row = gridIndex / 2;
-            var columnOffset = gridIndex % 2 == 1 ? laneOffset : -laneOffset;
-            return start + (right * columnOffset) - (forward * (row * rowSpacing));
+            return StartLineY - (row * rowSpacing);
         }
 
         private void UpdatePositions()
@@ -490,7 +376,7 @@ namespace TopSpeed.Race
             _position = 1;
             for (var i = 0; i < _nComputerPlayers; i++)
             {
-                if (_computerPlayers[i]?.DistanceMeters > _car.DistanceMeters)
+                if (_computerPlayers[i]?.PositionY > _car.PositionY)
                     _position++;
             }
         }
@@ -512,12 +398,12 @@ namespace TopSpeed.Race
                 if (bot == null)
                     continue;
 
-                if (bot.DistanceMeters > _car.DistanceMeters)
+                if (bot.PositionY > _car.PositionY)
                 {
                     position++;
                 }
 
-                var delta = GetRelativeTrackDelta(bot.DistanceMeters);
+                var delta = GetRelativeTrackDelta(bot.PositionY);
                 if (delta > 0f)
                 {
                     var dist = delta;
@@ -548,28 +434,32 @@ namespace TopSpeed.Race
                 return;
             }
 
-            var hasFront = inFront != -1 && inFrontDist <= RivalCalloutRangeMeters;
-            var hasTail = onTail != -1 && onTailDist <= RivalCalloutRangeMeters;
-            if (hasFront && (!hasTail || inFrontDist < onTailDist))
+            if (inFrontDist < onTailDist)
             {
-                var bot = _computerPlayers[inFront]!;
-                Speak(_soundPlayerNr[bot.PlayerNumber]!, true);
-                var sound = _randomSounds[(int)RandomSound.Front][Algorithm.RandomInt(_totalRandomSounds[(int)RandomSound.Front])];
-                if (sound != null)
-                    Speak(sound, true);
-                return;
+                if (inFront != -1)
+                {
+                    var bot = _computerPlayers[inFront]!;
+                    Speak(_soundPlayerNr[bot.PlayerNumber]!, true);
+                    var sound = _randomSounds[(int)RandomSound.Front][Algorithm.RandomInt(_totalRandomSounds[(int)RandomSound.Front])];
+                    if (sound != null)
+                        Speak(sound, true);
+                    return;
+                }
             }
-            if (hasTail)
+            else
             {
-                var bot = _computerPlayers[onTail]!;
-                Speak(_soundPlayerNr[bot.PlayerNumber]!, true);
-                var sound = _randomSounds[(int)RandomSound.Tail][Algorithm.RandomInt(_totalRandomSounds[(int)RandomSound.Tail])];
-                if (sound != null)
-                    Speak(sound, true);
-                return;
+                if (onTail != -1)
+                {
+                    var bot = _computerPlayers[onTail]!;
+                    Speak(_soundPlayerNr[bot.PlayerNumber]!, true);
+                    var sound = _randomSounds[(int)RandomSound.Tail][Algorithm.RandomInt(_totalRandomSounds[(int)RandomSound.Tail])];
+                    if (sound != null)
+                        Speak(sound, true);
+                    return;
+                }
             }
 
-            if (!automatic)
+            if (inFront == -1 && onTail == -1 && !automatic)
             {
                 if (position == _nComputerPlayers + 1)
                     Speak(_soundPosition[_nComputerPlayers]!, true);
@@ -588,10 +478,8 @@ namespace TopSpeed.Race
                     continue;
                 if (_car.State == CarState.Running && !bot.Finished)
                 {
-                    var carPos = _car.WorldPosition;
-                    var botPos = bot.WorldPosition;
-                    var dx = carPos.X - botPos.X;
-                    var dy = carPos.Z - botPos.Z;
+                    var dx = _car.PositionX - bot.PositionX;
+                    var dy = _car.PositionY - bot.PositionY;
                     var xThreshold = (_car.WidthM + bot.WidthM) * 0.5f;
                     var yThreshold = (_car.LengthM + bot.LengthM) * 0.5f;
                     if (Math.Abs(dx) < xThreshold && Math.Abs(dy) < yThreshold)
@@ -622,11 +510,11 @@ namespace TopSpeed.Race
         {
             int perc;
             if (player == _playerNumber)
-                perc = (int)((_car.DistanceMeters / (float)(_track.Length * _nrOfLaps)) * 100.0f);
+                perc = (int)((_car.PositionY / (float)(_track.Length * _nrOfLaps)) * 100.0f);
             else if (player > _playerNumber)
-                perc = (int)((_computerPlayers[player - 1]!.DistanceMeters / (float)(_track.Length * _nrOfLaps)) * 100.0f);
+                perc = (int)((_computerPlayers[player - 1]!.PositionY / (float)(_track.Length * _nrOfLaps)) * 100.0f);
             else
-                perc = (int)((_computerPlayers[player]!.DistanceMeters / (float)(_track.Length * _nrOfLaps)) * 100.0f);
+                perc = (int)((_computerPlayers[player]!.PositionY / (float)(_track.Length * _nrOfLaps)) * 100.0f);
             if (perc > 100)
                 perc = 100;
             return perc;

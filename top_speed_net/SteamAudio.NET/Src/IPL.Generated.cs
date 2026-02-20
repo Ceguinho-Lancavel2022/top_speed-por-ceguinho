@@ -5508,9 +5508,9 @@ namespace SteamAudio
         
         public const uint VersionMajor = 4;
         
-        public const uint VersionMinor = 8;
+        public const uint VersionMinor = 6;
         
-        public const uint VersionPatch = 0;
+        public const uint VersionPatch = 1;
         
         public const uint Version = (((uint)(VersionMajor)<<16)|((uint)(VersionMinor)<<8)|((uint)(VersionPatch)));
     }

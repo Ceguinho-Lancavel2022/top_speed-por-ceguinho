@@ -100,20 +100,16 @@ namespace TopSpeed.Network
             packet.TrackWeather = (TrackWeather)reader.ReadByte();
             packet.TrackAmbience = (TrackAmbience)reader.ReadByte();
             packet.TrackLength = reader.ReadUInt16();
-            var definitionCount = packet.TrackLength;
+            var availableDefs = Math.Max(0, (data.Length - headerSize - baseSize) / 7);
+            var definitionCount = Math.Min(packet.TrackLength, (ushort)availableDefs);
             var definitions = new TrackDefinition[definitionCount];
             for (var i = 0; i < definitionCount; i++)
             {
-                if (reader.Remaining < 1 + 1 + 4 + 1)
-                    return false;
                 var type = (TrackType)reader.ReadByte();
+                var surface = (TrackSurface)reader.ReadByte();
                 var noise = (TrackNoise)reader.ReadByte();
                 var segmentLength = reader.ReadSingle();
-                var materialLength = reader.ReadByte();
-                if (reader.Remaining < materialLength)
-                    return false;
-                var materialId = reader.ReadString(materialLength);
-                definitions[i] = new TrackDefinition(type, materialId, noise, segmentLength);
+                definitions[i] = new TrackDefinition(type, surface, noise, segmentLength);
             }
 
             packet.Definitions = definitions;

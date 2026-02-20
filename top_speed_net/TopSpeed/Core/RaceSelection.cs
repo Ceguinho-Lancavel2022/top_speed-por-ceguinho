@@ -14,9 +14,6 @@ namespace TopSpeed.Core
         private readonly RaceSettings _settings;
         private readonly Dictionary<string, (DateTime LastWriteUtc, string Display)> _customTrackCache =
             new Dictionary<string, (DateTime LastWriteUtc, string Display)>(StringComparer.OrdinalIgnoreCase);
-        private List<string>? _customTrackFilesCache;
-        private DateTime _customTrackFilesLastScanUtc;
-        private static readonly TimeSpan CustomTrackScanThrottle = TimeSpan.FromSeconds(2);
 
         public RaceSelection(RaceSetup setup, RaceSettings settings)
         {
@@ -68,19 +65,6 @@ namespace TopSpeed.Core
             SelectTrack(TrackCategory.CustomTrack, customTracks[index]);
         }
 
-        public void SelectRandomCustomExploreTrack()
-        {
-            var customTracks = GetCustomMapTrackFiles().ToList();
-            if (customTracks.Count == 0)
-            {
-                SelectTrack(TrackCategory.CustomTrack, TrackList.RaceTracks[0].Key);
-                return;
-            }
-
-            var index = Algorithm.RandomInt(customTracks.Count);
-            SelectTrack(TrackCategory.CustomTrack, customTracks[index]);
-        }
-
         public void SelectVehicle(int index)
         {
             _setup.VehicleIndex = index;
@@ -122,110 +106,12 @@ namespace TopSpeed.Core
             var root = Path.Combine(AssetPaths.Root, "Tracks");
             if (!Directory.Exists(root))
                 return Array.Empty<string>();
-
-            var now = DateTime.UtcNow;
-            if (_customTrackFilesCache != null &&
-                (now - _customTrackFilesLastScanUtc) < CustomTrackScanThrottle)
-            {
-                return _customTrackFilesCache;
-            }
-
-            var rootFull = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var picks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var file in Directory.EnumerateFiles(root, "*.tsm", SearchOption.AllDirectories))
-            {
-                var directory = Path.GetDirectoryName(file);
-                if (string.IsNullOrWhiteSpace(directory))
-                    continue;
-                var dirFull = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                if (string.Equals(dirFull, rootFull, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                if (!picks.TryGetValue(dirFull, out var existing))
-                {
-                    picks[dirFull] = file;
-                    continue;
-                }
-
-                if (string.Compare(Path.GetFileName(file), Path.GetFileName(existing), StringComparison.OrdinalIgnoreCase) < 0)
-                    picks[dirFull] = file;
-            }
-
-            _customTrackFilesCache = picks.Values.ToList();
-            _customTrackFilesLastScanUtc = now;
-            return _customTrackFilesCache;
-        }
-
-        public IEnumerable<string> GetCustomMapTrackFiles()
-        {
-            return GetCustomTrackFiles();
+            return Directory.EnumerateFiles(root, "track.tsm", SearchOption.AllDirectories);
         }
 
         public IReadOnlyList<TrackInfo> GetCustomTrackInfo()
         {
             var files = GetCustomTrackFiles().ToList();
-            return BuildCustomTrackInfo(files);
-        }
-
-        public IReadOnlyList<TrackInfo> GetCustomMapTrackInfo()
-        {
-            return GetCustomTrackInfo();
-        }
-
-        public IEnumerable<string> GetCustomVehicleFiles()
-        {
-            var root = Path.Combine(AssetPaths.Root, "Vehicles");
-            if (!Directory.Exists(root))
-                return Array.Empty<string>();
-            return Directory.EnumerateFiles(root, "*.vhc", SearchOption.TopDirectoryOnly);
-        }
-
-        private string ResolveCustomTrackDisplayName(string file)
-        {
-            var display = TryReadCustomTrackName(file);
-            if (string.IsNullOrWhiteSpace(display))
-                display = Path.GetFileNameWithoutExtension(file);
-            return string.IsNullOrWhiteSpace(display) ? "Custom track" : display!;
-        }
-
-        private string? TryReadCustomTrackName(string file)
-        {
-            try
-            {
-                var lastWrite = File.GetLastWriteTimeUtc(file);
-                if (_customTrackCache.TryGetValue(file, out var cached) && cached.LastWriteUtc == lastWrite)
-                    return cached.Display;
-
-                string? parsed = null;
-                foreach (var line in File.ReadLines(file))
-                {
-                    var trimmed = line.Trim();
-                    if (TryParseNameLine(trimmed, out var name))
-                    {
-                        parsed = name;
-                        break;
-                    }
-
-                    if (LooksLikeTrackDataLine(trimmed))
-                        break;
-                }
-
-                var display = string.IsNullOrWhiteSpace(parsed)
-                    ? Path.GetFileNameWithoutExtension(file)
-                    : parsed;
-
-                display = string.IsNullOrWhiteSpace(display) ? "Custom track" : display!;
-                _customTrackCache[file] = (lastWrite, display);
-                return display;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private IReadOnlyList<TrackInfo> BuildCustomTrackInfo(List<string> files)
-        {
             if (files.Count == 0)
             {
                 _customTrackCache.Clear();
@@ -249,61 +135,54 @@ namespace TopSpeed.Core
                 .ToList();
         }
 
-        private static bool TryParseNameLine(string line, out string name)      
+        public IEnumerable<string> GetCustomVehicleFiles()
         {
-            name = string.Empty;
-            if (string.IsNullOrWhiteSpace(line))
-                return false;
-
-            var trimmed = line.Trim();
-            if (trimmed.StartsWith("#", StringComparison.Ordinal) ||
-                trimmed.StartsWith(";", StringComparison.Ordinal))
-            {
-                trimmed = trimmed.Substring(1).TrimStart();
-            }
-
-            var separatorIndex = trimmed.IndexOf('=');
-            if (separatorIndex < 0)
-                separatorIndex = trimmed.IndexOf(':');
-            if (separatorIndex <= 0)
-                return false;
-
-            var key = trimmed.Substring(0, separatorIndex).Trim();
-            if (!key.Equals("name", StringComparison.OrdinalIgnoreCase) &&
-                !key.Equals("trackname", StringComparison.OrdinalIgnoreCase) &&
-                !key.Equals("title", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            var value = trimmed.Substring(separatorIndex + 1).Trim().Trim('"');
-            if (string.IsNullOrWhiteSpace(value))
-                return false;
-
-            name = value;
-            return true;
+            var root = Path.Combine(AssetPaths.Root, "Vehicles");
+            if (!Directory.Exists(root))
+                return Array.Empty<string>();
+            return Directory.EnumerateFiles(root, "*.vhc", SearchOption.TopDirectoryOnly);
         }
 
-        private static bool LooksLikeTrackDataLine(string line)
+        private string ResolveCustomTrackDisplayName(string file)
         {
-            if (string.IsNullOrWhiteSpace(line))
-                return false;
+            var display = TryReadCustomTrackName(file);
+            if (string.IsNullOrWhiteSpace(display))
+                display = GetTrackFolderName(file);
+            return string.IsNullOrWhiteSpace(display) ? "Custom track" : display!;
+        }
 
-            var trimmed = line.Trim();
-            if (trimmed.StartsWith("#", StringComparison.Ordinal) ||
-                trimmed.StartsWith(";", StringComparison.Ordinal))
+        private string? TryReadCustomTrackName(string file)
+        {
+            try
             {
-                return false;
-            }
+                var lastWrite = File.GetLastWriteTimeUtc(file);
+                if (_customTrackCache.TryGetValue(file, out var cached) && cached.LastWriteUtc == lastWrite)
+                    return cached.Display;
 
-            var parts = trimmed.Split((char[])null!, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var part in parts)
+                string? parsed = null;
+                if (TrackTsmParser.TryLoad(file, out var data))
+                    parsed = data.Name;
+                var display = string.IsNullOrWhiteSpace(parsed)
+                    ? GetTrackFolderName(file)
+                    : parsed;
+
+                display = string.IsNullOrWhiteSpace(display) ? "Custom track" : display!;
+                _customTrackCache[file] = (lastWrite, display);
+                return display;
+            }
+            catch
             {
-                if (int.TryParse(part, out _))
-                    return true;
+                return null;
             }
+        }
 
-            return false;
+        private static string GetTrackFolderName(string file)
+        {
+            var directory = Path.GetDirectoryName(file);
+            if (string.IsNullOrWhiteSpace(directory))
+                return Path.GetFileNameWithoutExtension(file);
+            var name = Path.GetFileName(directory);
+            return string.IsNullOrWhiteSpace(name) ? Path.GetFileNameWithoutExtension(file) : name;
         }
     }
 }

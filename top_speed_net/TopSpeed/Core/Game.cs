@@ -23,7 +23,6 @@ namespace TopSpeed.Core
             TimeTrial,
             SingleRace,
             MultiplayerRace,
-            Exploration,
             Paused,
             Calibration
         }
@@ -56,7 +55,6 @@ namespace TopSpeed.Core
         private LevelTimeTrial? _timeTrial;
         private LevelSingleRace? _singleRace;
         private LevelMultiplayer? _multiplayerRace;
-        private LevelExplore? _explore;
         private TrackData? _pendingMultiplayerTrack;
         private string _pendingMultiplayerTrackName = string.Empty;
         private int _pendingMultiplayerLaps;
@@ -179,9 +177,6 @@ namespace TopSpeed.Core
                     break;
                 case AppState.MultiplayerRace:
                     RunMultiplayerRace(deltaSeconds);
-                    break;
-                case AppState.Exploration:
-                    RunExploration(deltaSeconds);
                     break;
                 case AppState.Paused:
                     UpdatePaused();
@@ -446,19 +441,6 @@ namespace TopSpeed.Core
                 EndMultiplayerRace();
         }
 
-        private void RunExploration(float elapsed)
-        {
-            if (_explore == null)
-            {
-                EndExploration();
-                return;
-            }
-
-            _explore.Run(elapsed);
-            if (_explore.WantsExit || _input.WasPressed(SharpDX.DirectInput.Key.Escape))
-                EndExploration();
-        }
-
         private void ProcessMultiplayerPackets()
         {
             if (_session == null)
@@ -653,13 +635,6 @@ namespace TopSpeed.Core
                     _state = AppState.SingleRace;
                     _speech.Speak(mode == RaceMode.QuickStart ? "Quick start." : "Single race.");
                     break;
-                case RaceMode.Exploration:
-                    _explore?.Dispose();
-                    _explore = new LevelExplore(_audio, _speech, _settings, _input, track);
-                    _explore.Initialize();
-                    _state = AppState.Exploration;
-                    _speech.Speak("Exploration mode.");
-                    break;
             }
         }
 
@@ -673,15 +648,6 @@ namespace TopSpeed.Core
             _singleRace?.Dispose();
             _singleRace = null;
 
-            _state = AppState.Menu;
-            _menu.ShowRoot("main");
-            _menu.FadeInMenuMusic();
-        }
-
-        private void EndExploration()
-        {
-            _explore?.Dispose();
-            _explore = null;
             _state = AppState.Menu;
             _menu.ShowRoot("main");
             _menu.FadeInMenuMusic();
@@ -707,7 +673,6 @@ namespace TopSpeed.Core
             return state == AppState.TimeTrial
                 || state == AppState.SingleRace
                 || state == AppState.MultiplayerRace
-                || state == AppState.Exploration
                 || state == AppState.Paused;
         }
 
@@ -721,7 +686,6 @@ namespace TopSpeed.Core
         public void Dispose()
         {
             _logo?.Dispose();
-            _explore?.Dispose();
             _menu.Dispose();
             _input.Dispose();
             _session?.Dispose();

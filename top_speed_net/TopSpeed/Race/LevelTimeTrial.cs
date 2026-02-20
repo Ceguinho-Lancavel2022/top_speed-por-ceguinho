@@ -15,8 +15,6 @@ namespace TopSpeed.Race
     {
         private const string HighscoreFile = "highscore.cfg";
         private bool _pauseKeyReleased = true;
-        private bool _wasInFinish;
-        private float _lastLapTriggerDistance;
 
         public LevelTimeTrial(
             AudioManager audio,
@@ -40,9 +38,6 @@ namespace TopSpeed.Race
             _soundPause = LoadLanguageSound("race\\pause");
             _soundUnpause = LoadLanguageSound("race\\unpause");
             _soundTheme4.SetVolumePercent((int)Math.Round(_settings.MusicVolume * 100f));
-            _lastLapTriggerDistance = _car.DistanceMeters;
-            if (_track.HasFinishArea)
-                _wasInFinish = _track.IsInsideFinishArea(_car.WorldPosition);
         }
 
         public void FinalizeLevelTimeTrial()
@@ -70,8 +65,7 @@ namespace TopSpeed.Race
                     case RaceEventType.RaceStart:
                         _raceTime = 0;
                         _stopwatch.Restart();
-                        _lap = 1;
-                        _lastLapTriggerDistance = _car.DistanceMeters;
+                        _lap = 0;
                         _started = true;
                         break;
                     case RaceEventType.RaceFinish:
@@ -114,43 +108,17 @@ namespace TopSpeed.Race
                 }
             }
 
-            HandleSteerAssistInput();
-            UpdateSteerAssist();
             _car.Run(elapsed);
-            _track.Run(_car.MapState, elapsed);
-            var road = _track.RoadAt(_car.MapState);
+            _track.Run(_car.PositionY);
+            var road = _track.RoadAtPosition(_car.PositionY);
             _car.Evaluate(road);
             UpdateAudioListener(elapsed);
-            UpdateWallPing(elapsed);
-            if (_track.NextRoad(_car.MapState, _car.Speed, (int)_settings.CurveAnnouncement, out var nextRoad))
+            if (_track.NextRoad(_car.PositionY, _car.Speed, (int)_settings.CurveAnnouncement, out var nextRoad))
                 CallNextRoad(nextRoad);
-            UpdateTurnGuidance();
 
-            if (_track.HasFinishArea)
+            if (_track.Lap(_car.PositionY) > _lap)
             {
-                if (UpdateLapFromFinishArea(_car.WorldPosition, ref _wasInFinish, _car.DistanceMeters, ref _lastLapTriggerDistance))
-                {
-                    _lap++;
-                    if (_lap > _nrOfLaps)
-                    {
-                        var finishSound = _randomSounds[(int)RandomSound.Finish][Algorithm.RandomInt(_totalRandomSounds[(int)RandomSound.Finish])];
-                        if (finishSound != null)
-                            Speak(finishSound, true);
-                        _car.ManualTransmission = false;
-                        _car.Quiet();
-                        _car.Stop();
-                        _raceTime = (int)(_stopwatch.ElapsedMilliseconds - _stopwatchDiffMs);
-                        PushEvent(RaceEventType.RaceFinish, 2.0f);
-                    }
-                    else if (_settings.AutomaticInfo != AutomaticInfoMode.Off && _lap > 1 && _lap < _nrOfLaps + 1)
-                    {
-                        Speak(_soundLaps[_nrOfLaps - _lap], true);
-                    }
-                }
-            }
-            else if (_track.Lap(_car.DistanceMeters) > _lap)
-            {
-                _lap = _track.Lap(_car.DistanceMeters);
+                _lap = _track.Lap(_car.PositionY);
                 if (_lap > _nrOfLaps)
                 {
                     var finishSound = _randomSounds[(int)RandomSound.Finish][Algorithm.RandomInt(_totalRandomSounds[(int)RandomSound.Finish])];
@@ -187,10 +155,6 @@ namespace TopSpeed.Race
             HandleTrackNameRequest();
             HandleSpeedReportRequest();
             HandleDistanceReportRequest();
-            HandleWheelAngleReportRequest();
-            HandleHeadingReportRequest();
-            HandleSurfaceReportRequest();
-            HandleCoordinateReportRequest();
             HandlePauseRequest(ref _pauseKeyReleased);
 
             if (UpdateExitWhenQueueIdle())

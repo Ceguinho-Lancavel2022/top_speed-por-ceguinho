@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using MiniAudioEx.Core.AdvancedAPI;
 using MiniAudioEx.Native;
-using SteamAudio;
 
 namespace TS.Audio
 {
@@ -34,23 +33,10 @@ namespace TS.Audio
         public float ReverbEqMid = 1.0f;
         public float ReverbEqHigh = 1.0f;
         public int ReverbDelay = 0;
-        public float ReflectionWet = 0.35f;
-        public long ReflectionIrHandle = 0;
-        public int ReflectionIrSize = 0;
-        public int ReflectionIrChannels = 0;
-        public int BakedIdentifierEnabled = 0;
-        public int BakedIdentifierType = 0;
-        public int BakedIdentifierVariation = 0;
-        public float BakedInfluenceX = 0f;
-        public float BakedInfluenceY = 0f;
-        public float BakedInfluenceZ = 0f;
-        public float BakedInfluenceRadius = 0f;
         public int RoomFlags = 0;
         public float RoomReverbTimeSeconds = 0f;
         public float RoomReverbGain = 0f;
-        public float RoomReflectionWet = 0.35f;
         public float RoomHfDecayRatio = 1f;
-        public float RoomEarlyReflectionsGain = 0f;
         public float RoomLateReverbGain = 0f;
         public float RoomDiffusion = 0f;
         public float RoomAirAbsorptionScale = 1f;
@@ -89,8 +75,6 @@ namespace TS.Audio
         private IDisposable? _userData;
         private int _channels = 2;
         private int _sampleRate = 44100;
-        private volatile bool _useReflections;
-        private volatile bool _useBakedReflections;
         private ma_sound_end_proc? _endCallback;
         private GCHandle _endHandle;
         private Action? _onEnd;
@@ -375,7 +359,7 @@ namespace TS.Audio
                 AudioSourceSpatialParams.SimAirAbsorption);
         }
 
-        internal void ApplyReflectionSimulation(float timeLow, float timeMid, float timeHigh, float eqLow, float eqMid, float eqHigh, int delay)
+        internal void ApplyReverbSimulation(float timeLow, float timeMid, float timeHigh, float eqLow, float eqMid, float eqHigh, int delay)
         {
             Volatile.Write(ref _spatial.ReverbTimeLow, timeLow);
             Volatile.Write(ref _spatial.ReverbTimeMid, timeMid);
@@ -387,72 +371,12 @@ namespace TS.Audio
             Volatile.Write(ref _spatial.SimulationFlags, _spatial.SimulationFlags | AudioSourceSpatialParams.SimReflections);
         }
 
-        internal void ApplyReflectionIr(IntPtr irHandle, int irSize, int irChannels)
-        {
-            if (irHandle == IntPtr.Zero || irSize <= 0 || irChannels <= 0)
-            {
-                ClearReflectionIr();
-                return;
-            }
-
-            Volatile.Write(ref _spatial.ReflectionIrHandle, irHandle.ToInt64());
-            Volatile.Write(ref _spatial.ReflectionIrSize, irSize);
-            Volatile.Write(ref _spatial.ReflectionIrChannels, irChannels);
-            Volatile.Write(ref _spatial.SimulationFlags, _spatial.SimulationFlags | AudioSourceSpatialParams.SimReflections);
-        }
-
-        internal void ClearReflectionIr()
-        {
-            Volatile.Write(ref _spatial.ReflectionIrHandle, 0);
-            Volatile.Write(ref _spatial.ReflectionIrSize, 0);
-            Volatile.Write(ref _spatial.ReflectionIrChannels, 0);
-        }
-
-        public void SetReflectionWet(float wet)
-        {
-            if (wet < 0f) wet = 0f;
-            if (wet > 1f) wet = 1f;
-            Volatile.Write(ref _spatial.ReflectionWet, wet);
-        }
-
-        public void SetUseReflections(bool enabled)
-        {
-            _useReflections = enabled;
-            if (!enabled)
-                _useBakedReflections = false;
-        }
-
-        public void SetUseBakedReflections(bool enabled)
-        {
-            _useBakedReflections = enabled;
-            if (enabled)
-                _useReflections = true;
-        }
-
-        public void SetBakedIdentifier(in IPL.BakedDataIdentifier identifier)
-        {
-            Volatile.Write(ref _spatial.BakedIdentifierType, (int)identifier.Type);
-            Volatile.Write(ref _spatial.BakedIdentifierVariation, (int)identifier.Variation);
-            Volatile.Write(ref _spatial.BakedInfluenceX, identifier.EndpointInfluence.Center.X);
-            Volatile.Write(ref _spatial.BakedInfluenceY, identifier.EndpointInfluence.Center.Y);
-            Volatile.Write(ref _spatial.BakedInfluenceZ, identifier.EndpointInfluence.Center.Z);
-            Volatile.Write(ref _spatial.BakedInfluenceRadius, Math.Max(0.1f, identifier.EndpointInfluence.Radius));
-            Volatile.Write(ref _spatial.BakedIdentifierEnabled, 1);
-        }
-
-        public void ClearBakedIdentifier()
-        {
-            Volatile.Write(ref _spatial.BakedIdentifierEnabled, 0);
-        }
-
         public void SetRoomAcoustics(RoomAcoustics acoustics)
         {
             Volatile.Write(ref _spatial.RoomFlags, acoustics.HasRoom ? AudioSourceSpatialParams.RoomHasProfile : 0);
             Volatile.Write(ref _spatial.RoomReverbTimeSeconds, acoustics.ReverbTimeSeconds);
             Volatile.Write(ref _spatial.RoomReverbGain, acoustics.ReverbGain);
-            Volatile.Write(ref _spatial.RoomReflectionWet, acoustics.ReflectionWet);
             Volatile.Write(ref _spatial.RoomHfDecayRatio, acoustics.HfDecayRatio);
-            Volatile.Write(ref _spatial.RoomEarlyReflectionsGain, acoustics.EarlyReflectionsGain);
             Volatile.Write(ref _spatial.RoomLateReverbGain, acoustics.LateReverbGain);
             Volatile.Write(ref _spatial.RoomDiffusion, acoustics.Diffusion);
             Volatile.Write(ref _spatial.RoomAirAbsorptionScale, acoustics.AirAbsorptionScale);
@@ -466,8 +390,6 @@ namespace TS.Audio
             Volatile.Write(ref _spatial.RoomAirAbsorptionOverrideLow, acoustics.AirAbsorptionOverrideLow ?? float.NaN);
             Volatile.Write(ref _spatial.RoomAirAbsorptionOverrideMid, acoustics.AirAbsorptionOverrideMid ?? float.NaN);
             Volatile.Write(ref _spatial.RoomAirAbsorptionOverrideHigh, acoustics.AirAbsorptionOverrideHigh ?? float.NaN);
-
-            SetReflectionWet(acoustics.ReflectionWet);
         }
 
         public void ApplyCurveDistanceScaler(float curveDistanceScaler)
@@ -515,8 +437,6 @@ namespace TS.Audio
         internal bool UsesSteamAudio => _useHrtf;
         internal bool IsSpatialized => _spatialize;
         internal AudioSourceSpatialParams SpatialParams => _spatial;
-        internal bool UseReflections => _useReflections;
-        internal bool UseBakedReflections => _useBakedReflections;
 
         public float GetLengthSeconds()
         {
