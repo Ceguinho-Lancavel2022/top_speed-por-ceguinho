@@ -69,7 +69,11 @@ namespace TopSpeed.Protocol
         RoomSetLaps = 26,
         RoomStartRace = 27,
         ProtocolMessage = 28,
-        RoomSetPlayersToStart = 29
+        RoomSetPlayersToStart = 29,
+        RoomAddBot = 30,
+        RoomRemoveBot = 31,
+        RoomPrepareRace = 32,
+        RoomPlayerReady = 33
     }
 
     public enum ProtocolMessageCode : byte

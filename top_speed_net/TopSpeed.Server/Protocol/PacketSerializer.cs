@@ -140,6 +140,19 @@ namespace TopSpeed.Server.Protocol
             return true;
         }
 
+        public static bool TryReadRoomPlayerReady(byte[] data, out PacketRoomPlayerReady packet)
+        {
+            packet = new PacketRoomPlayerReady();
+            if (data.Length < 2 + 1 + 1)
+                return false;
+            var reader = new PacketReader(data);
+            reader.ReadByte();
+            reader.ReadByte();
+            packet.Car = (CarType)reader.ReadByte();
+            packet.AutomaticTransmission = reader.ReadBool();
+            return true;
+        }
+
         public static byte[] WritePacketHeader(Command command, int payloadSize)
         {
             var buffer = new byte[2 + payloadSize];

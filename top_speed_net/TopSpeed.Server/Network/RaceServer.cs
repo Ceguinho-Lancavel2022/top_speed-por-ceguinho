@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using Bogus;
 using TopSpeed.Data;
 using TopSpeed.Protocol;
 using TopSpeed.Server.Logging;
@@ -80,6 +81,9 @@ namespace TopSpeed.Server.Network
         public byte PlayersToStart { get; set; }
         public uint HostId { get; set; }
         public HashSet<uint> PlayerIds { get; } = new HashSet<uint>();
+        public List<RoomBot> Bots { get; } = new List<RoomBot>();
+        public Dictionary<uint, PlayerLoadout> PendingLoadouts { get; } = new Dictionary<uint, PlayerLoadout>();
+        public bool PreparingRace { get; set; }
         public bool RaceStarted { get; set; }
         public bool TrackSelected { get; set; }
         public TrackData? TrackData { get; set; }
@@ -88,9 +92,51 @@ namespace TopSpeed.Server.Network
         public List<byte> RaceResults { get; } = new List<byte>();
     }
 
+    internal readonly struct PlayerLoadout
+    {
+        public PlayerLoadout(CarType car, bool automaticTransmission)
+        {
+            Car = car;
+            AutomaticTransmission = automaticTransmission;
+        }
+
+        public CarType Car { get; }
+        public bool AutomaticTransmission { get; }
+    }
+
+    internal enum BotDifficulty
+    {
+        Easy = 0,
+        Normal = 1,
+        Hard = 2
+    }
+
+    internal sealed class RoomBot
+    {
+        public uint Id { get; set; }
+        public byte PlayerNumber { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public BotDifficulty Difficulty { get; set; }
+        public int AddedOrder { get; set; }
+        public CarType Car { get; set; } = CarType.Vehicle1;
+        public bool AutomaticTransmission { get; set; } = true;
+        public PlayerState State { get; set; } = PlayerState.NotReady;
+        public float PositionX { get; set; }
+        public float PositionY { get; set; }
+        public float SpeedKph { get; set; }
+        public float TargetSpeedKph { get; set; }
+        public float AccelerationKphPerSecond { get; set; }
+        public float StartDelaySeconds { get; set; }
+        public float LateralBias { get; set; }
+    }
+
     internal sealed class RaceServer : IDisposable
     {
         private const float ServerUpdateTime = 0.1f;
+        private const float BotRaceStartDelaySeconds = 6.5f;
+        private const float BotLaneOffset = 3.5f;
+        private const float BotRowSpacing = 10.0f;
+        private const float BotStartLineY = 140.0f;
         private static readonly TimeSpan ConnectionTimeout = TimeSpan.FromSeconds(10);
 
         private readonly RaceServerConfig _config;
@@ -100,9 +146,12 @@ namespace TopSpeed.Server.Network
         private readonly Dictionary<uint, PlayerConnection> _players = new Dictionary<uint, PlayerConnection>();
         private readonly Dictionary<string, uint> _endpointIndex = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<uint, RaceRoom> _rooms = new Dictionary<uint, RaceRoom>();
+        private readonly Faker _faker = new Faker();
+        private readonly Random _random = new Random();
 
         private uint _nextPlayerId = 1;
         private uint _nextRoomId = 1;
+        private uint _nextBotId = 1_000_000;
         private float _lastUpdateTime;
 
         public RaceServer(RaceServerConfig config, Logger logger)
@@ -143,6 +192,7 @@ namespace TopSpeed.Server.Network
                 _lastUpdateTime = 0f;
 
                 CleanupConnections();
+                UpdateBots(ServerUpdateTime);
                 BroadcastPlayerData();
                 CheckForBumps();
             }
@@ -220,6 +270,16 @@ namespace TopSpeed.Server.Network
                         if (PacketSerializer.TryReadRoomSetPlayersToStart(payload, out var setPlayers))
                             HandleSetPlayersToStart(player, setPlayers);
                         break;
+                    case Command.RoomAddBot:
+                        HandleAddBot(player);
+                        break;
+                    case Command.RoomRemoveBot:
+                        HandleRemoveBot(player);
+                        break;
+                    case Command.RoomPlayerReady:
+                        if (PacketSerializer.TryReadRoomPlayerReady(payload, out var ready))
+                            HandlePlayerReady(player, ready);
+                        break;
                 }
             }
         }
@@ -285,7 +345,17 @@ namespace TopSpeed.Server.Network
             player.Braking = data.Braking;
             player.Horning = data.Horning;
             player.Backfiring = data.Backfiring;
-            player.State = data.State;
+            var nextState = data.State;
+            if (_rooms.TryGetValue(player.RoomId.Value, out var room)
+                && room.RaceStarted
+                && (nextState == PlayerState.NotReady || nextState == PlayerState.Undefined)
+                && (player.State == PlayerState.AwaitingStart || player.State == PlayerState.Racing || player.State == PlayerState.Finished))
+            {
+                // Keep authoritative race states while the race is active.
+                nextState = player.State;
+            }
+
+            player.State = nextState;
         }
 
         private void HandlePlayerFinished(PlayerConnection player, PacketPlayer finished)
@@ -298,7 +368,7 @@ namespace TopSpeed.Server.Network
                 room.RaceResults.Add(finished.PlayerNumber);
 
             SendToRoomExcept(room, player.Id, PacketSerializer.WritePlayer(Command.PlayerFinished, finished.PlayerId, finished.PlayerNumber));
-            if (CountRacingPlayers(room) == 0)
+            if (CountActiveRaceParticipants(room) == 0)
                 StopRace(room);
         }
 
@@ -340,7 +410,7 @@ namespace TopSpeed.Server.Network
                 return;
             }
 
-            if (room.PlayerIds.Count >= room.PlayersToStart)
+            if (GetRoomParticipantCount(room) >= room.PlayersToStart)
             {
                 SendProtocolMessage(player, ProtocolMessageCode.RoomFull, "This game room is unavailable because it is full.");
                 return;
@@ -368,13 +438,18 @@ namespace TopSpeed.Server.Network
             }
 
             var oldNumber = player.PlayerNumber;
+            var leftName = DescribePlayer(player);
             room.PlayerIds.Remove(player.Id);
             player.RoomId = null;
             player.PlayerNumber = 0;
             player.State = PlayerState.NotReady;
+            room.PendingLoadouts.Remove(player.Id);
 
             if (notify)
+            {
                 SendToRoom(room, PacketSerializer.WritePlayer(Command.PlayerDisconnected, player.Id, oldNumber));
+                SendProtocolMessageToRoom(room, $"{leftName} has left the game.");
+            }
 
             SendRoomState(player, null);
 
@@ -386,8 +461,10 @@ namespace TopSpeed.Server.Network
             {
                 if (room.HostId == player.Id)
                     room.HostId = room.PlayerIds.OrderBy(x => x).First();
-                if (room.RaceStarted && CountRacingPlayers(room) == 0)
+                if (room.RaceStarted && CountActiveRaceParticipants(room) == 0)
                     StopRace(room);
+                if (room.PreparingRace)
+                    TryStartRaceAfterLoadout(room);
                 BroadcastRoomState(room);
             }
 
@@ -436,13 +513,59 @@ namespace TopSpeed.Server.Network
             if (!TryGetHostedRoom(player, out var room))
                 return;
 
-            if (room.PlayerIds.Count < room.PlayersToStart)
+            if (GetRoomParticipantCount(room) < room.PlayersToStart)
             {
                 SendProtocolMessage(player, ProtocolMessageCode.Failed, $"Not enough players. {room.PlayersToStart} required.");
                 return;
             }
 
-            StartRace(room);
+            if (room.RaceStarted)
+            {
+                SendProtocolMessage(player, ProtocolMessageCode.Failed, "A race is already in progress.");
+                return;
+            }
+
+            if (room.PreparingRace)
+            {
+                SendProtocolMessage(player, ProtocolMessageCode.Failed, "Race setup is already in progress.");
+                return;
+            }
+
+            room.PreparingRace = true;
+            room.PendingLoadouts.Clear();
+            AssignRandomBotLoadouts(room);
+            AnnounceBotsReady(room);
+
+            SendProtocolMessageToRoom(room, $"{DescribePlayer(player)} is about to start the game. Choose your vehicle and transmission mode.");
+            SendToRoom(room, PacketSerializer.WriteGeneral(Command.RoomPrepareRace));
+            TryStartRaceAfterLoadout(room);
+        }
+
+        private void HandlePlayerReady(PlayerConnection player, PacketRoomPlayerReady ready)
+        {
+            if (!player.RoomId.HasValue || !_rooms.TryGetValue(player.RoomId.Value, out var room))
+            {
+                SendProtocolMessage(player, ProtocolMessageCode.NotInRoom, "You are not in a game room.");
+                return;
+            }
+
+            if (!room.PreparingRace)
+            {
+                SendProtocolMessage(player, ProtocolMessageCode.Failed, "Race setup has not started yet.");
+                return;
+            }
+
+            if (!room.PlayerIds.Contains(player.Id))
+            {
+                SendProtocolMessage(player, ProtocolMessageCode.NotInRoom, "You are not in this game room.");
+                return;
+            }
+
+            var selectedCar = NormalizeNetworkCar(ready.Car);
+            player.Car = selectedCar;
+            room.PendingLoadouts[player.Id] = new PlayerLoadout(selectedCar, ready.AutomaticTransmission);
+            SendProtocolMessageToRoom(room, $"{DescribePlayer(player)} is ready.");
+            TryStartRaceAfterLoadout(room);
         }
 
         private void HandleSetPlayersToStart(PlayerConnection player, PacketRoomSetPlayersToStart packet)
@@ -457,7 +580,7 @@ namespace TopSpeed.Server.Network
                 return;
             }
 
-            if (room.PlayerIds.Count > value)
+            if (GetRoomParticipantCount(room) > value)
             {
                 SendProtocolMessage(player, ProtocolMessageCode.InvalidPlayersToStart, "Cannot set lower than current players in room.");
                 return;
@@ -467,6 +590,66 @@ namespace TopSpeed.Server.Network
             BroadcastRoomState(room);
             BroadcastRoomList();
             SendProtocolMessage(player, ProtocolMessageCode.Ok, $"Players required to start set to {value}.");
+        }
+
+        private void HandleAddBot(PlayerConnection player)
+        {
+            if (!TryGetHostedRoom(player, out var room))
+                return;
+
+            if (room.RoomType != GameRoomType.BotsRace)
+            {
+                SendProtocolMessage(player, ProtocolMessageCode.Failed, "Bots can only be added in race-with-bots rooms.");
+                return;
+            }
+
+            if (GetRoomParticipantCount(room) >= room.PlayersToStart)
+            {
+                SendProtocolMessage(player, ProtocolMessageCode.RoomFull, "This game room is unavailable because it is full.");
+                return;
+            }
+
+            var bot = CreateBot(room);
+            room.Bots.Add(bot);
+            BroadcastRoomState(room);
+            BroadcastRoomList();
+            SendToRoom(room, PacketSerializer.WritePlayerJoined(new PacketPlayerJoined
+            {
+                PlayerId = bot.Id,
+                PlayerNumber = bot.PlayerNumber,
+                Name = FormatBotJoinName(bot)
+            }));
+            if (room.PreparingRace)
+                TryStartRaceAfterLoadout(room);
+        }
+
+        private void HandleRemoveBot(PlayerConnection player)
+        {
+            if (!TryGetHostedRoom(player, out var room))
+                return;
+
+            if (room.RoomType != GameRoomType.BotsRace)
+            {
+                SendProtocolMessage(player, ProtocolMessageCode.Failed, "Bots can only be removed in race-with-bots rooms.");
+                return;
+            }
+
+            if (room.Bots.Count == 0)
+            {
+                SendProtocolMessage(player, ProtocolMessageCode.Failed, "There are no bots to remove.");
+                return;
+            }
+
+            var bot = room.Bots.OrderByDescending(b => b.AddedOrder).First();
+            room.Bots.Remove(bot);
+            SendToRoom(room, PacketSerializer.WritePlayer(Command.PlayerDisconnected, bot.Id, bot.PlayerNumber));
+            BroadcastRoomState(room);
+            BroadcastRoomList();
+            SendProtocolMessage(player, ProtocolMessageCode.Ok, $"Removed bot {bot.Name}.");
+            if (room.RaceStarted && CountActiveRaceParticipants(room) == 0)
+                StopRace(room);
+            if (room.PreparingRace)
+                TryStartRaceAfterLoadout(room);
         }
 
         private bool TryGetHostedRoom(PlayerConnection player, out RaceRoom room)
@@ -523,7 +706,9 @@ namespace TopSpeed.Server.Network
         {
             for (var i = 0; i < room.PlayersToStart; i++)
             {
-                var used = room.PlayerIds.Any(id => _players.TryGetValue(id, out var p) && p.PlayerNumber == i);
+                var usedByPlayer = room.PlayerIds.Any(id => _players.TryGetValue(id, out var p) && p.PlayerNumber == i);
+                var usedByBot = room.Bots.Any(bot => bot.PlayerNumber == i);
+                var used = usedByPlayer || usedByBot;
                 if (!used)
                     return i;
             }
@@ -543,6 +728,9 @@ namespace TopSpeed.Server.Network
             if (room.RaceStarted)
                 return;
 
+            room.PreparingRace = false;
+            room.PendingLoadouts.Clear();
+
             if (!room.TrackSelected || room.TrackData == null)
                 SetTrack(room, room.TrackName);
 
@@ -553,6 +741,17 @@ namespace TopSpeed.Server.Network
                 if (_players.TryGetValue(id, out var p))
                     p.State = PlayerState.AwaitingStart;
             }
+            foreach (var bot in room.Bots)
+            {
+                bot.State = PlayerState.AwaitingStart;
+                bot.SpeedKph = 0f;
+                bot.TargetSpeedKph = GetBotTargetSpeedKph(bot.Difficulty);
+                bot.AccelerationKphPerSecond = GetBotAccelerationKphPerSecond(bot.Difficulty);
+                bot.StartDelaySeconds = BotRaceStartDelaySeconds + GetBotReactionDelay(bot.Difficulty);
+                bot.LateralBias = (float)(_random.NextDouble() * 2.0 - 1.0);
+                bot.PositionX = (bot.PlayerNumber % 2 == 1 ? BotLaneOffset : -BotLaneOffset) + (float)(_random.NextDouble() * 0.5 - 0.25);
+                bot.PositionY = BotStartLineY - ((bot.PlayerNumber / 2) * BotRowSpacing);
+            }
 
             SendTrackToRoom(room);
             SendToRoom(room, PacketSerializer.WriteGeneral(Command.StartRace));
@@ -562,6 +761,8 @@ namespace TopSpeed.Server.Network
         private void StopRace(RaceRoom room)
         {
             room.RaceStarted = false;
+            room.PreparingRace = false;
+            room.PendingLoadouts.Clear();
 
             var results = room.RaceResults.ToArray();
             SendToRoom(room, PacketSerializer.WriteRaceResults(new PacketRaceResults
@@ -575,6 +776,13 @@ namespace TopSpeed.Server.Network
             {
                 if (_players.TryGetValue(id, out var p))
                     p.State = PlayerState.NotReady;
+            }
+            foreach (var bot in room.Bots)
+            {
+                bot.State = PlayerState.NotReady;
+                bot.SpeedKph = 0f;
+                bot.AccelerationKphPerSecond = 0f;
+                bot.StartDelaySeconds = 0f;
             }
 
             BroadcastRoomState(room);
@@ -624,7 +832,7 @@ namespace TopSpeed.Server.Network
                     RoomId = r.Id,
                     RoomName = r.Name,
                     RoomType = r.RoomType,
-                    PlayerCount = (byte)r.PlayerIds.Count,
+                    PlayerCount = (byte)GetRoomParticipantCount(r),
                     PlayersToStart = r.PlayersToStart,
                     RaceStarted = r.RaceStarted,
                     TrackName = r.TrackName
@@ -658,14 +866,22 @@ namespace TopSpeed.Server.Network
             var players = room.PlayerIds
                 .Where(id => _players.ContainsKey(id))
                 .Select(id => _players[id])
-                .OrderBy(p => p.PlayerNumber)
                 .Select(p => new PacketRoomPlayer
                 {
                     PlayerId = p.Id,
                     PlayerNumber = p.PlayerNumber,
                     State = p.State,
                     Name = string.IsNullOrWhiteSpace(p.Name) ? $"Player {p.PlayerNumber + 1}" : p.Name
-                }).ToArray();
+                })
+                .Concat(room.Bots.Select(bot => new PacketRoomPlayer
+                {
+                    PlayerId = bot.Id,
+                    PlayerNumber = bot.PlayerNumber,
+                    State = bot.State,
+                    Name = FormatBotDisplayName(bot)
+                }))
+                .OrderBy(p => p.PlayerNumber)
+                .ToArray();
 
             _transport.Send(player.EndPoint, PacketSerializer.WriteRoomState(new PacketRoomState
             {
@@ -692,6 +908,42 @@ namespace TopSpeed.Server.Network
             }
         }
 
+        private void AssignRandomBotLoadouts(RaceRoom room)
+        {
+            foreach (var bot in room.Bots)
+            {
+                bot.Car = (CarType)_random.Next((int)CarType.Vehicle1, (int)CarType.CustomVehicle);
+                bot.AutomaticTransmission = _random.Next(0, 2) == 0;
+            }
+        }
+
+        private void AnnounceBotsReady(RaceRoom room)
+        {
+            foreach (var bot in room.Bots.OrderBy(b => b.PlayerNumber))
+            {
+                SendProtocolMessageToRoom(room, $"{FormatBotJoinName(bot)} is ready.");
+            }
+        }
+
+        private void TryStartRaceAfterLoadout(RaceRoom room)
+        {
+            if (!room.PreparingRace)
+                return;
+            if (GetRoomParticipantCount(room) < room.PlayersToStart)
+            {
+                room.PreparingRace = false;
+                room.PendingLoadouts.Clear();
+                SendProtocolMessageToRoom(room, "Race start cancelled because there are not enough players.");
+                return;
+            }
+            if (room.PendingLoadouts.Count < room.PlayerIds.Count)
+                return;
+
+            room.PreparingRace = false;
+            SendProtocolMessageToRoom(room, "All players are ready. Starting game.");
+            StartRace(room);
+        }
+
         private void SendProtocolMessage(PlayerConnection player, ProtocolMessageCode code, string text)
         {
             _transport.Send(player.EndPoint, PacketSerializer.WriteProtocolMessage(new PacketProtocolMessage
@@ -699,6 +951,20 @@ namespace TopSpeed.Server.Network
                 Code = code,
                 Message = text ?? string.Empty
             }));
+        }
+
+        private void SendProtocolMessageToRoom(RaceRoom room, string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return;
+
+            var payload = PacketSerializer.WriteProtocolMessage(new PacketProtocolMessage
+            {
+                Code = ProtocolMessageCode.Ok,
+                Message = text
+            });
+
+            SendToRoom(room, payload);
         }
 
         private void BroadcastLobbyAnnouncement(string text)
@@ -720,6 +986,104 @@ namespace TopSpeed.Server.Network
             if (!string.IsNullOrWhiteSpace(player.Name))
                 return player.Name;
             return "A player";
+        }
+
+        private RoomBot CreateBot(RaceRoom room)
+        {
+            var name = (_faker.Name.FirstName() ?? "Bot").Trim();
+            if (string.IsNullOrWhiteSpace(name))
+                name = "Bot";
+            if (name.Length > ProtocolConstants.MaxPlayerNameLength)
+                name = name.Substring(0, ProtocolConstants.MaxPlayerNameLength);
+
+            return new RoomBot
+            {
+                Id = _nextBotId++,
+                PlayerNumber = (byte)FindFreeRoomNumber(room),
+                Name = name,
+                Difficulty = (BotDifficulty)_random.Next(0, 3),
+                AddedOrder = room.Bots.Count == 0 ? 1 : room.Bots.Max(b => b.AddedOrder) + 1,
+                Car = (CarType)_random.Next((int)CarType.Vehicle1, (int)CarType.CustomVehicle),
+                AutomaticTransmission = _random.Next(0, 2) == 0,
+                TargetSpeedKph = 150f
+            };
+        }
+
+        private static int GetRoomParticipantCount(RaceRoom room)
+        {
+            return room.PlayerIds.Count + room.Bots.Count;
+        }
+
+        private static string DifficultyLabel(BotDifficulty difficulty)
+        {
+            return difficulty switch
+            {
+                BotDifficulty.Easy => "easy",
+                BotDifficulty.Hard => "hard",
+                _ => "normal"
+            };
+        }
+
+        private float GetBotTargetSpeedKph(BotDifficulty difficulty)
+        {
+            var min = 140f;
+            var max = 170f;
+            switch (difficulty)
+            {
+                case BotDifficulty.Easy:
+                    min = 120f;
+                    max = 150f;
+                    break;
+                case BotDifficulty.Hard:
+                    min = 175f;
+                    max = 210f;
+                    break;
+            }
+
+            return min + (float)_random.NextDouble() * (max - min);
+        }
+
+        private float GetBotReactionDelay(BotDifficulty difficulty)
+        {
+            return difficulty switch
+            {
+                BotDifficulty.Easy => 0.8f + (float)_random.NextDouble() * 0.7f,
+                BotDifficulty.Hard => 0.0f + (float)_random.NextDouble() * 0.3f,
+                _ => 0.3f + (float)_random.NextDouble() * 0.5f
+            };
+        }
+
+        private float GetBotAccelerationKphPerSecond(BotDifficulty difficulty)
+        {
+            return difficulty switch
+            {
+                BotDifficulty.Easy => 20f + (float)_random.NextDouble() * 6f,
+                BotDifficulty.Hard => 30f + (float)_random.NextDouble() * 8f,
+                _ => 24f + (float)_random.NextDouble() * 7f
+            };
+        }
+
+        private static string FormatBotDisplayName(RoomBot bot)
+        {
+            var label = $"{FormatBotJoinName(bot)} ({DifficultyLabel(bot.Difficulty)})";
+            if (label.Length > ProtocolConstants.MaxPlayerNameLength)
+                return label.Substring(0, ProtocolConstants.MaxPlayerNameLength);
+            return label;
+        }
+
+        private static string FormatBotJoinName(RoomBot bot)
+        {
+            var label = $"Bot {bot.Name}";
+            if (label.Length > ProtocolConstants.MaxPlayerNameLength)
+                return label.Substring(0, ProtocolConstants.MaxPlayerNameLength);
+            return label;
+        }
+
+        private static CarType NormalizeNetworkCar(CarType car)
+        {
+            if (car < CarType.Vehicle1 || car >= CarType.CustomVehicle)
+                return CarType.Vehicle1;
+            return car;
         }
 
         private void SendToRoom(RaceRoom room, byte[] payload)
@@ -753,9 +1117,16 @@ namespace TopSpeed.Server.Network
             }
         }
 
-        private int CountRacingPlayers(RaceRoom room)
+        private int CountActiveRaceParticipants(RaceRoom room)
         {
-            return room.PlayerIds.Count(id => _players.TryGetValue(id, out var player) && player.State == PlayerState.Racing);
+            var humanRacers = room.PlayerIds.Count(id => _players.TryGetValue(id, out var player) && IsActiveRaceState(player.State));
+            var botRacers = room.Bots.Count(bot => IsActiveRaceState(bot.State));
+            return humanRacers + botRacers;
+        }
+
+        private static bool IsActiveRaceState(PlayerState state)
+        {
+            return state == PlayerState.AwaitingStart || state == PlayerState.Racing;
         }
 
         private void BroadcastPlayerData()
@@ -771,7 +1142,122 @@ namespace TopSpeed.Server.Network
 
                     SendToRacingPlayersExcept(room, player.Id, PacketSerializer.WritePlayerData(player.ToPacket()));
                 }
+
+                if (!room.RaceStarted)
+                    continue;
+
+                foreach (var bot in room.Bots)
+                {
+                    if (bot.State == PlayerState.NotReady || bot.State == PlayerState.Undefined)
+                        continue;
+
+                    var payload = PacketSerializer.WritePlayerData(ToBotPacket(bot));
+                    SendToRoom(room, payload);
+                }
             }
+        }
+
+        private void UpdateBots(float deltaSeconds)
+        {
+            foreach (var room in _rooms.Values)
+            {
+                if (!room.RaceStarted)
+                    continue;
+                if (room.TrackData == null)
+                    continue;
+
+                var raceDistance = GetRaceDistance(room);
+                if (raceDistance <= 0f)
+                    continue;
+                var anyHumanRacing = room.PlayerIds.Any(id => _players.TryGetValue(id, out var player) && player.State == PlayerState.Racing);
+
+                foreach (var bot in room.Bots)
+                {
+                    if (bot.State == PlayerState.Finished || bot.State == PlayerState.NotReady)
+                        continue;
+
+                    if (bot.State == PlayerState.AwaitingStart)
+                    {
+                        bot.StartDelaySeconds -= deltaSeconds;
+                        if (bot.StartDelaySeconds > 0f)
+                            continue;
+                        if (!anyHumanRacing)
+                            continue;
+
+                        bot.State = PlayerState.Racing;
+                        bot.SpeedKph = 0f;
+                    }
+
+                    if (bot.State != PlayerState.Racing)
+                        continue;
+
+                    var targetWithVariation = bot.TargetSpeedKph + (float)(_random.NextDouble() * 8.0 - 4.0);
+                    var acceleration = Math.Max(5f, bot.AccelerationKphPerSecond);
+                    bot.SpeedKph = Math.Min(targetWithVariation, bot.SpeedKph + (acceleration * deltaSeconds));
+                    if (bot.SpeedKph < 0f)
+                        bot.SpeedKph = 0f;
+
+                    var metersPerSecond = bot.SpeedKph / 3.6f;
+                    bot.PositionY += metersPerSecond * deltaSeconds;
+
+                    if (_random.NextDouble() < 0.03)
+                        bot.LateralBias = Math.Max(-1.0f, Math.Min(1.0f, bot.LateralBias + (float)(_random.NextDouble() * 0.6 - 0.3)));
+                    bot.PositionX = Math.Max(-BotLaneOffset, Math.Min(BotLaneOffset, bot.PositionX + bot.LateralBias * 0.05f));
+
+                    if (bot.PositionY < raceDistance)
+                        continue;
+
+                    bot.PositionY = raceDistance;
+                    bot.SpeedKph = 0f;
+                    bot.State = PlayerState.Finished;
+                    if (!room.RaceResults.Contains(bot.PlayerNumber))
+                        room.RaceResults.Add(bot.PlayerNumber);
+
+                    SendToRoom(room, PacketSerializer.WritePlayer(Command.PlayerFinished, bot.Id, bot.PlayerNumber));
+                }
+
+                if (CountActiveRaceParticipants(room) == 0)
+                    StopRace(room);
+            }
+        }
+
+        private static PacketPlayerData ToBotPacket(RoomBot bot)
+        {
+            var frequency = 12000 + (int)Math.Round(bot.SpeedKph * 120.0f);
+            if (frequency > 50000)
+                frequency = 50000;
+
+            return new PacketPlayerData
+            {
+                PlayerId = bot.Id,
+                PlayerNumber = bot.PlayerNumber,
+                Car = bot.Car,
+                RaceData = new PlayerRaceData
+                {
+                    PositionX = bot.PositionX,
+                    PositionY = bot.PositionY,
+                    Speed = (ushort)Math.Max(0, Math.Min(ushort.MaxValue, (int)Math.Round(bot.SpeedKph))),
+                    Frequency = frequency
+                },
+                State = bot.State,
+                EngineRunning = bot.State == PlayerState.Racing,
+                Braking = false,
+                Horning = false,
+                Backfiring = false
+            };
+        }
+
+        private static float GetRaceDistance(RaceRoom room)
+        {
+            if (room.TrackData == null || room.TrackData.Definitions == null || room.TrackData.Definitions.Length == 0)
+                return 0f;
+
+            var lapDistance = 0f;
+            foreach (var definition in room.TrackData.Definitions)
+                lapDistance += definition.Length;
+
+            var laps = room.Laps > 0 ? room.Laps : (byte)1;
+            return lapDistance * laps;
         }
 
         private void CheckForBumps()

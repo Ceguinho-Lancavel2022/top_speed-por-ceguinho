@@ -657,7 +657,12 @@ namespace TopSpeed.Vehicles
             if (engineRunning)
             {
                 if (!_soundEngine.IsPlaying)
+                {
+                    _soundStart.Stop();
+                    _soundStart.SeekToStart();
+                    _soundStart.Play(loop: false);
                     _soundEngine.Play(loop: true);
+                }
                 var targetFrequency = frequency > 0 ? frequency : _idleFreq;
                 if (_prevFrequency != targetFrequency)
                 {

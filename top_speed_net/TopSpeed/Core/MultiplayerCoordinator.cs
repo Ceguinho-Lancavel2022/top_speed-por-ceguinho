@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using TopSpeed.Common;
+using TopSpeed.Data;
 using TopSpeed.Input;
 using TopSpeed.Menu;
 using TopSpeed.Network;
@@ -19,6 +21,8 @@ namespace TopSpeed.Core
         private const string MultiplayerRoomBrowserMenuId = "multiplayer_rooms";
         private const string MultiplayerCreateRoomMenuId = "multiplayer_create_room";
         private const string MultiplayerLeaveRoomConfirmMenuId = "multiplayer_leave_room_confirm";
+        private const string MultiplayerLoadoutVehicleMenuId = "multiplayer_loadout_vehicle";
+        private const string MultiplayerLoadoutTransmissionMenuId = "multiplayer_loadout_transmission";
         private static readonly string[] RoomTypeOptions = { "Race with bots", "One-on-one without bots" };
         private static readonly string[] PlayerCountOptions = BuildNumericOptions(1, ProtocolConstants.MaxRoomPlayersToStart, "players");
         private static readonly string[] LapCountOptions = BuildNumericOptions(1, 16, "laps");
@@ -36,6 +40,7 @@ namespace TopSpeed.Core
         private readonly Func<MultiplayerSession?> _getSession;
         private readonly Action _clearSession;
         private readonly Action _resetPendingState;
+        private readonly Action<int, bool> _setLocalMultiplayerLoadout;
 
         private Task<IReadOnlyList<ServerInfo>>? _discoveryTask;
         private CancellationTokenSource? _discoveryCts;
@@ -53,6 +58,7 @@ namespace TopSpeed.Core
         private GameRoomType _createRoomType = GameRoomType.BotsRace;
         private byte _createRoomPlayersToStart = 2;
         private string _createRoomName = string.Empty;
+        private int _pendingLoadoutVehicleIndex;
 
         public MultiplayerCoordinator(
             MenuManager menu,
@@ -65,7 +71,8 @@ namespace TopSpeed.Core
             Action<MultiplayerSession> setSession,
             Func<MultiplayerSession?> getSession,
             Action clearSession,
-            Action resetPendingState)
+            Action resetPendingState,
+            Action<int, bool> setLocalMultiplayerLoadout)
         {
             _menu = menu ?? throw new ArgumentNullException(nameof(menu));
             _speech = speech ?? throw new ArgumentNullException(nameof(speech));
@@ -78,6 +85,7 @@ namespace TopSpeed.Core
             _getSession = getSession ?? throw new ArgumentNullException(nameof(getSession));
             _clearSession = clearSession ?? throw new ArgumentNullException(nameof(clearSession));
             _resetPendingState = resetPendingState ?? throw new ArgumentNullException(nameof(resetPendingState));
+            _setLocalMultiplayerLoadout = setLocalMultiplayerLoadout ?? throw new ArgumentNullException(nameof(setLocalMultiplayerLoadout));
         }
 
         public bool UpdatePendingOperations()
@@ -126,11 +134,14 @@ namespace TopSpeed.Core
             _wasHost = false;
             _lastRoomId = 0;
             ResetCreateRoomDraft();
+            _pendingLoadoutVehicleIndex = 0;
             RebuildLobbyMenu();
             RebuildCreateRoomMenu();
             RebuildRoomControlsMenu();
             RebuildRoomOptionsMenu();
             RebuildLeaveRoomConfirmMenu();
+            RebuildLoadoutVehicleMenu();
+            RebuildLoadoutTransmissionMenu();
             UpdateRoomBrowserMenu();
         }
 
@@ -198,8 +209,7 @@ namespace TopSpeed.Core
         {
             if (!_roomState.InRoom)
                 return false;
-            return string.Equals(currentMenuId, MultiplayerRoomControlsMenuId, StringComparison.Ordinal)
-                || string.Equals(currentMenuId, MultiplayerRoomOptionsMenuId, StringComparison.Ordinal);
+            return string.Equals(currentMenuId, MultiplayerRoomControlsMenuId, StringComparison.Ordinal);
         }
 
         public bool TryHandleEscapeFromRoomMenu(string? currentMenuId)
@@ -213,12 +223,40 @@ namespace TopSpeed.Core
             return true;
         }
 
+        public bool TryHandleExitFromRaceLoadoutMenu(string? currentMenuId)
+        {
+            if (string.Equals(currentMenuId, MultiplayerLoadoutTransmissionMenuId, StringComparison.Ordinal))
+            {
+                _menu.ShowRoot(MultiplayerLoadoutVehicleMenuId);
+                return true;
+            }
+
+            if (!string.Equals(currentMenuId, MultiplayerLoadoutVehicleMenuId, StringComparison.Ordinal))
+                return false;
+
+            _speech.Speak("Choose your vehicle and transmission mode to get ready for the race.");
+            _menu.ShowRoot(MultiplayerLoadoutVehicleMenuId);
+            return true;
+        }
+
         public void ShowMultiplayerMenuAfterRace()
         {
             if (_roomState.InRoom)
                 _menu.ShowRoot(MultiplayerRoomControlsMenuId);
             else
                 _menu.ShowRoot(MultiplayerLobbyMenuId);
+        }
+
+        public void BeginRaceLoadoutSelection()
+        {
+            if (!_roomState.InRoom)
+                return;
+
+            _pendingLoadoutVehicleIndex = 0;
+            RebuildLoadoutVehicleMenu();
+            RebuildLoadoutTransmissionMenu();
+            _menu.ShowRoot(MultiplayerLoadoutVehicleMenuId);
+            _enterMenuState();
         }
 
         public void StartServerDiscovery()
@@ -468,6 +506,10 @@ namespace TopSpeed.Core
                 items.Add(new MenuItem("Start this game now", MenuAction.None, onActivate: StartGame));
             if (_roomState.IsHost)
                 items.Add(new MenuItem("Change game options", MenuAction.None, nextMenuId: "multiplayer_room_options"));
+            if (_roomState.IsHost && _roomState.RoomType == GameRoomType.BotsRace)
+                items.Add(new MenuItem("Add a bot to this game room", MenuAction.None, onActivate: AddBotToRoom));
+            if (_roomState.IsHost && _roomState.RoomType == GameRoomType.BotsRace)
+                items.Add(new MenuItem("Remove the last bot that was added", MenuAction.None, onActivate: RemoveLastBotFromRoom));
             items.Add(new MenuItem("Who is currently present in this game room", MenuAction.None, onActivate: SpeakPresentPlayers));
             items.Add(new MenuItem("Leave this game room", MenuAction.None, onActivate: OpenLeaveRoomConfirmation));
             _menu.UpdateItems(MultiplayerRoomControlsMenuId, items);
@@ -525,6 +567,32 @@ namespace TopSpeed.Core
                 new MenuItem("No, stay in this game room", MenuAction.Back)
             };
             _menu.UpdateItems(MultiplayerLeaveRoomConfirmMenuId, items);
+        }
+
+        private void RebuildLoadoutVehicleMenu()
+        {
+            var items = new List<MenuItem>();
+            for (var i = 0; i < VehicleCatalog.VehicleCount; i++)
+            {
+                var vehicleIndex = i;
+                var vehicleName = VehicleCatalog.Vehicles[i].Name;
+                items.Add(new MenuItem(vehicleName, MenuAction.None, nextMenuId: MultiplayerLoadoutTransmissionMenuId, onActivate: () => _pendingLoadoutVehicleIndex = vehicleIndex));
+            }
+
+            items.Add(new MenuItem("Random vehicle", MenuAction.None, nextMenuId: MultiplayerLoadoutTransmissionMenuId, onActivate: () => _pendingLoadoutVehicleIndex = Algorithm.RandomInt(VehicleCatalog.VehicleCount)));
+            _menu.UpdateItems(MultiplayerLoadoutVehicleMenuId, items);
+        }
+
+        private void RebuildLoadoutTransmissionMenu()
+        {
+            var items = new List<MenuItem>
+            {
+                new MenuItem("Automatic transmission", MenuAction.None, onActivate: () => SubmitLoadoutReady(true)),
+                new MenuItem("Manual transmission", MenuAction.None, onActivate: () => SubmitLoadoutReady(false)),
+                new MenuItem("Random transmission mode", MenuAction.None, onActivate: () => SubmitLoadoutReady(Algorithm.RandomInt(2) == 0)),
+                new MenuItem("Go back to vehicle selection", MenuAction.Back)
+            };
+            _menu.UpdateItems(MultiplayerLoadoutTransmissionMenuId, items);
         }
 
         private void OpenRoomBrowser()
@@ -728,6 +796,65 @@ namespace TopSpeed.Core
             session.SendRoomSetPlayersToStart(playersToStart);
         }
 
+        private void AddBotToRoom()
+        {
+            var session = SessionOrNull();
+            if (session == null)
+            {
+                _speech.Speak("Not connected to a server.");
+                return;
+            }
+
+            if (!_roomState.InRoom || !_roomState.IsHost || _roomState.RoomType != GameRoomType.BotsRace)
+            {
+                _speech.Speak("Bots can only be managed by the host in race-with-bots rooms.");
+                return;
+            }
+
+            session.SendRoomAddBot();
+        }
+
+        private void RemoveLastBotFromRoom()
+        {
+            var session = SessionOrNull();
+            if (session == null)
+            {
+                _speech.Speak("Not connected to a server.");
+                return;
+            }
+
+            if (!_roomState.InRoom || !_roomState.IsHost || _roomState.RoomType != GameRoomType.BotsRace)
+            {
+                _speech.Speak("Bots can only be managed by the host in race-with-bots rooms.");
+                return;
+            }
+
+            session.SendRoomRemoveBot();
+        }
+
+        private void SubmitLoadoutReady(bool automaticTransmission)
+        {
+            var session = SessionOrNull();
+            if (session == null)
+            {
+                _speech.Speak("Not connected to a server.");
+                return;
+            }
+
+            if (!_roomState.InRoom)
+            {
+                _speech.Speak("You are not in a game room.");
+                return;
+            }
+
+            var vehicleIndex = Math.Max(0, Math.Min(VehicleCatalog.VehicleCount - 1, _pendingLoadoutVehicleIndex));
+            var selectedCar = (CarType)vehicleIndex;
+            _setLocalMultiplayerLoadout(vehicleIndex, automaticTransmission);
+            session.SendRoomPlayerReady(selectedCar, automaticTransmission);
+            _speech.Speak("Ready. Waiting for other players.");
+            _menu.ShowRoot(MultiplayerRoomControlsMenuId);
+        }
+
         private void SpeakPresentPlayers()
         {
             if (!_roomState.InRoom)
@@ -812,17 +939,17 @@ namespace TopSpeed.Core
         private static TrackInfo[] BuildRoomTrackOptions()
         {
             var tracks = new List<TrackInfo>();
-            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var track in TrackList.RaceTracks)
             {
-                if (keys.Add(track.Key))
+                if (names.Add(track.Display))
                     tracks.Add(track);
             }
 
             foreach (var track in TrackList.AdventureTracks)
             {
-                if (keys.Add(track.Key))
+                if (names.Add(track.Display))
                     tracks.Add(track);
             }
 
@@ -838,7 +965,7 @@ namespace TopSpeed.Core
             for (var i = 0; i < RoomTrackOptions.Length; i++)
             {
                 var track = RoomTrackOptions[i];
-                labels[i] = $"{track.Display} ({track.Key})";
+                labels[i] = track.Display;
             }
 
             return labels;

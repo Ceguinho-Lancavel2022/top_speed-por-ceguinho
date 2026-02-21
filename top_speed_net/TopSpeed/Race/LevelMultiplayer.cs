@@ -119,7 +119,7 @@ namespace TopSpeed.Race
             Speak(_soundPlayer);
             Speak(_soundNumbers[_playerNumber + 1]);
 
-            _currentState = PlayerState.NotReady;
+            _currentState = PlayerState.AwaitingStart;
             _session.SendPlayerState(_currentState);
         }
 
@@ -270,14 +270,23 @@ namespace TopSpeed.Race
                 _infoKeyReleased = true;
             }
 
-            if (_input.TryGetPlayerInfo(out var infoPlayer) && _acceptPlayerInfo && infoPlayer >= 0 && infoPlayer < MaxPlayers)
+            if (_input.TryGetPlayerInfo(out var infoPlayer)
+                && _acceptPlayerInfo
+                && infoPlayer >= 0
+                && infoPlayer < MaxPlayers
+                && HasPlayerInRace(infoPlayer))
             {
                 _acceptPlayerInfo = false;
                 SpeakText(GetVehicleNameForPlayer(infoPlayer));
                 PushEvent(RaceEventType.AcceptPlayerInfo, 0.5f);
             }
 
-            if (_input.TryGetPlayerPosition(out var positionPlayer) && _acceptPlayerInfo && _started && positionPlayer >= 0 && positionPlayer < MaxPlayers)
+            if (_input.TryGetPlayerPosition(out var positionPlayer)
+                && _acceptPlayerInfo
+                && _started
+                && positionPlayer >= 0
+                && positionPlayer < MaxPlayers
+                && HasPlayerInRace(positionPlayer))
             {
                 _acceptPlayerInfo = false;
                 var perc = CalculatePlayerPerc(positionPlayer);
@@ -551,6 +560,17 @@ namespace TopSpeed.Race
                 return VehicleCatalog.Vehicles[remote.Player.VehicleIndex].Name;
 
             return "Vehicle";
+        }
+
+        private bool HasPlayerInRace(int playerIndex)
+        {
+            if (playerIndex == _playerNumber)
+                return true;
+
+            if (playerIndex < 0 || playerIndex >= MaxPlayers)
+                return false;
+
+            return _remotePlayers.ContainsKey((byte)playerIndex);
         }
     }
 }

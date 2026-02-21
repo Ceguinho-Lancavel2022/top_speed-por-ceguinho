@@ -79,6 +79,8 @@ namespace TopSpeed.Menu
             _menu.Register(BuildMultiplayerRoomControlsMenu());
             _menu.Register(BuildMultiplayerRoomOptionsMenu());
             _menu.Register(BuildMultiplayerLeaveRoomConfirmMenu());
+            _menu.Register(BuildMultiplayerLoadoutVehicleMenu());
+            _menu.Register(BuildMultiplayerLoadoutTransmissionMenu());
 
             _menu.Register(BuildTrackTypeMenu("time_trial_type", RaceMode.TimeTrial));
             _menu.Register(BuildTrackTypeMenu("single_race_type", RaceMode.SingleRace));
@@ -217,6 +219,25 @@ namespace TopSpeed.Menu
                 new MenuItem("No, stay in this game room", MenuAction.Back)
             };
             return _menu.CreateMenu("multiplayer_leave_room_confirm", items, "Leave this game room?");
+        }
+
+        private MenuScreen BuildMultiplayerLoadoutVehicleMenu()
+        {
+            var items = new List<MenuItem>
+            {
+                new MenuItem("Vehicle selection is loading", MenuAction.None)
+            };
+            return _menu.CreateMenu("multiplayer_loadout_vehicle", items, "Choose your vehicle");
+        }
+
+        private MenuScreen BuildMultiplayerLoadoutTransmissionMenu()
+        {
+            var items = new List<MenuItem>
+            {
+                new MenuItem("Transmission selection is loading", MenuAction.None),
+                new MenuItem("Go back", MenuAction.Back)
+            };
+            return _menu.CreateMenu("multiplayer_loadout_transmission", items, "Choose your transmission mode");
         }
 
         private MenuScreen BuildTrackMenu(string id, RaceMode mode, TrackCategory category)

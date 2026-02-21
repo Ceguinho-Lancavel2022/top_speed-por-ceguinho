@@ -377,6 +377,27 @@ namespace TopSpeed.Network
             return buffer;
         }
 
+        public static byte[] WriteRoomAddBot()
+        {
+            return WriteGeneral(Command.RoomAddBot);
+        }
+
+        public static byte[] WriteRoomRemoveBot()
+        {
+            return WriteGeneral(Command.RoomRemoveBot);
+        }
+
+        public static byte[] WriteRoomPlayerReady(CarType car, bool automaticTransmission)
+        {
+            var buffer = WritePacketHeader(Command.RoomPlayerReady, 1 + 1);
+            var writer = new PacketWriter(buffer);
+            writer.WriteByte(ProtocolConstants.Version);
+            writer.WriteByte((byte)Command.RoomPlayerReady);
+            writer.WriteByte((byte)car);
+            writer.WriteBool(automaticTransmission);
+            return buffer;
+        }
+
         private static byte[] WritePacketHeader(Command command, int payloadSize)
         {
             var buffer = new byte[2 + payloadSize];

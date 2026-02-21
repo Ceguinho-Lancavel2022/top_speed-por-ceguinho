@@ -128,6 +128,12 @@ namespace TopSpeed.Protocol
         public byte PlayersToStart;
     }
 
+    public sealed class PacketRoomPlayerReady
+    {
+        public CarType Car;
+        public bool AutomaticTransmission;
+    }
+
     public sealed class PacketRoomPlayer
     {
         public uint PlayerId;

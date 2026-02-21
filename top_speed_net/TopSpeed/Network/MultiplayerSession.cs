@@ -170,6 +170,21 @@ namespace TopSpeed.Network
             SafeSend(ClientPacketSerializer.WriteRoomSetPlayersToStart(playersToStart), DeliveryMethod.ReliableOrdered);
         }
 
+        public void SendRoomAddBot()
+        {
+            SafeSend(ClientPacketSerializer.WriteRoomAddBot(), DeliveryMethod.ReliableOrdered);
+        }
+
+        public void SendRoomRemoveBot()
+        {
+            SafeSend(ClientPacketSerializer.WriteRoomRemoveBot(), DeliveryMethod.ReliableOrdered);
+        }
+
+        public void SendRoomPlayerReady(CarType car, bool automaticTransmission)
+        {
+            SafeSend(ClientPacketSerializer.WriteRoomPlayerReady(car, automaticTransmission), DeliveryMethod.ReliableOrdered);
+        }
+
         private void SafeSend(byte[] payload, DeliveryMethod deliveryMethod)
         {
             try

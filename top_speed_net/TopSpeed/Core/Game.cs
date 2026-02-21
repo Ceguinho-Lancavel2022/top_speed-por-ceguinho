@@ -59,6 +59,8 @@ namespace TopSpeed.Core
         private string _pendingMultiplayerTrackName = string.Empty;
         private int _pendingMultiplayerLaps;
         private bool _pendingMultiplayerStart;
+        private int _multiplayerVehicleIndex;
+        private bool _multiplayerAutomaticTransmission = true;
         private bool _audioLoopActive;
         public bool IsModalInputActive { get; private set; }
         internal int LoopIntervalMs => IsMenuState(_state) ? 30 : 8;
@@ -103,7 +105,8 @@ namespace TopSpeed.Core
                 SetSession,
                 GetSession,
                 ClearSession,
-                ResetPendingMultiplayerState);
+                ResetPendingMultiplayerState,
+                SetMultiplayerLoadout);
             _menuRegistry.RegisterAll();
             _needsCalibration = _settings.ScreenReaderRateMs <= 0f;
         }
@@ -203,6 +206,8 @@ namespace TopSpeed.Core
             {
                 case MenuAction.Exit:
                     if (_multiplayerCoordinator.TryHandleEscapeFromRoomMenu(_menu.CurrentId))
+                        break;
+                    if (_multiplayerCoordinator.TryHandleExitFromRaceLoadoutMenu(_menu.CurrentId))
                         break;
                     if (string.Equals(_menu.CurrentId, "multiplayer_lobby", StringComparison.Ordinal))
                     {
@@ -342,6 +347,14 @@ namespace TopSpeed.Core
             _pendingMultiplayerTrackName = string.Empty;
             _pendingMultiplayerLaps = 0;
             _pendingMultiplayerStart = false;
+            _multiplayerVehicleIndex = 0;
+            _multiplayerAutomaticTransmission = true;
+        }
+
+        private void SetMultiplayerLoadout(int vehicleIndex, bool automaticTransmission)
+        {
+            _multiplayerVehicleIndex = Math.Max(0, Math.Min(VehicleCatalog.VehicleCount - 1, vehicleIndex));
+            _multiplayerAutomaticTransmission = automaticTransmission;
         }
 
         private void DisconnectFromServer()
@@ -486,7 +499,7 @@ namespace TopSpeed.Core
                                 var name = string.IsNullOrWhiteSpace(joined.Name)
                                     ? $"Player {joined.PlayerNumber + 1}"
                                     : joined.Name;
-                                _speech.Speak($"{name} joined.");
+                                _speech.Speak($"{name} has joined the game.");
                             }
                         }
                         break;
@@ -504,6 +517,9 @@ namespace TopSpeed.Core
                         break;
                     case Command.StartRace:
                         StartMultiplayerRace();
+                        break;
+                    case Command.RoomPrepareRace:
+                        _multiplayerCoordinator.BeginRaceLoadoutSelection();
                         break;
                     case Command.PlayerData:
                         if (_multiplayerRace != null && ClientPacketSerializer.TryReadPlayerData(packet.Payload, out var playerData))
@@ -554,8 +570,8 @@ namespace TopSpeed.Core
             FadeOutMenuMusic();
             var trackName = string.IsNullOrWhiteSpace(_pendingMultiplayerTrackName) ? "custom" : _pendingMultiplayerTrackName;
             var laps = _pendingMultiplayerLaps > 0 ? _pendingMultiplayerLaps : _settings.NrOfLaps;
-            var vehicleIndex = 0;
-            var automatic = true;
+            var vehicleIndex = Math.Max(0, Math.Min(VehicleCatalog.VehicleCount - 1, _multiplayerVehicleIndex));
+            var automatic = _multiplayerAutomaticTransmission;
 
             _multiplayerRace?.FinalizeLevelMultiplayer();
             _multiplayerRace?.Dispose();
