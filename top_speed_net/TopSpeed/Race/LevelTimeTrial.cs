@@ -108,6 +108,7 @@ namespace TopSpeed.Race
                 }
             }
 
+            UpdateVehiclePanels(elapsed);
             _car.Run(elapsed);
             _track.Run(_car.PositionY);
             var road = _track.RoadAtPosition(_car.PositionY);
@@ -165,6 +166,7 @@ namespace TopSpeed.Race
 
         public void Pause()
         {
+            PauseVehiclePanels();
             FadeIn();
             _soundTheme4?.SetVolumePercent((int)Math.Round(_settings.MusicVolume * 100f));
             _soundTheme4?.Play(loop: true);
@@ -175,6 +177,7 @@ namespace TopSpeed.Race
         public void Unpause()
         {
             _car.Unpause();
+            ResumeVehiclePanels();
             FadeOut();
             _soundTheme4?.Stop();
             _soundTheme4?.SeekToStart();

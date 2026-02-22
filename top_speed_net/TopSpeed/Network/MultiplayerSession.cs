@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ namespace TopSpeed.Network
 {
     internal sealed class MultiplayerSession : IDisposable
     {
+        private const int RadioChunkSize = ProtocolConstants.MaxMediaChunkBytes;
         private readonly NetManager _manager;
         private readonly NetPeer _peer;
         private readonly IPEndPoint _serverEndPoint;
@@ -100,10 +102,74 @@ namespace TopSpeed.Network
             SafeSend(payload, DeliveryMethod.ReliableOrdered);
         }
 
-        public void SendPlayerData(PlayerRaceData raceData, CarType car, PlayerState state, bool engine, bool braking, bool horning, bool backfiring)
+        public void SendPlayerData(
+            PlayerRaceData raceData,
+            CarType car,
+            PlayerState state,
+            bool engine,
+            bool braking,
+            bool horning,
+            bool backfiring,
+            bool radioLoaded,
+            bool radioPlaying,
+            uint radioMediaId)
         {
-            var payload = ClientPacketSerializer.WritePlayerDataToServer(PlayerId, PlayerNumber, car, raceData, state, engine, braking, horning, backfiring);
+            var payload = ClientPacketSerializer.WritePlayerDataToServer(
+                PlayerId,
+                PlayerNumber,
+                car,
+                raceData,
+                state,
+                engine,
+                braking,
+                horning,
+                backfiring,
+                radioLoaded,
+                radioPlaying,
+                radioMediaId);
             SafeSend(payload, DeliveryMethod.Sequenced);
+        }
+
+        public bool SendRadioMedia(uint mediaId, string filePath)
+        {
+            if (mediaId == 0 || string.IsNullOrWhiteSpace(filePath))
+                return false;
+            if (!File.Exists(filePath))
+                return false;
+
+            byte[] bytes;
+            try
+            {
+                bytes = File.ReadAllBytes(filePath);
+            }
+            catch
+            {
+                return false;
+            }
+
+            if (bytes.Length == 0 || bytes.Length > ProtocolConstants.MaxMediaBytes)
+                return false;
+
+            var extension = Path.GetExtension(filePath).Trim().TrimStart('.');
+            if (extension.Length > ProtocolConstants.MaxMediaFileExtensionLength)
+                extension = extension.Substring(0, ProtocolConstants.MaxMediaFileExtensionLength);
+
+            SafeSend(ClientPacketSerializer.WritePlayerMediaBegin(PlayerId, PlayerNumber, mediaId, (uint)bytes.Length, extension), DeliveryMethod.ReliableOrdered);
+
+            var chunkIndex = 0;
+            var offset = 0;
+            while (offset < bytes.Length)
+            {
+                var length = Math.Min(RadioChunkSize, bytes.Length - offset);
+                var chunk = new byte[length];
+                Buffer.BlockCopy(bytes, offset, chunk, 0, length);
+                SafeSend(ClientPacketSerializer.WritePlayerMediaChunk(PlayerId, PlayerNumber, mediaId, (ushort)chunkIndex, chunk), DeliveryMethod.ReliableOrdered);
+                chunkIndex++;
+                offset += length;
+            }
+
+            SafeSend(ClientPacketSerializer.WritePlayerMediaEnd(PlayerId, PlayerNumber, mediaId), DeliveryMethod.ReliableOrdered);
+            return true;
         }
 
         public void SendPlayerStarted()

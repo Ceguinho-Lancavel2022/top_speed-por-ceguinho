@@ -9,6 +9,7 @@ using TopSpeed.Common;
 using TopSpeed.Core;
 using TopSpeed.Data;
 using TopSpeed.Input;
+using TopSpeed.Race.Panels;
 using TopSpeed.Speech;
 using TopSpeed.Tracks;
 using TopSpeed.Vehicles;
@@ -60,7 +61,10 @@ namespace TopSpeed.Race
         protected readonly int[] _totalRandomSounds;
         private readonly SoundQueue _soundQueue;
         private readonly List<RaceEvent> _dueEvents;
+        private readonly VehicleRadioController _localRadio;
+        private readonly VehiclePanelManager _panelManager;
         private long _eventSequence;
+        private uint _nextMediaId;
 
         protected bool _manualTransmission;
         protected int _nrOfLaps;
@@ -156,6 +160,13 @@ namespace TopSpeed.Race
                 ? Track.Load(track, audio)
                 : Track.LoadFromData(track, trackData, audio, userDefined);
             _car = new Car(audio, _track, input, settings, vehicle, vehicleFile, () => _elapsedTotal, () => _started, _vibrationDevice);
+            _localRadio = new VehicleRadioController(audio);
+            _panelManager = new VehiclePanelManager(new IVehicleRacePanel[]
+            {
+                new ControlVehiclePanel(),
+                new RadioVehiclePanel(_input, _localRadio, NextLocalMediaId, SpeakText, HandleLocalRadioMediaLoaded, HandleLocalRadioPlaybackChanged)
+            });
+            ApplyActivePanelInputAccess();
 
             if (!string.IsNullOrWhiteSpace(track) &&
                 track.IndexOf("adv", StringComparison.OrdinalIgnoreCase) >= 0)
@@ -220,6 +231,9 @@ namespace TopSpeed.Race
         public bool ManualTransmission => _manualTransmission;
         public bool WantsExit => ExitRequested;
         public bool WantsPause => PauseRequested;
+        protected bool LocalMediaLoaded => _localRadio.HasMedia;
+        protected bool LocalMediaPlaying => _localRadio.HasMedia && _localRadio.DesiredPlaying;
+        protected uint LocalMediaId => _localRadio.HasMedia ? _localRadio.MediaId : 0u;
 
         public void ClearPauseRequest()
         {
@@ -237,6 +251,39 @@ namespace TopSpeed.Race
             _stopwatchDiffMs += (now - _oldStopwatchMs);
         }
 
+        protected void UpdateVehiclePanels(float elapsed)
+        {
+            var panelChanged = false;
+            if (_input.GetPreviousPanelRequest())
+            {
+                _panelManager.MovePrevious();
+                panelChanged = true;
+            }
+            else if (_input.GetNextPanelRequest())
+            {
+                _panelManager.MoveNext();
+                panelChanged = true;
+            }
+
+            if (panelChanged)
+            {
+                ApplyActivePanelInputAccess();
+                SpeakText(FormatPanelAnnouncement(_panelManager.ActivePanel.Name));
+            }
+
+            _panelManager.Update(elapsed);
+        }
+
+        protected void PauseVehiclePanels()
+        {
+            _panelManager.Pause();
+        }
+
+        protected void ResumeVehiclePanels()
+        {
+            _panelManager.Resume();
+        }
+
         protected void InitializeLevel()
         {
             _track.Initialize();
@@ -251,10 +298,13 @@ namespace TopSpeed.Race
             _car.ManualTransmission = _manualTransmission;
             _listenerInitialized = false;
             _lastListenerPosition = Vector3.Zero;
+            ApplyActivePanelInputAccess();
+            _panelManager.Resume();
         }
 
         protected void FinalizeLevel()
         {
+            _panelManager.Pause();
             _car.FinalizeCar();
             _track.FinalizeTrack();
         }
@@ -583,6 +633,7 @@ namespace TopSpeed.Race
             var position = AudioWorld.ToMeters(worldPosition);
             var velocity = AudioWorld.ToMeters(worldVelocity);
             _audio.UpdateListener(position, forward, up, velocity);
+            _localRadio.UpdateSpatial(worldPosition.X, worldPosition.Z, worldVelocity);
         }
 
         protected float GetRelativeTrackDelta(float otherPositionY)
@@ -591,6 +642,47 @@ namespace TopSpeed.Race
             if (length <= 0f)
                 return otherPositionY - _car.PositionY;
             return AudioWorld.WrapDelta(otherPositionY - _car.PositionY, length);
+        }
+
+        protected virtual void OnLocalRadioMediaLoaded(uint mediaId, string mediaPath)
+        {
+        }
+
+        protected virtual void OnLocalRadioPlaybackChanged(bool loaded, bool playing, uint mediaId)
+        {
+        }
+
+        private void ApplyActivePanelInputAccess()
+        {
+            var panel = _panelManager.ActivePanel;
+            _input.SetPanelInputAccess(panel.AllowsDrivingInput, panel.AllowsAuxiliaryInput);
+        }
+
+        private uint NextLocalMediaId()
+        {
+            _nextMediaId++;
+            if (_nextMediaId == 0)
+                _nextMediaId = 1;
+            return _nextMediaId;
+        }
+
+        private void HandleLocalRadioMediaLoaded(uint mediaId, string mediaPath)
+        {
+            OnLocalRadioMediaLoaded(mediaId, mediaPath);
+        }
+
+        private void HandleLocalRadioPlaybackChanged(bool loaded, bool playing, uint mediaId)
+        {
+            OnLocalRadioPlaybackChanged(loaded, playing, mediaId);
+        }
+
+        private static string FormatPanelAnnouncement(string panelName)
+        {
+            if (string.IsNullOrWhiteSpace(panelName))
+                return "Panel";
+            if (panelName.EndsWith("panel", StringComparison.OrdinalIgnoreCase))
+                return panelName;
+            return panelName + " panel";
         }
 
         protected static string FormatTimeText(int raceTimeMs, bool detailed)
@@ -888,6 +980,8 @@ namespace TopSpeed.Race
         public void Dispose()
         {
             _soundQueue.Clear();
+            _panelManager.Dispose();
+            _localRadio.Dispose();
             _car.Dispose();
             _track.Dispose();
             DisposeSound(_soundStart);

@@ -18,43 +18,17 @@ namespace TopSpeed.Input
     internal sealed class KeyMapManager
     {
         private readonly RaceInput _input;
-        private readonly List<InputActionDefinition> _actions;
-        private readonly Dictionary<InputAction, string> _labels;
 
         public KeyMapManager(RaceInput input)
         {
             _input = input;
-            _actions = new List<InputActionDefinition>
-            {
-                new InputActionDefinition(InputAction.SteerLeft, "Steer left"),
-                new InputActionDefinition(InputAction.SteerRight, "Steer right"),
-                new InputActionDefinition(InputAction.Throttle, "Throttle"),
-                new InputActionDefinition(InputAction.Brake, "Brake"),
-                new InputActionDefinition(InputAction.GearUp, "Shift gear up"),
-                new InputActionDefinition(InputAction.GearDown, "Shift gear down"),
-                new InputActionDefinition(InputAction.Horn, "Use horn"),
-                new InputActionDefinition(InputAction.RequestInfo, "Request position information"),
-                new InputActionDefinition(InputAction.CurrentGear, "Current gear"),
-                new InputActionDefinition(InputAction.CurrentLapNr, "Current lap number"),
-                new InputActionDefinition(InputAction.CurrentRacePerc, "Current race percentage"),
-                new InputActionDefinition(InputAction.CurrentLapPerc, "Current lap percentage"),
-                new InputActionDefinition(InputAction.CurrentRaceTime, "Current race time"),
-                new InputActionDefinition(InputAction.StartEngine, "Start the engine"),
-                new InputActionDefinition(InputAction.ReportDistance, "Report distance"),
-                new InputActionDefinition(InputAction.ReportSpeed, "Report speed"),
-                new InputActionDefinition(InputAction.TrackName, "Report track name"),
-                new InputActionDefinition(InputAction.Pause, "Pause")
-            };
-            _labels = new Dictionary<InputAction, string>();
-            foreach (var action in _actions)
-                _labels[action.Action] = action.Label;
         }
 
-        public IReadOnlyList<InputActionDefinition> Actions => _actions;
+        public IReadOnlyList<InputActionDefinition> Actions => _input.GetActionDefinitions();
 
         public string GetLabel(InputAction action)
         {
-            return _labels.TryGetValue(action, out var label) ? label : "Action";
+            return _input.GetActionLabel(action);
         }
 
         public Key GetKey(InputAction action)
@@ -79,7 +53,7 @@ namespace TopSpeed.Input
 
         public bool IsKeyInUse(Key key, InputAction ignore)
         {
-            foreach (var action in _actions)
+            foreach (var action in Actions)
             {
                 if (action.Action == ignore)
                     continue;
@@ -91,7 +65,7 @@ namespace TopSpeed.Input
 
         public bool IsAxisInUse(JoystickAxisOrButton axis, InputAction ignore)
         {
-            foreach (var action in _actions)
+            foreach (var action in Actions)
             {
                 if (action.Action == ignore)
                     continue;

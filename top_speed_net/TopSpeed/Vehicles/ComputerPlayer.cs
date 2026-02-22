@@ -105,6 +105,10 @@ namespace TopSpeed.Vehicles
         private Vector3 _lastAudioPosition;
         private bool _audioInitialized;
         private float _lastAudioUpdateTime;
+        private readonly VehicleRadioController _radio;
+        private bool _radioLoaded;
+        private bool _radioPlaying;
+        private uint _radioMediaId;
 
         private AudioSourceHandle _soundEngine;
         private AudioSourceHandle _soundHorn;
@@ -138,6 +142,7 @@ namespace TopSpeed.Vehicles
             _debugSpeak = debugSpeak;
             _events = new List<BotEvent>();
             _legacyRoot = Path.Combine(AssetPaths.SoundsRoot, "Legacy");
+            _radio = new VehicleRadioController(audio);
 
             _surface = TrackSurface.Asphalt;
             _gear = 1;
@@ -165,6 +170,9 @@ namespace TopSpeed.Vehicles
             _remoteEngineStartPending = false;
             _remoteEngineStartRemaining = 0f;
             _remoteEnginePendingFrequency = _idleFreq;
+            _radioLoaded = false;
+            _radioPlaying = false;
+            _radioMediaId = 0;
 
             var definition = VehicleLoader.LoadOfficial(vehicleIndex, track.Weather);
             _surfaceTractionFactor = definition.SurfaceTractionFactor;
@@ -287,6 +295,7 @@ namespace TopSpeed.Vehicles
         public void FinalizePlayer()
         {
             _soundEngine.Stop();
+            _radio.PauseForGame();
         }
 
         public void PendingStart(float baseDelay)
@@ -548,6 +557,9 @@ namespace TopSpeed.Vehicles
             bool braking,
             bool horning,
             bool backfiring,
+            bool radioLoaded,
+            bool radioPlaying,
+            uint radioMediaId,
             float playerX,
             float playerY,
             float trackLength)
@@ -637,6 +649,7 @@ namespace TopSpeed.Vehicles
                 _soundBackfire.Play(loop: false);
             }
             _networkBackfireActive = backfiring;
+            ApplyRadioState(radioLoaded, radioPlaying, radioMediaId);
 
             if (preserveCrashState)
                 _state = ComputerState.Crashing;
@@ -669,6 +682,34 @@ namespace TopSpeed.Vehicles
             }
         }
 
+        public void ApplyRadioState(bool loaded, bool playing, uint mediaId)
+        {
+            _radioLoaded = loaded;
+            _radioPlaying = loaded && playing;
+            _radioMediaId = loaded ? mediaId : 0u;
+            if (!loaded)
+            {
+                _radio.ClearMedia();
+                return;
+            }
+
+            if (_radio.HasMedia && mediaId != 0 && _radio.MediaId != mediaId)
+                _radio.ClearMedia();
+
+            _radio.SetPlayback(_radioPlaying);
+        }
+
+        public void ApplyRadioMedia(uint mediaId, string extension, byte[] data)
+        {
+            if (mediaId == 0 || data == null || data.Length == 0)
+                return;
+            if (!_radio.TryLoadFromBytes(data, extension, mediaId, preservePlaybackState: true, out _))
+                return;
+            _radioLoaded = true;
+            _radioMediaId = mediaId;
+            _radio.SetPlayback(_radioPlaying);
+        }
+
         public void Evaluate(Track.Road road)
         {
             if (_state == ComputerState.Running && _started())
@@ -693,6 +734,7 @@ namespace TopSpeed.Vehicles
 
         public void Pause()
         {
+            _radio.PauseForGame();
             if (_state == ComputerState.Starting)
                 _soundStart.Stop();
             else if (_state == ComputerState.Running || _state == ComputerState.Stopping)
@@ -715,6 +757,7 @@ namespace TopSpeed.Vehicles
 
         public void Unpause()
         {
+            _radio.ResumeFromGame();
             if (_state == ComputerState.Starting)
                 _soundStart.Play(loop: false);
             else if (_state == ComputerState.Running || _state == ComputerState.Stopping)
@@ -731,6 +774,7 @@ namespace TopSpeed.Vehicles
             _soundMiniCrash.Dispose();
             _soundBump.Dispose();
             _soundBackfire?.Dispose();
+            _radio.Dispose();
         }
 
         private void AI()
@@ -993,9 +1037,10 @@ namespace TopSpeed.Vehicles
             var position = AudioWorld.Position(worldX, worldZ);
 
             var velocity = Vector3.Zero;
+            var velUnits = Vector3.Zero;
             if (_audioInitialized && elapsed > 0f)
             {
-                var velUnits = new Vector3((worldX - _lastAudioPosition.X) / elapsed, 0f, (worldZ - _lastAudioPosition.Z) / elapsed);
+                velUnits = new Vector3((worldX - _lastAudioPosition.X) / elapsed, 0f, (worldZ - _lastAudioPosition.Z) / elapsed);
                 velocity = AudioWorld.ToMeters(velUnits);
             }
             _lastAudioPosition = new Vector3(worldX, 0f, worldZ);
@@ -1009,6 +1054,7 @@ namespace TopSpeed.Vehicles
             SetSpatial(_soundBackfire, position, velocity);
             SetSpatial(_soundBump, position, velocity);
             SetSpatial(_soundMiniCrash, position, velocity);
+            _radio.UpdateSpatial(worldX, worldZ, velUnits);
         }
 
         private static void SetSpatial(AudioSourceHandle? sound, Vector3 position, Vector3 velocity)

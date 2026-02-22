@@ -1,13 +1,70 @@
 using System;
+using System.Collections.Generic;
 using SharpDX.DirectInput;
 
 namespace TopSpeed.Input
 {
     internal sealed class RaceInput
     {
+        private enum InputScope
+        {
+            Driving,
+            Auxiliary
+        }
+
+        private enum TriggerMode
+        {
+            Hold,
+            Press
+        }
+
+        private readonly struct InputActionMeta
+        {
+            public InputActionMeta(InputScope scope, TriggerMode keyboardMode, TriggerMode joystickMode, bool allowNumpadEnterAlias = false)
+            {
+                Scope = scope;
+                KeyboardMode = keyboardMode;
+                JoystickMode = joystickMode;
+                AllowNumpadEnterAlias = allowNumpadEnterAlias;
+            }
+
+            public InputScope Scope { get; }
+            public TriggerMode KeyboardMode { get; }
+            public TriggerMode JoystickMode { get; }
+            public bool AllowNumpadEnterAlias { get; }
+        }
+
+        private readonly struct InputActionBinding
+        {
+            public InputActionBinding(
+                string label,
+                InputActionMeta meta,
+                Func<Key> getKey,
+                Action<Key> setKey,
+                Func<JoystickAxisOrButton> getAxis,
+                Action<JoystickAxisOrButton> setAxis)
+            {
+                Label = label;
+                Meta = meta;
+                GetKey = getKey;
+                SetKey = setKey;
+                GetAxis = getAxis;
+                SetAxis = setAxis;
+            }
+
+            public string Label { get; }
+            public InputActionMeta Meta { get; }
+            public Func<Key> GetKey { get; }
+            public Action<Key> SetKey { get; }
+            public Func<JoystickAxisOrButton> GetAxis { get; }
+            public Action<JoystickAxisOrButton> SetAxis { get; }
+        }
+
         private readonly RaceSettings _settings;
         private readonly InputState _lastState;
         private readonly InputState _prevState;
+        private readonly List<InputActionDefinition> _actionDefinitions;
+        private readonly Dictionary<InputAction, InputActionBinding> _actionBindings;
         private JoystickAxisOrButton _left;
         private JoystickAxisOrButton _right;
         private JoystickAxisOrButton _throttle;
@@ -69,6 +126,8 @@ namespace TopSpeed.Input
         private bool _hasCenter;
         private bool _hasPrevJoystick;
         private bool _joystickAvailable;
+        private bool _allowDrivingInput;
+        private bool _allowAuxiliaryInput;
         private bool UseJoystick => _deviceMode != InputDeviceMode.Keyboard && _joystickAvailable;
         private bool UseKeyboard => _deviceMode != InputDeviceMode.Joystick || !_joystickAvailable;
 
@@ -79,6 +138,8 @@ namespace TopSpeed.Input
             _settings = settings;
             _lastState = new InputState();
             _prevState = new InputState();
+            _actionDefinitions = new List<InputActionDefinition>();
+            _actionBindings = CreateActionBindings();
             Initialize();
             KeyMap = new KeyMapManager(this);
         }
@@ -104,6 +165,8 @@ namespace TopSpeed.Input
             _trackName = JoystickAxisOrButton.AxisNone;
             _pause = JoystickAxisOrButton.AxisNone;
             ReadFromSettings();
+            _allowDrivingInput = true;
+            _allowAuxiliaryInput = true;
 
             _kbPlayer1 = Key.F1;
             _kbPlayer2 = Key.F2;
@@ -389,6 +452,9 @@ namespace TopSpeed.Input
 
         public int GetSteering()
         {
+            if (!_allowDrivingInput)
+                return 0;
+
             var joystickSteer = 0;
             if (UseJoystick)
             {
@@ -412,6 +478,9 @@ namespace TopSpeed.Input
 
         public int GetThrottle()
         {
+            if (!_allowDrivingInput)
+                return 0;
+
             var joystickThrottle = UseJoystick ? GetAxis(_throttle) : 0;
             if (joystickThrottle != 0 || !UseKeyboard)
                 return joystickThrottle;
@@ -421,6 +490,9 @@ namespace TopSpeed.Input
 
         public int GetBrake()
         {
+            if (!_allowDrivingInput)
+                return 0;
+
             var joystickBrake = UseJoystick ? -GetAxis(_brake) : 0;
             if (joystickBrake != 0 || !UseKeyboard)
                 return joystickBrake;
@@ -428,30 +500,38 @@ namespace TopSpeed.Input
             return UseKeyboard && _lastState.IsDown(_kbBrake) ? -100 : 0;
         }
 
-        public bool GetReverseRequested() => UseKeyboard && WasPressed(Key.Z);
+        public bool GetReverseRequested() => _allowDrivingInput && UseKeyboard && WasPressed(Key.Z);
 
-        public bool GetForwardRequested() => UseKeyboard && WasPressed(Key.A);
+        public bool GetForwardRequested() => _allowDrivingInput && UseKeyboard && WasPressed(Key.A);
 
-        public bool GetGearUp() => (UseKeyboard && _lastState.IsDown(_kbGearUp)) || (UseJoystick && GetAxis(_gearUp) > 50);
+        public bool GetGearUp() => IsActionTriggered(InputAction.GearUp);
 
-        public bool GetGearDown() => (UseKeyboard && _lastState.IsDown(_kbGearDown)) || (UseJoystick && GetAxis(_gearDown) > 50);
+        public bool GetGearDown() => IsActionTriggered(InputAction.GearDown);
 
-        public bool GetHorn() => (UseKeyboard && _lastState.IsDown(_kbHorn)) || (UseJoystick && GetAxis(_horn) > 50);
+        public bool GetHorn() => IsActionTriggered(InputAction.Horn);
 
-        public bool GetRequestInfo() => (UseKeyboard && _lastState.IsDown(_kbRequestInfo)) || (UseJoystick && GetAxis(_requestInfo) > 50);
+        public bool GetRequestInfo() => IsActionTriggered(InputAction.RequestInfo);
 
-        public bool GetCurrentGear() => (UseKeyboard && WasPressed(_kbCurrentGear)) || AxisPressed(_currentGear);
+        public bool GetCurrentGear() => IsActionTriggered(InputAction.CurrentGear);
 
-        public bool GetCurrentLapNr() => (UseKeyboard && WasPressed(_kbCurrentLapNr)) || AxisPressed(_currentLapNr);
+        public bool GetCurrentLapNr() => IsActionTriggered(InputAction.CurrentLapNr);
 
-        public bool GetCurrentRacePerc() => (UseKeyboard && WasPressed(_kbCurrentRacePerc)) || AxisPressed(_currentRacePerc);
+        public bool GetCurrentRacePerc() => IsActionTriggered(InputAction.CurrentRacePerc);
 
-        public bool GetCurrentLapPerc() => (UseKeyboard && WasPressed(_kbCurrentLapPerc)) || AxisPressed(_currentLapPerc);
+        public bool GetCurrentLapPerc() => IsActionTriggered(InputAction.CurrentLapPerc);
 
-        public bool GetCurrentRaceTime() => (UseKeyboard && WasPressed(_kbCurrentRaceTime)) || AxisPressed(_currentRaceTime);
+        public bool GetCurrentRaceTime() => IsActionTriggered(InputAction.CurrentRaceTime);
+
+        public bool GetMappedAction(InputAction action) => IsActionTriggered(action);
 
         public bool TryGetPlayerInfo(out int player)
         {
+            if (!_allowAuxiliaryInput)
+            {
+                player = 0;
+                return false;
+            }
+
             if (WasPressed(_kbPlayer1)) { player = 0; return true; }
             if (WasPressed(_kbPlayer2)) { player = 1; return true; }
             if (WasPressed(_kbPlayer3)) { player = 2; return true; }
@@ -466,6 +546,12 @@ namespace TopSpeed.Input
 
         public bool TryGetPlayerPosition(out int player)
         {
+            if (!_allowAuxiliaryInput)
+            {
+                player = 0;
+                return false;
+            }
+
             if (WasPressed(_kbPlayerPos1)) { player = 0; return true; }
             if (WasPressed(_kbPlayerPos2)) { player = 1; return true; }
             if (WasPressed(_kbPlayerPos3)) { player = 2; return true; }
@@ -478,201 +564,70 @@ namespace TopSpeed.Input
             return false;
         }
 
-        public bool GetTrackName() => WasPressed(_kbTrackName) || AxisPressed(_trackName);
+        public bool GetTrackName() => IsActionTriggered(InputAction.TrackName);
 
-        public bool GetPlayerNumber() => WasPressed(_kbPlayerNumber);
+        public bool GetPlayerNumber() => _allowAuxiliaryInput && WasPressed(_kbPlayerNumber);
 
-        public bool GetPause()
-        {
-            var keyboard = _lastState.IsDown(_kbPause);
-            var joystick = UseJoystick && GetAxis(_pause) > 50;
-            return keyboard || joystick;
-        }
+        public bool GetPause() => IsActionTriggered(InputAction.Pause);
 
-        public bool GetStartEngine()
-        {
-            var keyboard = WasPressed(_kbStartEngine) || (_kbStartEngine == Key.Return && WasPressed(Key.NumberPadEnter));
-            return keyboard || AxisPressed(_startEngine);
-        }
+        public bool GetStartEngine() => IsActionTriggered(InputAction.StartEngine);
 
         public bool GetFlush() => _lastState.IsDown(_kbFlush);
 
         // Speed and distance reporting hotkeys
-        public bool GetSpeedReport() => WasPressed(_kbReportSpeed) || AxisPressed(_reportSpeed);
-        public bool GetDistanceReport() => WasPressed(_kbReportDistance) || AxisPressed(_reportDistance);
+        public bool GetSpeedReport() => IsActionTriggered(InputAction.ReportSpeed);
+        public bool GetDistanceReport() => IsActionTriggered(InputAction.ReportDistance);
+
+        public bool GetNextPanelRequest() => WasPressed(Key.Tab) && IsCtrlDown() && !IsShiftDown();
+
+        public bool GetPreviousPanelRequest() => WasPressed(Key.Tab) && IsCtrlDown() && IsShiftDown();
+
+        public bool GetOpenRadioMediaRequest() => WasPressed(Key.O);
+
+        public bool GetToggleRadioPlaybackRequest() => WasPressed(Key.P);
+
+        public void SetPanelInputAccess(bool allowDrivingInput, bool allowAuxiliaryInput)
+        {
+            _allowDrivingInput = allowDrivingInput;
+            _allowAuxiliaryInput = allowAuxiliaryInput;
+        }
+
+        internal IReadOnlyList<InputActionDefinition> GetActionDefinitions()
+        {
+            return _actionDefinitions;
+        }
+
+        internal string GetActionLabel(InputAction action)
+        {
+            return _actionBindings.TryGetValue(action, out var binding)
+                ? binding.Label
+                : "Action";
+        }
 
         internal Key GetKeyMapping(InputAction action)
         {
-            return action switch
-            {
-                InputAction.SteerLeft => _kbLeft,
-                InputAction.SteerRight => _kbRight,
-                InputAction.Throttle => _kbThrottle,
-                InputAction.Brake => _kbBrake,
-                InputAction.GearUp => _kbGearUp,
-                InputAction.GearDown => _kbGearDown,
-                InputAction.Horn => _kbHorn,
-                InputAction.RequestInfo => _kbRequestInfo,
-                InputAction.CurrentGear => _kbCurrentGear,
-                InputAction.CurrentLapNr => _kbCurrentLapNr,
-                InputAction.CurrentRacePerc => _kbCurrentRacePerc,
-                InputAction.CurrentLapPerc => _kbCurrentLapPerc,
-                InputAction.CurrentRaceTime => _kbCurrentRaceTime,
-                InputAction.StartEngine => _kbStartEngine,
-                InputAction.ReportDistance => _kbReportDistance,
-                InputAction.ReportSpeed => _kbReportSpeed,
-                InputAction.TrackName => _kbTrackName,
-                InputAction.Pause => _kbPause,
-                _ => Key.Unknown
-            };
+            return _actionBindings.TryGetValue(action, out var binding)
+                ? binding.GetKey()
+                : Key.Unknown;
         }
 
         internal JoystickAxisOrButton GetAxisMapping(InputAction action)
         {
-            return action switch
-            {
-                InputAction.SteerLeft => _left,
-                InputAction.SteerRight => _right,
-                InputAction.Throttle => _throttle,
-                InputAction.Brake => _brake,
-                InputAction.GearUp => _gearUp,
-                InputAction.GearDown => _gearDown,
-                InputAction.Horn => _horn,
-                InputAction.RequestInfo => _requestInfo,
-                InputAction.CurrentGear => _currentGear,
-                InputAction.CurrentLapNr => _currentLapNr,
-                InputAction.CurrentRacePerc => _currentRacePerc,
-                InputAction.CurrentLapPerc => _currentLapPerc,
-                InputAction.CurrentRaceTime => _currentRaceTime,
-                InputAction.StartEngine => _startEngine,
-                InputAction.ReportDistance => _reportDistance,
-                InputAction.ReportSpeed => _reportSpeed,
-                InputAction.TrackName => _trackName,
-                InputAction.Pause => _pause,
-                _ => JoystickAxisOrButton.AxisNone
-            };
+            return _actionBindings.TryGetValue(action, out var binding)
+                ? binding.GetAxis()
+                : JoystickAxisOrButton.AxisNone;
         }
 
         internal void ApplyKeyMapping(InputAction action, Key key)
         {
-            switch (action)
-            {
-                case InputAction.SteerLeft:
-                    SetLeft(key);
-                    break;
-                case InputAction.SteerRight:
-                    SetRight(key);
-                    break;
-                case InputAction.Throttle:
-                    SetThrottle(key);
-                    break;
-                case InputAction.Brake:
-                    SetBrake(key);
-                    break;
-                case InputAction.GearUp:
-                    SetGearUp(key);
-                    break;
-                case InputAction.GearDown:
-                    SetGearDown(key);
-                    break;
-                case InputAction.Horn:
-                    SetHorn(key);
-                    break;
-                case InputAction.RequestInfo:
-                    SetRequestInfo(key);
-                    break;
-                case InputAction.CurrentGear:
-                    SetCurrentGear(key);
-                    break;
-                case InputAction.CurrentLapNr:
-                    SetCurrentLapNr(key);
-                    break;
-                case InputAction.CurrentRacePerc:
-                    SetCurrentRacePerc(key);
-                    break;
-                case InputAction.CurrentLapPerc:
-                    SetCurrentLapPerc(key);
-                    break;
-                case InputAction.CurrentRaceTime:
-                    SetCurrentRaceTime(key);
-                    break;
-                case InputAction.StartEngine:
-                    SetStartEngine(key);
-                    break;
-                case InputAction.ReportDistance:
-                    SetReportDistance(key);
-                    break;
-                case InputAction.ReportSpeed:
-                    SetReportSpeed(key);
-                    break;
-                case InputAction.TrackName:
-                    SetTrackName(key);
-                    break;
-                case InputAction.Pause:
-                    SetPause(key);
-                    break;
-            }
+            if (_actionBindings.TryGetValue(action, out var binding))
+                binding.SetKey(key);
         }
 
         internal void ApplyAxisMapping(InputAction action, JoystickAxisOrButton axis)
         {
-            switch (action)
-            {
-                case InputAction.SteerLeft:
-                    SetLeft(axis);
-                    break;
-                case InputAction.SteerRight:
-                    SetRight(axis);
-                    break;
-                case InputAction.Throttle:
-                    SetThrottle(axis);
-                    break;
-                case InputAction.Brake:
-                    SetBrake(axis);
-                    break;
-                case InputAction.GearUp:
-                    SetGearUp(axis);
-                    break;
-                case InputAction.GearDown:
-                    SetGearDown(axis);
-                    break;
-                case InputAction.Horn:
-                    SetHorn(axis);
-                    break;
-                case InputAction.RequestInfo:
-                    SetRequestInfo(axis);
-                    break;
-                case InputAction.CurrentGear:
-                    SetCurrentGear(axis);
-                    break;
-                case InputAction.CurrentLapNr:
-                    SetCurrentLapNr(axis);
-                    break;
-                case InputAction.CurrentRacePerc:
-                    SetCurrentRacePerc(axis);
-                    break;
-                case InputAction.CurrentLapPerc:
-                    SetCurrentLapPerc(axis);
-                    break;
-                case InputAction.CurrentRaceTime:
-                    SetCurrentRaceTime(axis);
-                    break;
-                case InputAction.StartEngine:
-                    SetStartEngine(axis);
-                    break;
-                case InputAction.ReportDistance:
-                    SetReportDistance(axis);
-                    break;
-                case InputAction.ReportSpeed:
-                    SetReportSpeed(axis);
-                    break;
-                case InputAction.TrackName:
-                    SetTrackName(axis);
-                    break;
-                case InputAction.Pause:
-                    SetPause(axis);
-                    break;
-            }
+            if (_actionBindings.TryGetValue(action, out var binding))
+                binding.SetAxis(axis);
         }
 
         private int GetAxis(JoystickAxisOrButton axis)
@@ -810,6 +765,115 @@ namespace TopSpeed.Input
             return _lastState.IsDown(key) && !_prevState.IsDown(key);
         }
 
+        private bool IsActionTriggered(InputAction action)
+        {
+            var meta = GetActionMeta(action);
+            if (!IsScopeEnabled(meta.Scope))
+                return false;
+
+            var keyboard = IsActionActiveOnKeyboard(action, meta);
+            var joystick = IsActionActiveOnJoystick(action, meta);
+            return keyboard || joystick;
+        }
+
+        private bool IsActionActiveOnKeyboard(InputAction action, InputActionMeta meta)
+        {
+            if (!UseKeyboard)
+                return false;
+
+            var key = GetKeyMapping(action);
+            if (key == Key.Unknown)
+                return false;
+
+            var active = meta.KeyboardMode == TriggerMode.Hold
+                ? _lastState.IsDown(key)
+                : WasPressed(key);
+            if (!active && meta.AllowNumpadEnterAlias && key == Key.Return)
+                active = WasPressed(Key.NumberPadEnter);
+
+            return active;
+        }
+
+        private bool IsActionActiveOnJoystick(InputAction action, InputActionMeta meta)
+        {
+            if (!UseJoystick)
+                return false;
+
+            var axis = GetAxisMapping(action);
+            if (axis == JoystickAxisOrButton.AxisNone)
+                return false;
+
+            return meta.JoystickMode == TriggerMode.Hold
+                ? GetAxis(axis) > 50
+                : AxisPressed(axis);
+        }
+
+        private bool IsScopeEnabled(InputScope scope)
+        {
+            return scope switch
+            {
+                InputScope.Driving => _allowDrivingInput,
+                InputScope.Auxiliary => _allowAuxiliaryInput,
+                _ => false
+            };
+        }
+
+        private InputActionMeta GetActionMeta(InputAction action)
+        {
+            if (_actionBindings.TryGetValue(action, out var binding))
+                return binding.Meta;
+
+            return new InputActionMeta(InputScope.Auxiliary, TriggerMode.Press, TriggerMode.Press);
+        }
+
+        private Dictionary<InputAction, InputActionBinding> CreateActionBindings()
+        {
+            var bindings = new Dictionary<InputAction, InputActionBinding>();
+
+            void Add(
+                InputAction action,
+                string label,
+                InputScope scope,
+                TriggerMode keyboardMode,
+                TriggerMode joystickMode,
+                Func<Key> getKey,
+                Action<Key> setKey,
+                Func<JoystickAxisOrButton> getAxis,
+                Action<JoystickAxisOrButton> setAxis,
+                bool allowNumpadEnterAlias = false)
+            {
+                bindings[action] = new InputActionBinding(
+                    label,
+                    new InputActionMeta(scope, keyboardMode, joystickMode, allowNumpadEnterAlias),
+                    getKey,
+                    setKey,
+                    getAxis,
+                    setAxis);
+                _actionDefinitions.Add(new InputActionDefinition(action, label));
+            }
+
+            Add(InputAction.SteerLeft, "Steer left", InputScope.Driving, TriggerMode.Hold, TriggerMode.Hold, () => _kbLeft, key => SetLeft(key), () => _left, axis => SetLeft(axis));
+            Add(InputAction.SteerRight, "Steer right", InputScope.Driving, TriggerMode.Hold, TriggerMode.Hold, () => _kbRight, key => SetRight(key), () => _right, axis => SetRight(axis));
+            Add(InputAction.Throttle, "Throttle", InputScope.Driving, TriggerMode.Hold, TriggerMode.Hold, () => _kbThrottle, key => SetThrottle(key), () => _throttle, axis => SetThrottle(axis));
+            Add(InputAction.Brake, "Brake", InputScope.Driving, TriggerMode.Hold, TriggerMode.Hold, () => _kbBrake, key => SetBrake(key), () => _brake, axis => SetBrake(axis));
+            Add(InputAction.GearUp, "Shift gear up", InputScope.Driving, TriggerMode.Hold, TriggerMode.Hold, () => _kbGearUp, key => SetGearUp(key), () => _gearUp, axis => SetGearUp(axis));
+            Add(InputAction.GearDown, "Shift gear down", InputScope.Driving, TriggerMode.Hold, TriggerMode.Hold, () => _kbGearDown, key => SetGearDown(key), () => _gearDown, axis => SetGearDown(axis));
+            Add(InputAction.Horn, "Use horn", InputScope.Driving, TriggerMode.Hold, TriggerMode.Hold, () => _kbHorn, key => SetHorn(key), () => _horn, axis => SetHorn(axis));
+            Add(InputAction.RequestInfo, "Request position information", InputScope.Auxiliary, TriggerMode.Hold, TriggerMode.Hold, () => _kbRequestInfo, key => SetRequestInfo(key), () => _requestInfo, axis => SetRequestInfo(axis));
+            Add(InputAction.CurrentGear, "Current gear", InputScope.Auxiliary, TriggerMode.Press, TriggerMode.Press, () => _kbCurrentGear, key => SetCurrentGear(key), () => _currentGear, axis => SetCurrentGear(axis));
+            Add(InputAction.CurrentLapNr, "Current lap number", InputScope.Auxiliary, TriggerMode.Press, TriggerMode.Press, () => _kbCurrentLapNr, key => SetCurrentLapNr(key), () => _currentLapNr, axis => SetCurrentLapNr(axis));
+            Add(InputAction.CurrentRacePerc, "Current race percentage", InputScope.Auxiliary, TriggerMode.Press, TriggerMode.Press, () => _kbCurrentRacePerc, key => SetCurrentRacePerc(key), () => _currentRacePerc, axis => SetCurrentRacePerc(axis));
+            Add(InputAction.CurrentLapPerc, "Current lap percentage", InputScope.Auxiliary, TriggerMode.Press, TriggerMode.Press, () => _kbCurrentLapPerc, key => SetCurrentLapPerc(key), () => _currentLapPerc, axis => SetCurrentLapPerc(axis));
+            Add(InputAction.CurrentRaceTime, "Current race time", InputScope.Auxiliary, TriggerMode.Press, TriggerMode.Press, () => _kbCurrentRaceTime, key => SetCurrentRaceTime(key), () => _currentRaceTime, axis => SetCurrentRaceTime(axis));
+            Add(InputAction.StartEngine, "Start the engine", InputScope.Auxiliary, TriggerMode.Press, TriggerMode.Press, () => _kbStartEngine, key => SetStartEngine(key), () => _startEngine, axis => SetStartEngine(axis), allowNumpadEnterAlias: true);
+            Add(InputAction.ReportDistance, "Report distance", InputScope.Auxiliary, TriggerMode.Press, TriggerMode.Press, () => _kbReportDistance, key => SetReportDistance(key), () => _reportDistance, axis => SetReportDistance(axis));
+            Add(InputAction.ReportSpeed, "Report speed", InputScope.Auxiliary, TriggerMode.Press, TriggerMode.Press, () => _kbReportSpeed, key => SetReportSpeed(key), () => _reportSpeed, axis => SetReportSpeed(axis));
+            Add(InputAction.TrackName, "Report track name", InputScope.Auxiliary, TriggerMode.Press, TriggerMode.Press, () => _kbTrackName, key => SetTrackName(key), () => _trackName, axis => SetTrackName(axis));
+            Add(InputAction.Pause, "Pause", InputScope.Auxiliary, TriggerMode.Hold, TriggerMode.Hold, () => _kbPause, key => SetPause(key), () => _pause, axis => SetPause(axis));
+
+            return bindings;
+        }
+
         private bool AxisPressed(JoystickAxisOrButton axis)
         {
             if (!UseJoystick)
@@ -817,6 +881,16 @@ namespace TopSpeed.Input
             var current = GetAxis(axis, _lastJoystick);
             var previous = _hasPrevJoystick ? GetAxis(axis, _prevJoystick) : 0;
             return current > 50 && previous <= 50;
+        }
+
+        private bool IsCtrlDown()
+        {
+            return _lastState.IsDown(Key.LeftControl) || _lastState.IsDown(Key.RightControl);
+        }
+
+        private bool IsShiftDown()
+        {
+            return _lastState.IsDown(Key.LeftShift) || _lastState.IsDown(Key.RightShift);
         }
 
         private void ReadFromSettings()

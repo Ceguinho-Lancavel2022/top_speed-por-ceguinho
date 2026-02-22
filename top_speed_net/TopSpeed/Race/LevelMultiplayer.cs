@@ -33,10 +33,22 @@ namespace TopSpeed.Race
             public bool Finished { get; set; }
         }
 
+        private sealed class RemoteMediaTransfer
+        {
+            public uint MediaId { get; set; }
+            public string Extension { get; set; } = string.Empty;
+            public byte[] Data { get; set; } = Array.Empty<byte>();
+            public int Offset { get; set; }
+            public ushort NextChunkIndex { get; set; }
+
+            public bool IsComplete => Data.Length > 0 && Offset >= Data.Length;
+        }
+
         private readonly MultiplayerSession _session;
         private readonly uint _playerId;
         private readonly byte _playerNumber;
         private readonly Dictionary<byte, RemotePlayer> _remotePlayers;
+        private readonly Dictionary<byte, RemoteMediaTransfer> _remoteMediaTransfers;
         private readonly AudioSourceHandle?[] _soundPosition;
         private readonly AudioSourceHandle?[] _soundPlayerNr;
         private readonly AudioSourceHandle?[] _soundFinished;
@@ -77,6 +89,7 @@ namespace TopSpeed.Race
             _playerId = playerId;
             _playerNumber = playerNumber;
             _remotePlayers = new Dictionary<byte, RemotePlayer>();
+            _remoteMediaTransfers = new Dictionary<byte, RemoteMediaTransfer>();
             _soundPosition = new AudioSourceHandle?[MaxPlayers];
             _soundPlayerNr = new AudioSourceHandle?[MaxPlayers];
             _soundFinished = new AudioSourceHandle?[MaxPlayers];
@@ -135,6 +148,7 @@ namespace TopSpeed.Race
                 remote.Player.Dispose();
             }
             _remotePlayers.Clear();
+            _remoteMediaTransfers.Clear();
 
             for (var i = 0; i < _soundPosition.Length; i++)
             {
@@ -208,6 +222,7 @@ namespace TopSpeed.Race
             }
 
             UpdatePositions();
+            UpdateVehiclePanels(elapsed);
             _car.Run(elapsed);
             _track.Run(_car.PositionY);
             var spatialTrackLength = GetSpatialTrackLength();
@@ -342,7 +357,17 @@ namespace TopSpeed.Race
                     Speed = (ushort)_car.Speed,
                     Frequency = _car.Frequency
                 };
-                _session.SendPlayerData(raceData, _car.CarType, state, _car.EngineRunning, _car.Braking, _car.Horning, _car.Backfiring());
+                _session.SendPlayerData(
+                    raceData,
+                    _car.CarType,
+                    state,
+                    _car.EngineRunning,
+                    _car.Braking,
+                    _car.Horning,
+                    _car.Backfiring(),
+                    LocalMediaLoaded,
+                    LocalMediaPlaying,
+                    LocalMediaId);
             }
 
             if (UpdateExitWhenQueueIdle())
@@ -356,6 +381,7 @@ namespace TopSpeed.Race
             _soundTheme4?.SetVolumePercent((int)Math.Round(_settings.MusicVolume * 100f));
             _soundTheme4?.Play(loop: true);
             FadeIn();
+            PauseVehiclePanels();
             _car.Pause();
             foreach (var remote in _remotePlayers.Values)
                 remote.Player.Pause();
@@ -365,6 +391,7 @@ namespace TopSpeed.Race
         public void Unpause()
         {
             _car.Unpause();
+            ResumeVehiclePanels();
             foreach (var remote in _remotePlayers.Values)
                 remote.Player.Unpause();
             FadeOut();
@@ -373,19 +400,18 @@ namespace TopSpeed.Race
             _soundUnpause?.Play(loop: false);
         }
 
+        protected override void OnLocalRadioMediaLoaded(uint mediaId, string mediaPath)
+        {
+            if (!_session.SendRadioMedia(mediaId, mediaPath))
+                SpeakText("Failed to transmit radio media.");
+        }
+
         public void ApplyRemoteData(PacketPlayerData data)
         {
             if (data.PlayerNumber == _playerNumber)
                 return;
 
-            if (!_remotePlayers.TryGetValue(data.PlayerNumber, out var remote))
-            {
-                var vehicleIndex = data.Car == CarType.CustomVehicle ? 0 : (int)data.Car;
-                var bot = new ComputerPlayer(_audio, _track, _settings, vehicleIndex, data.PlayerNumber, () => _elapsedTotal, () => _started);
-                bot.Initialize(data.RaceData.PositionX, data.RaceData.PositionY, GetSpatialTrackLength());
-                remote = new RemotePlayer(bot);
-                _remotePlayers[data.PlayerNumber] = remote;
-            }
+            var remote = GetOrCreateRemotePlayer(data.PlayerNumber, data.Car, data.RaceData.PositionX, data.RaceData.PositionY);
 
             remote.State = data.State;
             if (data.State == PlayerState.Finished && !remote.Finished)
@@ -408,9 +434,72 @@ namespace TopSpeed.Race
                 data.Braking,
                 data.Horning,
                 data.Backfiring,
+                data.MediaLoaded,
+                data.MediaPlaying,
+                data.MediaId,
                 _car.PositionX,
                 _car.PositionY,
                 GetSpatialTrackLength());
+            TryApplyPendingRemoteMedia(data.PlayerNumber, remote);
+        }
+
+        public void ApplyRemoteMediaBegin(PacketPlayerMediaBegin media)
+        {
+            if (media.PlayerNumber == _playerNumber)
+                return;
+            if (media.TotalBytes == 0 || media.TotalBytes > ProtocolConstants.MaxMediaBytes)
+                return;
+
+            _remoteMediaTransfers[media.PlayerNumber] = new RemoteMediaTransfer
+            {
+                MediaId = media.MediaId,
+                Extension = media.FileExtension,
+                Data = new byte[media.TotalBytes],
+                Offset = 0,
+                NextChunkIndex = 0
+            };
+        }
+
+        public void ApplyRemoteMediaChunk(PacketPlayerMediaChunk media)
+        {
+            if (media.PlayerNumber == _playerNumber)
+                return;
+            if (!_remoteMediaTransfers.TryGetValue(media.PlayerNumber, out var transfer))
+                return;
+            if (transfer.MediaId != media.MediaId)
+                return;
+            if (transfer.NextChunkIndex != media.ChunkIndex)
+                return;
+            if (media.Data == null || media.Data.Length == 0)
+                return;
+
+            var remaining = transfer.Data.Length - transfer.Offset;
+            if (media.Data.Length > remaining)
+            {
+                _remoteMediaTransfers.Remove(media.PlayerNumber);
+                return;
+            }
+
+            Buffer.BlockCopy(media.Data, 0, transfer.Data, transfer.Offset, media.Data.Length);
+            transfer.Offset += media.Data.Length;
+            transfer.NextChunkIndex++;
+        }
+
+        public void ApplyRemoteMediaEnd(PacketPlayerMediaEnd media)
+        {
+            if (media.PlayerNumber == _playerNumber)
+                return;
+            if (!_remoteMediaTransfers.TryGetValue(media.PlayerNumber, out var transfer))
+                return;
+            if (transfer.MediaId != media.MediaId)
+                return;
+            if (!transfer.IsComplete)
+                return;
+            if (!_remotePlayers.TryGetValue(media.PlayerNumber, out var remote))
+                return;
+
+            remote.Player.ApplyRadioMedia(transfer.MediaId, transfer.Extension, transfer.Data);
+            _remoteMediaTransfers.Remove(media.PlayerNumber);
         }
 
         public void ApplyBump(PacketPlayerBumped bump)
@@ -430,6 +519,7 @@ namespace TopSpeed.Race
 
         public void RemoveRemotePlayer(byte playerNumber)
         {
+            _remoteMediaTransfers.Remove(playerNumber);
             if (_remotePlayers.TryGetValue(playerNumber, out var remote))
             {
                 remote.Player.FinalizePlayer();
@@ -452,6 +542,30 @@ namespace TopSpeed.Race
             }
 
             RequestExitWhenQueueIdle();
+        }
+
+        private RemotePlayer GetOrCreateRemotePlayer(byte playerNumber, CarType car, float positionX, float positionY)
+        {
+            if (_remotePlayers.TryGetValue(playerNumber, out var existing))
+                return existing;
+
+            var vehicleIndex = car == CarType.CustomVehicle ? 0 : (int)car;
+            var bot = new ComputerPlayer(_audio, _track, _settings, vehicleIndex, playerNumber, () => _elapsedTotal, () => _started);
+            bot.Initialize(positionX, positionY, GetSpatialTrackLength());
+            var remote = new RemotePlayer(bot);
+            _remotePlayers[playerNumber] = remote;
+            return remote;
+        }
+
+        private void TryApplyPendingRemoteMedia(byte playerNumber, RemotePlayer remote)
+        {
+            if (!_remoteMediaTransfers.TryGetValue(playerNumber, out var transfer))
+                return;
+            if (!transfer.IsComplete)
+                return;
+
+            remote.Player.ApplyRadioMedia(transfer.MediaId, transfer.Extension, transfer.Data);
+            _remoteMediaTransfers.Remove(playerNumber);
         }
 
         private void UpdatePositions()

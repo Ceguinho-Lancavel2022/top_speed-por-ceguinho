@@ -73,7 +73,10 @@ namespace TopSpeed.Protocol
         RoomAddBot = 30,
         RoomRemoveBot = 31,
         RoomPrepareRace = 32,
-        RoomPlayerReady = 33
+        RoomPlayerReady = 33,
+        PlayerMediaBegin = 34,
+        PlayerMediaChunk = 35,
+        PlayerMediaEnd = 36
     }
 
     public enum ProtocolMessageCode : byte

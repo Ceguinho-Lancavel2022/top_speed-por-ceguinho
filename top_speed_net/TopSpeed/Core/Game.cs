@@ -525,6 +525,18 @@ namespace TopSpeed.Core
                         if (_multiplayerRace != null && ClientPacketSerializer.TryReadPlayerData(packet.Payload, out var playerData))
                             _multiplayerRace.ApplyRemoteData(playerData);
                         break;
+                    case Command.PlayerMediaBegin:
+                        if (_multiplayerRace != null && ClientPacketSerializer.TryReadPlayerMediaBegin(packet.Payload, out var mediaBegin))
+                            _multiplayerRace.ApplyRemoteMediaBegin(mediaBegin);
+                        break;
+                    case Command.PlayerMediaChunk:
+                        if (_multiplayerRace != null && ClientPacketSerializer.TryReadPlayerMediaChunk(packet.Payload, out var mediaChunk))
+                            _multiplayerRace.ApplyRemoteMediaChunk(mediaChunk);
+                        break;
+                    case Command.PlayerMediaEnd:
+                        if (_multiplayerRace != null && ClientPacketSerializer.TryReadPlayerMediaEnd(packet.Payload, out var mediaEnd))
+                            _multiplayerRace.ApplyRemoteMediaEnd(mediaEnd);
+                        break;
                     case Command.PlayerBumped:
                         if (_multiplayerRace != null && ClientPacketSerializer.TryReadPlayerBumped(packet.Payload, out var bump))
                             _multiplayerRace.ApplyBump(bump);

@@ -46,6 +46,34 @@ namespace TopSpeed.Protocol
         public bool Braking;
         public bool Horning;
         public bool Backfiring;
+        public bool MediaLoaded;
+        public bool MediaPlaying;
+        public uint MediaId;
+    }
+
+    public sealed class PacketPlayerMediaBegin
+    {
+        public uint PlayerId;
+        public byte PlayerNumber;
+        public uint MediaId;
+        public uint TotalBytes;
+        public string FileExtension = string.Empty;
+    }
+
+    public sealed class PacketPlayerMediaChunk
+    {
+        public uint PlayerId;
+        public byte PlayerNumber;
+        public uint MediaId;
+        public ushort ChunkIndex;
+        public byte[] Data = Array.Empty<byte>();
+    }
+
+    public sealed class PacketPlayerMediaEnd
+    {
+        public uint PlayerId;
+        public byte PlayerNumber;
+        public uint MediaId;
     }
 
     public sealed class PacketPlayerBumped

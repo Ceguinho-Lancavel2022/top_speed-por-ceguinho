@@ -203,6 +203,7 @@ namespace TopSpeed.Race
             }
 
             UpdatePositions();
+            UpdateVehiclePanels(elapsed);
             _car.Run(elapsed);
             _track.Run(_car.PositionY);
 
@@ -323,6 +324,7 @@ namespace TopSpeed.Race
             _soundTheme4?.SetVolumePercent((int)Math.Round(_settings.MusicVolume * 100f));
             _soundTheme4?.Play(loop: true);
             FadeIn();
+            PauseVehiclePanels();
             _car.Pause();
             for (var i = 0; i < _nComputerPlayers; i++)
                 _computerPlayers[i]?.Pause();
@@ -332,6 +334,7 @@ namespace TopSpeed.Race
         public void Unpause()
         {
             _car.Unpause();
+            ResumeVehiclePanels();
             for (var i = 0; i < _nComputerPlayers; i++)
                 _computerPlayers[i]?.Unpause();
             FadeOut();

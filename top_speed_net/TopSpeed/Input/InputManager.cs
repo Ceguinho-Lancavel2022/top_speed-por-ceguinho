@@ -503,13 +503,43 @@ namespace TopSpeed.Input
 
         public void Dispose()
         {
+            if (_disposed)
+                return;
+
             _disposed = true;
             StopHidScan();
-            _keyboard.Unacquire();
-            _keyboard.Dispose();
-            _gamepad.Dispose();
-            _joystick?.Dispose();
-            _directInput.Dispose();
+            SafeRelease(() => _keyboard.Unacquire());
+            SafeRelease(() => _keyboard.Dispose());
+            SafeRelease(() => _gamepad.Dispose());
+
+            JoystickDevice? joystick;
+            lock (_hidLock)
+            {
+                joystick = _joystick;
+                _joystick = null;
+            }
+            SafeRelease(() => joystick?.Dispose());
+            SafeRelease(() => _directInput.Dispose());
+        }
+
+        private static void SafeRelease(Action release)
+        {
+            try
+            {
+                release();
+            }
+            catch (SharpDXException)
+            {
+                // Ignore DirectInput release failures during shutdown.
+            }
+            catch (NullReferenceException)
+            {
+                // SharpDX can throw NullReferenceException from unmanaged device wrappers.
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed by previous shutdown path.
+            }
         }
     }
 }
