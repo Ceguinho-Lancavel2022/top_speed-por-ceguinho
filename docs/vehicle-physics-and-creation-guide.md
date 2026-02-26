@@ -467,7 +467,7 @@ This affects lift-off deceleration, not active brake-button stopping. Too high c
 
 Vehicle mass in kilograms.
 
-Allowed range is 50 to 10000.
+Allowed range is 20 to 10000.
 
 Higher mass reduces acceleration for the same net force and usually makes the vehicle feel calmer but heavier. Lower mass increases responsiveness and acceleration. Mass also influences some handling feel indirectly.
 
@@ -523,7 +523,7 @@ This is one of the best targeted controls for high-gear pull. Lower it to calm u
 
 Aerodynamic drag coefficient used in the drag force calculation.
 
-Allowed range is 0.05 to 1.5.
+Allowed range is 0.01 to 1.5.
 
 Lower values improve high-speed pull and top-speed reach. Higher values reduce high-speed acceleration and can be used to balance fast vehicles while keeping low-speed behavior more intact than a large torque reduction would.
 
@@ -531,7 +531,7 @@ Lower values improve high-speed pull and top-speed reach. Higher values reduce h
 
 Frontal area in square meters used in the drag calculation.
 
-Allowed range is 0.2 to 10.0.
+Allowed range is 0.05 to 10.0.
 
 This works together with `drag_coefficient`. Larger values increase aerodynamic drag, especially at higher speeds.
 
@@ -567,7 +567,7 @@ The `[drivetrain]` section contains gearing and braking controls that are not pa
 
 Final drive ratio applied to all forward gears.
 
-Allowed range is 0.5 to 8.0.
+Allowed range is 0.3 to 8.0.
 
 This is one of the strongest tuning controls because it changes effective gearing in every forward gear. Increasing it makes all gears shorter and usually improves pull. Decreasing it makes all gears taller and can reduce acceleration or make upper gears harder to use.
 
@@ -685,7 +685,7 @@ The `[dimensions]` section defines physical size values used for spatial behavio
 
 Vehicle width in meters.
 
-Allowed range is 0.5 to 5.0.
+Allowed range is 0.2 to 5.0.
 
 This affects spatial/audio placement and vehicle size behavior, not engine power or top speed directly.
 
@@ -693,7 +693,7 @@ This affects spatial/audio placement and vehicle size behavior, not engine power
 
 Vehicle length in meters.
 
-Allowed range is 1.0 to 20.0.
+Allowed range is 0.3 to 20.0.
 
 This also affects spatial representation and presence rather than direct acceleration physics.
 
@@ -707,7 +707,7 @@ You must provide either a valid `tire_circumference` or all three of `tire_width
 
 Tire circumference in meters.
 
-If provided and greater than zero, it is used directly. Allowed range is 0.5 to 5.0 meters.
+If provided and greater than zero, it is used directly. Allowed range is 0.2 to 5.0 meters.
 
 This value affects the speed-to-RPM relationship. Incorrect tire circumference can make gearing and RPM behavior feel wrong even when other parameters are correct.
 
@@ -715,19 +715,19 @@ This value affects the speed-to-RPM relationship. Incorrect tire circumference c
 
 Tire width in millimeters used for circumference calculation when direct circumference is not provided.
 
-Allowed range is 80 to 450.
+Allowed range is 20 to 450.
 
 ### `tire_aspect`
 
 Tire aspect ratio (sidewall height percentage of tire width) used for circumference calculation fallback.
 
-Allowed range is 20 to 100.
+Allowed range is 5 to 150.
 
 ### `tire_rim`
 
 Rim diameter in inches used for circumference calculation fallback.
 
-Allowed range is 8 to 30.
+Allowed range is 4 to 30.
 
 If you provide the size triplet, the game calculates tire circumference automatically after validation.
 
