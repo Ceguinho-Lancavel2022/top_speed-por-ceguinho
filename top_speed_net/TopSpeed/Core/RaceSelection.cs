@@ -5,6 +5,7 @@ using System.Linq;
 using TopSpeed.Common;
 using TopSpeed.Data;
 using TopSpeed.Input;
+using TopSpeed.Vehicles;
 
 namespace TopSpeed.Core
 {
@@ -14,6 +15,8 @@ namespace TopSpeed.Core
         private readonly RaceSettings _settings;
         private readonly Dictionary<string, (DateTime LastWriteUtc, string Display)> _customTrackCache =
             new Dictionary<string, (DateTime LastWriteUtc, string Display)>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, (DateTime LastWriteUtc, CustomVehicleInfo Info)> _customVehicleCache =
+            new Dictionary<string, (DateTime LastWriteUtc, CustomVehicleInfo Info)>(StringComparer.OrdinalIgnoreCase);
 
         public RaceSelection(RaceSetup setup, RaceSettings settings)
         {
@@ -79,7 +82,9 @@ namespace TopSpeed.Core
 
         public void SelectRandomVehicle()
         {
-            var customFiles = _settings.RandomCustomVehicles ? GetCustomVehicleFiles().ToList() : new List<string>();
+            var customFiles = _settings.RandomCustomVehicles
+                ? GetCustomVehicleInfo().Select(v => v.Key).ToList()
+                : new List<string>();
             var total = VehicleCatalog.VehicleCount + customFiles.Count;
             if (total <= 0)
             {
@@ -148,10 +153,50 @@ namespace TopSpeed.Core
 
         public IEnumerable<string> GetCustomVehicleFiles()
         {
+            return GetCustomVehicleInfo().Select(v => v.Key);
+        }
+
+        public IReadOnlyList<CustomVehicleInfo> GetCustomVehicleInfo()
+        {
             var root = Path.Combine(AssetPaths.Root, "Vehicles");
             if (!Directory.Exists(root))
-                return Array.Empty<string>();
-            return Directory.EnumerateFiles(root, "*.vhc", SearchOption.TopDirectoryOnly);
+            {
+                _customVehicleCache.Clear();
+                return Array.Empty<CustomVehicleInfo>();
+            }
+
+            var files = new List<string>();
+            foreach (var directory in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories))
+            {
+                var firstVehicle = Directory.EnumerateFiles(directory, "*.tsv", SearchOption.TopDirectoryOnly)
+                    .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(firstVehicle))
+                    files.Add(firstVehicle);
+            }
+
+            if (files.Count == 0)
+            {
+                _customVehicleCache.Clear();
+                return Array.Empty<CustomVehicleInfo>();
+            }
+
+            var items = new List<CustomVehicleInfo>(files.Count);
+            var known = new HashSet<string>(files, StringComparer.OrdinalIgnoreCase);
+            foreach (var file in files)
+            {
+                var info = TryReadCustomVehicleInfo(file);
+                if (info.HasValue)
+                    items.Add(info.Value);
+            }
+
+            var staleKeys = _customVehicleCache.Keys.Where(key => !known.Contains(key)).ToList();
+            foreach (var key in staleKeys)
+                _customVehicleCache.Remove(key);
+
+            return items
+                .OrderBy(item => item.Display, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         private string ResolveCustomTrackDisplayName(string file)
@@ -194,6 +239,48 @@ namespace TopSpeed.Core
                 return Path.GetFileNameWithoutExtension(file);
             var name = Path.GetFileName(directory);
             return string.IsNullOrWhiteSpace(name) ? Path.GetFileNameWithoutExtension(file) : name;
+        }
+
+        private CustomVehicleInfo? TryReadCustomVehicleInfo(string file)
+        {
+            try
+            {
+                var lastWrite = File.GetLastWriteTimeUtc(file);
+                if (_customVehicleCache.TryGetValue(file, out var cached) && cached.LastWriteUtc == lastWrite)
+                    return cached.Info;
+
+                if (!VehicleTsvParser.TryLoadFromFile(file, out var parsed, out var issues))
+                {
+                    LogCustomVehicleIssues(file, issues);
+                    return null;
+                }
+
+                var info = new CustomVehicleInfo(
+                    file,
+                    string.IsNullOrWhiteSpace(parsed.Meta.Name) ? "Custom vehicle" : parsed.Meta.Name,
+                    parsed.Meta.Version ?? string.Empty,
+                    parsed.Meta.Description ?? string.Empty);
+                _customVehicleCache[file] = (lastWrite, info);
+                return info;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Vehicle] Failed to load '{file}': {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void LogCustomVehicleIssues(string file, IReadOnlyList<VehicleTsvIssue> issues)
+        {
+            if (issues == null || issues.Count == 0)
+            {
+                Console.WriteLine($"[Vehicle] Failed to load '{file}'.");
+                return;
+            }
+
+            Console.WriteLine($"[Vehicle] Failed to load '{file}':");
+            for (var i = 0; i < issues.Count; i++)
+                Console.WriteLine($"  - {issues[i]}");
         }
     }
 }

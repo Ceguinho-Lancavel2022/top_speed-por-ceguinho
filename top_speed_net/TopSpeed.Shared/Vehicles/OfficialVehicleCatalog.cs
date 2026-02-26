@@ -17,7 +17,6 @@ namespace TopSpeed.Vehicles
             int shiftFreq,
             int gears,
             float steering,
-            int steeringFactor,
             float idleRpm,
             float maxRpm,
             float revLimiter,
@@ -61,9 +60,7 @@ namespace TopSpeed.Vehicles
             TopFreq = topFreq;
             ShiftFreq = shiftFreq;
             Gears = gears;
-            Steering = steering;
-            SteeringFactor = steeringFactor;
-            IdleRpm = idleRpm;
+            Steering = steering;            IdleRpm = idleRpm;
             MaxRpm = maxRpm;
             RevLimiter = revLimiter;
             AutoShiftRpm = autoShiftRpm;
@@ -107,9 +104,7 @@ namespace TopSpeed.Vehicles
         public int TopFreq { get; }
         public int ShiftFreq { get; }
         public int Gears { get; }
-        public float Steering { get; }
-        public int SteeringFactor { get; }
-        public float IdleRpm { get; }
+        public float Steering { get; }        public float IdleRpm { get; }
         public float MaxRpm { get; }
         public float RevLimiter { get; }
         public float AutoShiftRpm { get; }
@@ -169,7 +164,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle1, "Nissan GT-R Nismo",
                 hasWipers: 1, surfaceTractionFactor: 0.06f, deceleration: 0.40f, topSpeed: 268.0f,
-                idleFreq: 22050, topFreq: 55000, shiftFreq: 26000, gears: 6, steering: 1.60f, steeringFactor: 60,
+                idleFreq: 22050, topFreq: 55000, shiftFreq: 26000, gears: 6, steering: 1.60f,
                 idleRpm: 900f, maxRpm: 8000f, revLimiter: 7600f, autoShiftRpm: 7600f * 0.92f, engineBraking: 0.25f,
                 massKg: 1774f, drivetrainEfficiency: 0.80f, engineBrakingTorqueNm: 652f, tireGripCoefficient: 1.0f,
                 peakTorqueNm: 652f, peakTorqueRpm: 3600f, idleTorqueNm: 652f * 0.3f, redlineTorqueNm: 652f * 0.6f,
@@ -183,7 +178,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle2, "Porsche 911 GT3 RS",
                 hasWipers: 1, surfaceTractionFactor: 0.07f, deceleration: 0.45f, topSpeed: 248.0f,
-                idleFreq: 22050, topFreq: 60000, shiftFreq: 35000, gears: 7, steering: 1.50f, steeringFactor: 55,
+                idleFreq: 22050, topFreq: 60000, shiftFreq: 35000, gears: 7, steering: 1.50f,
                 idleRpm: 950f, maxRpm: 9000f, revLimiter: 8500f, autoShiftRpm: 8500f * 0.92f, engineBraking: 0.22f,
                 massKg: 1450f, drivetrainEfficiency: 0.85f, engineBrakingTorqueNm: 465f, tireGripCoefficient: 1.05f,
                 peakTorqueNm: 465f, peakTorqueRpm: 6250f, idleTorqueNm: 465f * 0.3f, redlineTorqueNm: 465f * 0.6f,
@@ -197,7 +192,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle3, "Fiat 500",
                 hasWipers: 1, surfaceTractionFactor: 0.035f, deceleration: 0.30f, topSpeed: 122.0f,
-                idleFreq: 6000, topFreq: 25000, shiftFreq: 19000, gears: 5, steering: 1.50f, steeringFactor: 72,
+                idleFreq: 6000, topFreq: 25000, shiftFreq: 19000, gears: 5, steering: 1.50f,
                 idleRpm: 750f, maxRpm: 6000f, revLimiter: 5500f, autoShiftRpm: 5500f * 0.92f, engineBraking: 0.40f,
                 massKg: 865f, drivetrainEfficiency: 0.88f, engineBrakingTorqueNm: 102f, tireGripCoefficient: 0.88f,
                 peakTorqueNm: 102f, peakTorqueRpm: 3000f, idleTorqueNm: 102f * 0.3f, redlineTorqueNm: 102f * 0.6f,
@@ -211,7 +206,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle4, "Mini Cooper S",
                 hasWipers: 1, surfaceTractionFactor: 0.045f, deceleration: 0.35f, topSpeed: 192.0f,
-                idleFreq: 6000, topFreq: 27000, shiftFreq: 20000, gears: 6, steering: 1.40f, steeringFactor: 56,
+                idleFreq: 6000, topFreq: 27000, shiftFreq: 20000, gears: 6, steering: 1.40f,
                 idleRpm: 800f, maxRpm: 6500f, revLimiter: 6000f, autoShiftRpm: 6000f * 0.92f, engineBraking: 0.32f,
                 massKg: 1265f, drivetrainEfficiency: 0.88f, engineBrakingTorqueNm: 280f, tireGripCoefficient: 0.95f,
                 peakTorqueNm: 280f, peakTorqueRpm: 1250f, idleTorqueNm: 280f * 0.3f, redlineTorqueNm: 280f * 0.6f,
@@ -225,7 +220,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle5, "Ford Mustang 1969",
                 hasWipers: 1, surfaceTractionFactor: 0.04f, deceleration: 0.35f, topSpeed: 186.0f,
-                idleFreq: 6000, topFreq: 33000, shiftFreq: 27500, gears: 4, steering: 2.30f, steeringFactor: 80,
+                idleFreq: 6000, topFreq: 33000, shiftFreq: 27500, gears: 4, steering: 2.30f,
                 idleRpm: 650f, maxRpm: 5500f, revLimiter: 5000f, autoShiftRpm: 5000f * 0.92f, engineBraking: 0.35f,
                 massKg: 1440f, drivetrainEfficiency: 0.85f, engineBrakingTorqueNm: 481f, tireGripCoefficient: 0.90f,
                 peakTorqueNm: 481f, peakTorqueRpm: 3000f, idleTorqueNm: 481f * 0.3f, redlineTorqueNm: 481f * 0.6f,
@@ -239,7 +234,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle6, "Toyota Camry",
                 hasWipers: 1, surfaceTractionFactor: 0.035f, deceleration: 0.30f, topSpeed: 170.0f,
-                idleFreq: 7025, topFreq: 40000, shiftFreq: 32500, gears: 8, steering: 2.20f, steeringFactor: 95,
+                idleFreq: 7025, topFreq: 40000, shiftFreq: 32500, gears: 8, steering: 2.20f,
                 idleRpm: 700f, maxRpm: 5600f, revLimiter: 5000f, autoShiftRpm: 4600f, engineBraking: 0.38f,
                 massKg: 1470f, drivetrainEfficiency: 0.88f, engineBrakingTorqueNm: 250f, tireGripCoefficient: 0.90f,
                 peakTorqueNm: 250f, peakTorqueRpm: 3800f, idleTorqueNm: 250f * 0.4f, redlineTorqueNm: 250f * 0.90f,
@@ -253,7 +248,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle7, "Lamborghini Aventador",
                 hasWipers: 1, surfaceTractionFactor: 0.08f, deceleration: 0.80f, topSpeed: 282.0f,
-                idleFreq: 6000, topFreq: 26000, shiftFreq: 21000, gears: 7, steering: 1.90f, steeringFactor: 65,
+                idleFreq: 6000, topFreq: 26000, shiftFreq: 21000, gears: 7, steering: 1.90f,
                 idleRpm: 1000f, maxRpm: 8500f, revLimiter: 8000f, autoShiftRpm: 8000f * 0.92f, engineBraking: 0.20f,
                 massKg: 1640f, drivetrainEfficiency: 0.80f, engineBrakingTorqueNm: 720f, tireGripCoefficient: 1.05f,
                 peakTorqueNm: 720f, peakTorqueRpm: 6200f, idleTorqueNm: 720f * 0.22f, redlineTorqueNm: 720f * 0.58f,
@@ -267,7 +262,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle8, "BMW 3 Series",
                 hasWipers: 1, surfaceTractionFactor: 0.045f, deceleration: 0.40f, topSpeed: 222.0f,
-                idleFreq: 10000, topFreq: 45000, shiftFreq: 34000, gears: 8, steering: 2.00f, steeringFactor: 70,
+                idleFreq: 10000, topFreq: 45000, shiftFreq: 34000, gears: 8, steering: 2.00f,
                 idleRpm: 750f, maxRpm: 6500f, revLimiter: 6000f, autoShiftRpm: 6000f * 0.92f, engineBraking: 0.30f,
                 massKg: 1524f, drivetrainEfficiency: 0.85f, engineBrakingTorqueNm: 346f, tireGripCoefficient: 0.93f,
                 peakTorqueNm: 350f, peakTorqueRpm: 1250f, idleTorqueNm: 350f * 0.3f, redlineTorqueNm: 350f * 0.6f,
@@ -281,7 +276,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle9, "Mercedes Sprinter",
                 hasWipers: 1, surfaceTractionFactor: 0.02f, deceleration: 0.20f, topSpeed: 138.0f,
-                idleFreq: 22050, topFreq: 30550, shiftFreq: 22550, gears: 7, steering: 1.50f, steeringFactor: 85,
+                idleFreq: 22050, topFreq: 30550, shiftFreq: 22550, gears: 7, steering: 1.50f,
                 idleRpm: 600f, maxRpm: 4500f, revLimiter: 4000f, autoShiftRpm: 4000f * 0.92f, engineBraking: 0.45f,
                 massKg: 1970f, drivetrainEfficiency: 0.85f, engineBrakingTorqueNm: 380f, tireGripCoefficient: 0.82f,
                 peakTorqueNm: 440f, peakTorqueRpm: 1400f, idleTorqueNm: 440f * 0.3f, redlineTorqueNm: 440f * 0.6f,
@@ -295,7 +290,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle10, "Kawasaki Ninja ZX-10R",
                 hasWipers: 0, surfaceTractionFactor: 0.09f, deceleration: 0.50f, topSpeed: 266.0f,
-                idleFreq: 22050, topFreq: 60000, shiftFreq: 35000, gears: 6, steering: 1.40f, steeringFactor: 50,
+                idleFreq: 22050, topFreq: 60000, shiftFreq: 35000, gears: 6, steering: 1.40f,
                 idleRpm: 1100f, maxRpm: 14000f, revLimiter: 13500f, autoShiftRpm: 13500f * 0.92f, engineBraking: 0.28f,
                 massKg: 207f, drivetrainEfficiency: 0.92f, engineBrakingTorqueNm: 114.9f, tireGripCoefficient: 1.10f,
                 peakTorqueNm: 114.9f, peakTorqueRpm: 11500f, idleTorqueNm: 114.9f * 0.3f, redlineTorqueNm: 114.9f * 0.6f,
@@ -309,7 +304,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle11, "Ducati Panigale V4",
                 hasWipers: 0, surfaceTractionFactor: 0.10f, deceleration: 0.55f, topSpeed: 252.0f,
-                idleFreq: 22050, topFreq: 60000, shiftFreq: 35000, gears: 6, steering: 1.30f, steeringFactor: 50,
+                idleFreq: 22050, topFreq: 60000, shiftFreq: 35000, gears: 6, steering: 1.30f,
                 idleRpm: 1200f, maxRpm: 15000f, revLimiter: 14500f, autoShiftRpm: 14500f * 0.92f, engineBraking: 0.25f,
                 massKg: 191f, drivetrainEfficiency: 0.92f, engineBrakingTorqueNm: 121f, tireGripCoefficient: 1.12f,
                 peakTorqueNm: 121f, peakTorqueRpm: 10000f, idleTorqueNm: 121f * 0.3f, redlineTorqueNm: 121f * 0.6f,
@@ -323,7 +318,7 @@ namespace TopSpeed.Vehicles
             new OfficialVehicleSpec(
                 CarType.Vehicle12, "Yamaha YZF-R1",
                 hasWipers: 0, surfaceTractionFactor: 0.085f, deceleration: 0.48f, topSpeed: 262.0f,
-                idleFreq: 22050, topFreq: 27550, shiftFreq: 23550, gears: 6, steering: 1.50f, steeringFactor: 66,
+                idleFreq: 22050, topFreq: 27550, shiftFreq: 23550, gears: 6, steering: 1.50f,
                 idleRpm: 1100f, maxRpm: 14500f, revLimiter: 14000f, autoShiftRpm: 14000f * 0.92f, engineBraking: 0.30f,
                 massKg: 201f, drivetrainEfficiency: 0.92f, engineBrakingTorqueNm: 113.3f, tireGripCoefficient: 1.10f,
                 peakTorqueNm: 112.4f, peakTorqueRpm: 11500f, idleTorqueNm: 112.4f * 0.3f, redlineTorqueNm: 112.4f * 0.6f,
@@ -374,3 +369,4 @@ namespace TopSpeed.Vehicles
         }
     }
 }
+

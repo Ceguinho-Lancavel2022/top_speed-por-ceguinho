@@ -33,9 +33,8 @@ namespace TopSpeed.Protocol
         Horn = 2,
         Throttle = 3,
         Crash = 4,
-        CrashMono = 5,
-        Brake = 6,
-        Backfire = 7
+        Brake = 5,
+        Backfire = 6
     }
 
     public enum Command : byte

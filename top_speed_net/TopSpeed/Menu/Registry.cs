@@ -328,11 +328,11 @@ namespace TopSpeed.Menu
                 items.Add(new MenuItem(name, MenuAction.None, nextMenuId: nextMenuId, onActivate: () => _selection.SelectVehicle(index)));
             }
 
-            foreach (var file in _selection.GetCustomVehicleFiles())
+            foreach (var vehicle in _selection.GetCustomVehicleInfo())
             {
-                var filePath = file;
-                var fileName = Path.GetFileNameWithoutExtension(filePath) ?? "Custom vehicle";
-                items.Add(new MenuItem(fileName, MenuAction.None, nextMenuId: nextMenuId, onActivate: () => _selection.SelectCustomVehicle(filePath)));
+                var filePath = vehicle.Key;
+                var displayName = string.IsNullOrWhiteSpace(vehicle.Display) ? "Custom vehicle" : vehicle.Display;
+                items.Add(new MenuItem(displayName, MenuAction.None, nextMenuId: nextMenuId, onActivate: () => _selection.SelectCustomVehicle(filePath)));
             }
 
             items.Add(new MenuItem("Random", MenuAction.None, nextMenuId: nextMenuId, onActivate: _selection.SelectRandomVehicle));

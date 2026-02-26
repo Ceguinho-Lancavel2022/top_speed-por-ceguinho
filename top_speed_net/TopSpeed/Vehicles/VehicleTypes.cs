@@ -1,0 +1,109 @@
+using System;
+using System.Collections.Generic;
+
+namespace TopSpeed.Vehicles
+{
+    internal enum VehicleTsvIssueSeverity
+    {
+        Error = 0
+    }
+
+    internal readonly struct VehicleTsvIssue
+    {
+        public VehicleTsvIssue(VehicleTsvIssueSeverity severity, int line, string message)
+        {
+            Severity = severity;
+            Line = line;
+            Message = message ?? string.Empty;
+        }
+
+        public VehicleTsvIssueSeverity Severity { get; }
+        public int Line { get; }
+        public string Message { get; }
+
+        public override string ToString() => Line > 0 ? $"Line {Line}: {Message}" : Message;
+    }
+
+    internal sealed class CustomVehicleMeta
+    {
+        public CustomVehicleMeta(string name, string version, string description)
+        {
+            Name = name;
+            Version = version;
+            Description = description;
+        }
+
+        public string Name { get; }
+        public string Version { get; }
+        public string Description { get; }
+    }
+
+    internal sealed class CustomVehicleSounds
+    {
+        public string Engine { get; set; } = string.Empty;
+        public string Start { get; set; } = string.Empty;
+        public string Horn { get; set; } = string.Empty;
+        public string? Throttle { get; set; }
+        public IReadOnlyList<string> CrashVariants { get; set; } = Array.Empty<string>();
+        public string Brake { get; set; } = string.Empty;
+        public IReadOnlyList<string> BackfireVariants { get; set; } = Array.Empty<string>();
+    }
+
+    internal sealed class CustomVehicleTsvData
+    {
+        public string SourcePath { get; set; } = string.Empty;
+        public string SourceDirectory { get; set; } = string.Empty;
+        public CustomVehicleMeta Meta { get; set; } = new CustomVehicleMeta("Vehicle", "1", string.Empty);
+        public CustomVehicleSounds Sounds { get; set; } = new CustomVehicleSounds();
+
+        public float SurfaceTractionFactor { get; set; }
+        public float Deceleration { get; set; }
+        public float TopSpeed { get; set; }
+        public int HasWipers { get; set; }
+
+        public int IdleFreq { get; set; }
+        public int TopFreq { get; set; }
+        public int ShiftFreq { get; set; }
+
+        public int Gears { get; set; }
+        public float[] GearRatios { get; set; } = Array.Empty<float>();
+
+        public float IdleRpm { get; set; }
+        public float MaxRpm { get; set; }
+        public float RevLimiter { get; set; }
+        public float AutoShiftRpm { get; set; }
+        public float EngineBraking { get; set; }
+        public float MassKg { get; set; }
+        public float DrivetrainEfficiency { get; set; }
+        public float EngineBrakingTorqueNm { get; set; }
+        public float PeakTorqueNm { get; set; }
+        public float PeakTorqueRpm { get; set; }
+        public float IdleTorqueNm { get; set; }
+        public float RedlineTorqueNm { get; set; }
+        public float DragCoefficient { get; set; }
+        public float FrontalAreaM2 { get; set; }
+        public float RollingResistanceCoefficient { get; set; }
+        public float LaunchRpm { get; set; }
+        public float PowerFactor { get; set; }
+
+        public float FinalDriveRatio { get; set; }
+        public float ReverseMaxSpeedKph { get; set; }
+        public float ReversePowerFactor { get; set; }
+        public float ReverseGearRatio { get; set; }
+        public float BrakeStrength { get; set; }
+
+        public float Steering { get; set; }
+        public float TireGripCoefficient { get; set; }
+        public float LateralGripCoefficient { get; set; }
+        public float HighSpeedStability { get; set; }
+        public float WheelbaseM { get; set; }
+        public float MaxSteerDeg { get; set; }
+
+        public float WidthM { get; set; }
+        public float LengthM { get; set; }
+        public float TireCircumferenceM { get; set; }
+
+        public TransmissionPolicy TransmissionPolicy { get; set; } = TransmissionPolicy.Default;
+    }
+}
+

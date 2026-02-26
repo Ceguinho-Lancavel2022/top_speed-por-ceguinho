@@ -7,7 +7,7 @@ namespace TopSpeed.Data
 {
     internal sealed class VehicleParameters
     {
-        private readonly string?[] _sounds = new string?[8];
+        private readonly string?[] _sounds = new string?[7];
 
         public string? GetSoundPath(VehicleAction action) => _sounds[(int)action];
 
@@ -21,8 +21,6 @@ namespace TopSpeed.Data
         public int ShiftFreq { get; }
         public int Gears { get; }
         public float Steering { get; }
-        public int SteeringFactor { get; }
-
         // Engine simulation parameters
         public float IdleRpm { get; }
         public float MaxRpm { get; }
@@ -64,7 +62,6 @@ namespace TopSpeed.Data
             string? hornSound,
             string? throttleSound,
             string? crashSound,
-            string? monoCrashSound,
             string? brakeSound,
             string? backfireSound,
             int hasWipers,
@@ -76,7 +73,6 @@ namespace TopSpeed.Data
             int shiftFreq,
             int gears,
             float steering,
-            int steeringFactor,
             float idleRpm = 800f,
             float maxRpm = 7000f,
             float revLimiter = 6500f,
@@ -116,7 +112,6 @@ namespace TopSpeed.Data
             _sounds[(int)VehicleAction.Horn] = hornSound;
             _sounds[(int)VehicleAction.Throttle] = throttleSound;
             _sounds[(int)VehicleAction.Crash] = crashSound;
-            _sounds[(int)VehicleAction.CrashMono] = monoCrashSound;
             _sounds[(int)VehicleAction.Brake] = brakeSound;
             _sounds[(int)VehicleAction.Backfire] = backfireSound;
 
@@ -129,8 +124,6 @@ namespace TopSpeed.Data
             ShiftFreq = shiftFreq;
             Gears = gears;
             Steering = steering;
-            SteeringFactor = steeringFactor;
-
             IdleRpm = idleRpm;
             MaxRpm = maxRpm;
             RevLimiter = revLimiter;
@@ -184,7 +177,7 @@ namespace TopSpeed.Data
         private static VehicleParameters FromSpec(OfficialVehicleSpec spec)
         {
             return new VehicleParameters(
-                spec.Name, null, null, null, null, null, null, null, null,
+                spec.Name, null, null, null, null, null, null, null,
                 spec.HasWipers,
                 spec.SurfaceTractionFactor,
                 spec.Deceleration,
@@ -193,9 +186,7 @@ namespace TopSpeed.Data
                 spec.TopFreq,
                 spec.ShiftFreq,
                 spec.Gears,
-                spec.Steering,
-                spec.SteeringFactor,
-                spec.IdleRpm,
+                spec.Steering,                spec.IdleRpm,
                 spec.MaxRpm,
                 spec.RevLimiter,
                 spec.AutoShiftRpm,
@@ -230,4 +221,5 @@ namespace TopSpeed.Data
         }
     }
 }
+
 

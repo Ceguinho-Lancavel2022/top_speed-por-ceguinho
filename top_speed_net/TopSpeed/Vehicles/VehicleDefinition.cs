@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TopSpeed.Protocol;
 
 namespace TopSpeed.Vehicles
@@ -8,6 +9,8 @@ namespace TopSpeed.Vehicles
         public string Name { get; set; } = "Vehicle";
         public bool UserDefined { get; set; }
         public string? CustomFile { get; set; }
+        public string? CustomVersion { get; set; }
+        public string? CustomDescription { get; set; }
         /// <summary>
         /// Base traction scaling used for surface modifiers (higher = more grip).
         /// </summary>
@@ -19,7 +22,6 @@ namespace TopSpeed.Vehicles
         public int ShiftFreq { get; set; }
         public int Gears { get; set; }
         public float Steering { get; set; }
-        public int SteeringFactor { get; set; }
         public int HasWipers { get; set; }
 
         // Engine simulation parameters
@@ -71,9 +73,30 @@ namespace TopSpeed.Vehicles
         public float BrakeStrength { get; set; } = 1.0f;
         public TransmissionPolicy TransmissionPolicy { get; set; } = TransmissionPolicy.Default;
 
-        private readonly string?[] _sounds = new string?[8];
+        private readonly string?[] _sounds = new string?[7];
+        private readonly Dictionary<VehicleAction, string[]> _soundVariants =
+            new Dictionary<VehicleAction, string[]>();
 
         public string? GetSoundPath(VehicleAction action) => _sounds[(int)action];
         public void SetSoundPath(VehicleAction action, string? path) => _sounds[(int)action] = path;
+        public IReadOnlyList<string>? GetSoundPaths(VehicleAction action)
+        {
+            return _soundVariants.TryGetValue(action, out var values) ? values : null;
+        }
+        public void SetSoundPaths(VehicleAction action, IReadOnlyList<string> paths)
+        {
+            if (paths == null || paths.Count == 0)
+            {
+                _soundVariants.Remove(action);
+                _sounds[(int)action] = null;
+                return;
+            }
+
+            var copy = new string[paths.Count];
+            for (var i = 0; i < paths.Count; i++)
+                copy[i] = paths[i];
+            _soundVariants[action] = copy;
+            _sounds[(int)action] = copy[0];
+        }
     }
 }

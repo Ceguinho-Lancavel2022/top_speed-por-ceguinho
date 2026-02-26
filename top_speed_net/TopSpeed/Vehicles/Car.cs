@@ -90,7 +90,6 @@ namespace TopSpeed.Vehicles
         private int _shiftFreq;
         private int _gears;
         private float _steering;
-        private int _steeringFactor;
         private float _thrust;
         private int _prevFrequency;
         private int _frequency;
@@ -122,6 +121,7 @@ namespace TopSpeed.Vehicles
         private AudioSourceHandle _soundStart;
         private AudioSourceHandle _soundBrake;
         private AudioSourceHandle _soundCrash;
+        private AudioSourceHandle[] _soundCrashVariants = Array.Empty<AudioSourceHandle>();
         private AudioSourceHandle _soundMiniCrash;
         private AudioSourceHandle _soundAsphalt;
         private AudioSourceHandle _soundGravel;
@@ -132,6 +132,7 @@ namespace TopSpeed.Vehicles
         private AudioSourceHandle _soundBump;
         private AudioSourceHandle _soundBadSwitch;
         private AudioSourceHandle? _soundBackfire;
+        private AudioSourceHandle[] _soundBackfireVariants = Array.Empty<AudioSourceHandle>();
 
         private readonly IVibrationDevice? _vibration;
 
@@ -236,7 +237,6 @@ namespace TopSpeed.Vehicles
             _shiftFreq = definition.ShiftFreq;
             _gears = Math.Max(1, definition.Gears);
             _steering = SanitizeFinite(definition.Steering, 0.1f);
-            _steeringFactor = definition.SteeringFactor;
             _frequency = _idleFreq;
 
             // Initialize engine model
@@ -257,9 +257,11 @@ namespace TopSpeed.Vehicles
             _soundStart = CreateRequiredSound(definition.GetSoundPath(VehicleAction.Start));
             _soundHorn = CreateRequiredSound(definition.GetSoundPath(VehicleAction.Horn), looped: true);
             _soundThrottle = TryCreateSound(definition.GetSoundPath(VehicleAction.Throttle), looped: true, allowHrtf: true);
-            _soundCrash = CreateRequiredSound(definition.GetSoundPath(VehicleAction.Crash));
+            _soundCrashVariants = CreateRequiredSoundVariants(definition.GetSoundPaths(VehicleAction.Crash), definition.GetSoundPath(VehicleAction.Crash));
+            _soundCrash = _soundCrashVariants[0];
             _soundBrake = CreateRequiredSound(definition.GetSoundPath(VehicleAction.Brake), looped: true);
-            _soundBackfire = TryCreateSound(definition.GetSoundPath(VehicleAction.Backfire));
+            _soundBackfireVariants = CreateOptionalSoundVariants(definition.GetSoundPaths(VehicleAction.Backfire), definition.GetSoundPath(VehicleAction.Backfire));
+            _soundBackfire = _soundBackfireVariants.Length > 0 ? _soundBackfireVariants[0] : null;
 
             if (definition.HasWipers == 1)
                 _hasWipers = 1;
@@ -276,7 +278,8 @@ namespace TopSpeed.Vehicles
             _soundBump = CreateRequiredSound(Path.Combine(_legacyRoot, "bump.wav"));
             _soundBadSwitch = CreateRequiredSound(Path.Combine(_legacyRoot, "badswitch.wav"));
 
-            _soundCrash.SetDopplerFactor(0f);
+            for (var i = 0; i < _soundCrashVariants.Length; i++)
+                _soundCrashVariants[i].SetDopplerFactor(0f);
             _soundMiniCrash.SetDopplerFactor(0f);
             _soundBump.SetDopplerFactor(0f);
             _soundWipers?.SetDopplerFactor(0f);
@@ -429,6 +432,7 @@ namespace TopSpeed.Vehicles
             _speed = 0;
             _engine.ResetForCrash();
             _throttleVolume = 0.0f;
+            _soundCrash = SelectRandomCrashHandle();
             _soundCrash.Restart(loop: false);
             _soundEngine.Stop();
             _soundEngine.SeekToStart();
@@ -552,7 +556,8 @@ namespace TopSpeed.Vehicles
             _soundBrake.Stop();
             _soundEngine.SetVolumePercent(90);
             _soundThrottle?.Stop();
-            _soundBackfire?.SetVolumePercent(90);
+            for (var i = 0; i < _soundBackfireVariants.Length; i++)
+                _soundBackfireVariants[i].SetVolumePercent(90);
             _soundAsphalt.SetVolumePercent(90);
             _soundGravel.SetVolumePercent(90);
             _soundWater.SetVolumePercent(90);
@@ -621,11 +626,8 @@ namespace TopSpeed.Vehicles
                             --_gear;
                             if (_soundEngine.GetPitch() > 3f * _topFreq / (2f * _soundEngine.InputSampleRate))
                                 _soundBadSwitch.Play(loop: false);
-                            if (_soundBackfire != null)
-                            {
-                                if (!_soundBackfire.IsPlaying && Algorithm.RandomInt(5) == 1)
-                                    _soundBackfire.Play(loop: false);
-                            }
+                            if (!AnyBackfirePlaying() && Algorithm.RandomInt(5) == 1)
+                                PlayRandomBackfire();
                             PushEvent(CarEventType.InGear, 0.2f);
                         }
                         else if (_gear == FirstForwardGear)
@@ -666,11 +668,8 @@ namespace TopSpeed.Vehicles
                             ++_gear;
                             if (_soundEngine.GetPitch() < _idleFreq / (float)_soundEngine.InputSampleRate)
                                 _soundBadSwitch.Play(loop: false);
-                            if (_soundBackfire != null)
-                            {
-                                if (!_soundBackfire.IsPlaying && Algorithm.RandomInt(5) == 1)
-                                    _soundBackfire.Play(loop: false);
-                            }
+                            if (!AnyBackfirePlaying() && Algorithm.RandomInt(5) == 1)
+                                PlayRandomBackfire();
                             PushEvent(CarEventType.InGear, 0.2f);
                         }
                     }
@@ -881,15 +880,12 @@ namespace TopSpeed.Vehicles
 
                 if (_thrust <= 0)
                 {
-                    if (_soundBackfire != null)
+                    if (!AnyBackfirePlaying() && !_backfirePlayed)
                     {
-                        if (!_soundBackfire.IsPlaying && !_backfirePlayed)
-                        {
-                            if (Algorithm.RandomInt(5) == 1)
-                                _soundBackfire.Play(loop: false);
-                        }
-                        _backfirePlayed = true;
+                        if (Algorithm.RandomInt(5) == 1)
+                            PlayRandomBackfire();
                     }
+                    _backfirePlayed = true;
                 }
 
                 if (_thrust < -50 && _speed > 0)
@@ -1283,7 +1279,7 @@ namespace TopSpeed.Vehicles
             _frame++;
         }
 
-        public bool Backfiring() => _soundBackfire != null && _soundBackfire.IsPlaying;
+        public bool Backfiring() => AnyBackfirePlaying();
 
         public void Pause()
         {
@@ -1293,11 +1289,7 @@ namespace TopSpeed.Vehicles
                 _soundBrake.Stop();
             if (_soundHorn.IsPlaying)
                 _soundHorn.Stop();
-            if (_soundBackfire != null && _soundBackfire.IsPlaying)
-            {
-                _soundBackfire.Stop();
-                _soundBackfire.SeekToStart();
-            }
+            StopResetBackfireVariants();
             _soundWipers?.Stop();
             switch (_surface)
             {
@@ -1351,7 +1343,7 @@ namespace TopSpeed.Vehicles
             _soundThrottle?.Dispose();
             _soundHorn.Dispose();
             _soundStart.Dispose();
-            _soundCrash.Dispose();
+            DisposeSoundVariants(_soundCrashVariants);
             _soundBrake.Dispose();
             _soundAsphalt.Dispose();
             _soundGravel.Dispose();
@@ -1362,7 +1354,7 @@ namespace TopSpeed.Vehicles
             _soundWipers?.Dispose();
             _soundBump.Dispose();
             _soundBadSwitch.Dispose();
-            _soundBackfire?.Dispose();
+            DisposeSoundVariants(_soundBackfireVariants);
         }
 
         private void StopAllVibrations()
@@ -1473,7 +1465,7 @@ namespace TopSpeed.Vehicles
                 if (gearSpeed <= 0f)
                 {
                     _frequency = _idleFreq;
-                    if (_soundBackfire != null && _backfirePlayedAuto)
+                    if (_soundBackfireVariants.Length > 0 && _backfirePlayedAuto)
                         _backfirePlayedAuto = false;
                 }
                 else
@@ -1483,12 +1475,12 @@ namespace TopSpeed.Vehicles
                     if (gearSpeed < 0.07f)
                     {
                         _frequency = (int)(((0.07f - gearSpeed) / 0.07f) * (_topFreq - _shiftFreq) + _shiftFreq);
-                        if (_soundBackfire != null)
+                        if (_soundBackfireVariants.Length > 0)
                         {
                             if (!_backfirePlayedAuto)
                             {
-                                if (Algorithm.RandomInt(5) == 1 && !_soundBackfire.IsPlaying)
-                                    _soundBackfire.Play(loop: false);
+                                if (Algorithm.RandomInt(5) == 1 && !AnyBackfirePlaying())
+                                    PlayRandomBackfire();
                             }
                             _backfirePlayedAuto = true;
                         }
@@ -1496,7 +1488,7 @@ namespace TopSpeed.Vehicles
                     else
                     {
                         _frequency = (int)(gearSpeed * (_topFreq - _shiftFreq) + _shiftFreq);
-                        if (_soundBackfire != null && _backfirePlayedAuto)
+                        if (_soundBackfireVariants.Length > 0 && _backfirePlayedAuto)
                             _backfirePlayedAuto = false;
                     }
                 }
@@ -1817,6 +1809,81 @@ namespace TopSpeed.Vehicles
             return looped
                 ? _audio.CreateLoopingSpatialSource(path!, allowHrtf: allowHrtf)
                 : _audio.CreateSpatialSource(path!, streamFromDisk: true, allowHrtf: allowHrtf);
+        }
+
+        private AudioSourceHandle[] CreateRequiredSoundVariants(IReadOnlyList<string>? paths, string? fallbackSinglePath)
+        {
+            if (paths != null && paths.Count > 0)
+            {
+                var result = new AudioSourceHandle[paths.Count];
+                for (var i = 0; i < paths.Count; i++)
+                    result[i] = CreateRequiredSound(paths[i]);
+                return result;
+            }
+
+            return new[] { CreateRequiredSound(fallbackSinglePath) };
+        }
+
+        private AudioSourceHandle[] CreateOptionalSoundVariants(IReadOnlyList<string>? paths, string? fallbackSinglePath)
+        {
+            if (paths != null && paths.Count > 0)
+            {
+                var items = new List<AudioSourceHandle>();
+                for (var i = 0; i < paths.Count; i++)
+                {
+                    var sound = TryCreateSound(paths[i]);
+                    if (sound != null)
+                        items.Add(sound);
+                }
+                return items.ToArray();
+            }
+
+            var single = TryCreateSound(fallbackSinglePath);
+            return single == null ? Array.Empty<AudioSourceHandle>() : new[] { single };
+        }
+
+        private AudioSourceHandle SelectRandomCrashHandle()
+        {
+            if (_soundCrashVariants.Length == 0)
+                return _soundCrash;
+            return _soundCrashVariants[Algorithm.RandomInt(_soundCrashVariants.Length)];
+        }
+
+        private bool AnyBackfirePlaying()
+        {
+            for (var i = 0; i < _soundBackfireVariants.Length; i++)
+            {
+                if (_soundBackfireVariants[i].IsPlaying)
+                    return true;
+            }
+            return false;
+        }
+
+        private void PlayRandomBackfire()
+        {
+            if (_soundBackfireVariants.Length == 0)
+                return;
+            _soundBackfire = _soundBackfireVariants[Algorithm.RandomInt(_soundBackfireVariants.Length)];
+            _soundBackfire.Play(loop: false);
+        }
+
+        private void StopResetBackfireVariants()
+        {
+            for (var i = 0; i < _soundBackfireVariants.Length; i++)
+            {
+                if (_soundBackfireVariants[i].IsPlaying)
+                    _soundBackfireVariants[i].Stop();
+                _soundBackfireVariants[i].SeekToStart();
+            }
+        }
+
+        private static void DisposeSoundVariants(AudioSourceHandle[] sounds)
+        {
+            for (var i = 0; i < sounds.Length; i++)
+            {
+                sounds[i].Stop();
+                sounds[i].Dispose();
+            }
         }
 
         private AudioSourceHandle? TryCreateSound(string? path, bool looped = false, bool spatialize = true, bool allowHrtf = true)

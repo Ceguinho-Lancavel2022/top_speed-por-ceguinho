@@ -35,7 +35,6 @@ namespace TopSpeed.Vehicles
                 ShiftFreq = parameters.ShiftFreq,
                 Gears = parameters.Gears,
                 Steering = parameters.Steering,
-                SteeringFactor = parameters.SteeringFactor,
                 HasWipers = parameters.HasWipers == 1 && weather == TrackWeather.Rain ? 1 : 0,
                 IdleRpm = parameters.IdleRpm,
                 MaxRpm = parameters.MaxRpm,
@@ -92,128 +91,77 @@ namespace TopSpeed.Vehicles
             var filePath = Path.IsPathRooted(vehicleFile)
                 ? vehicleFile
                 : Path.Combine(AssetPaths.Root, vehicleFile);
-            var settings = ReadVehicleFile(filePath);
             var builtinRoot = Path.Combine(AssetPaths.SoundsRoot, "Vehicles");
-            var customVehiclesRoot = Path.Combine(AssetPaths.Root, "Vehicles");
-
-            var surfaceTractionFactor = ReadInt(settings, "surface_traction_factor", 10) / 100.0f;
-            var deceleration = ReadInt(settings, "deceleration", 40) / 100.0f;
-            var topSpeed = ReadInt(settings, "max_speed", 15000) / 100.0f;
-            var idleFreq = ReadInt(settings, "idle_freq", 11000);
-            var topFreq = ReadInt(settings, "top_freq", 50000);
-            var shiftFreq = ReadInt(settings, "shift_freq", 40000);
-            var gears = ReadInt(settings, "number_of_gears", 5);
-            var steering = ReadInt(settings, "steering", 100) / 100.0f;
-            var steeringFactor = ReadInt(settings, "steering_factor", 40);
-
-            var hasWipers = 0;
-            if (weather == TrackWeather.Rain)
-                hasWipers = ReadInt(settings, "has_wipers", 1);
-
-            // Engine simulation parameters
-            var idleRpm = ReadFloat(settings, "idle_rpm", 800f);
-            var maxRpm = ReadFloat(settings, "max_rpm", 7000f);
-            var revLimiter = ReadFloat(settings, "rev_limiter", 6500f);
-            var autoShiftRpm = ReadFloat(settings, "auto_shift_rpm", 0f);
-            var engineBraking = ReadFloat(settings, "engine_braking", 0.3f);
-            var massKg = ReadFloat(settings, "mass_kg", 1500f);
-            var drivetrainEfficiency = ReadFloat(settings, "drivetrain_efficiency", 0.85f);
-            var engineBrakingTorque = ReadFloat(settings, "engine_braking_torque", 150f);
-            var tireGrip = ReadFloat(settings, "tire_grip", 0.9f);
-            var peakTorqueNm = ReadFloat(settings, "peak_torque", 200f);
-            var peakTorqueRpm = ReadFloat(settings, "peak_torque_rpm", 4000f);
-            var idleTorqueNm = ReadFloat(settings, "idle_torque", peakTorqueNm * 0.3f);
-            var redlineTorqueNm = ReadFloat(settings, "redline_torque", peakTorqueNm * 0.6f);
-            var dragCoefficient = ReadFloat(settings, "drag_coefficient", 0.30f);
-            var frontalArea = ReadFloat(settings, "frontal_area", 2.2f);
-            var rollingResistance = ReadFloat(settings, "rolling_resistance", 0.015f);
-            var launchRpm = ReadFloat(settings, "launch_rpm", 1800f);
-            var finalDriveRatio = ReadFloat(settings, "final_drive", 3.5f);
-            var reverseMaxSpeedKph = ReadFloat(settings, "reverse_max_speed", 35f);
-            var reversePowerFactor = ReadFloat(settings, "reverse_power_factor", 0.55f);
-            var reverseGearRatio = ReadFloat(settings, "reverse_gear_ratio", 3.2f);
-            var powerFactor = ReadFloat(settings, "power_factor", 0.5f);
-            var gearRatios = ReadFloatArray(settings, "gear_ratios");
-            var brakeStrength = ReadFloat(settings, "brake_strength", 1.0f);
-            var lateralGrip = ReadFloat(settings, "lateral_grip", 1.0f);
-            var highSpeedStability = ReadFloat(settings, "high_speed_stability", 0.0f);
-            var wheelbase = ReadFloat(settings, "wheelbase", 2.7f);
-            var maxSteerDeg = ReadFloat(settings, "max_steer_deg", 35f);
-            var widthM = ReadFloat(settings, "vehicle_width", 1.8f);
-            var lengthM = ReadFloat(settings, "vehicle_length", 4.5f);
-
-            var tireCircumferenceM = ReadFloat(settings, "tire_circumference", 0f);
-            if (tireCircumferenceM <= 0f)
+            if (!VehicleTsvParser.TryLoadFromFile(filePath, out var parsed, out var issues))
             {
-                var tireWidth = ReadInt(settings, "tire_width", 0);
-                var tireAspect = ReadInt(settings, "tire_aspect", 0);
-                var tireRim = ReadInt(settings, "tire_rim", 0);
-                if (tireWidth > 0 && tireAspect > 0 && tireRim > 0)
-                    tireCircumferenceM = CalculateTireCircumferenceM(tireWidth, tireAspect, tireRim);
+                var message = issues == null || issues.Count == 0
+                    ? "Unknown parse error."
+                    : string.Join(" ", issues);
+                throw new InvalidDataException($"Failed to load custom vehicle '{filePath}'. {message}");
             }
-            if (tireCircumferenceM <= 0f)
-                tireCircumferenceM = 2.0f;
 
-            var transmissionPolicy = ReadTransmissionPolicy(settings, gears, idleRpm, revLimiter, autoShiftRpm);
+            var hasWipers = weather == TrackWeather.Rain ? parsed.HasWipers : 0;
 
             var def = new VehicleDefinition
             {
                 CarType = CarType.Vehicle1,
-                Name = ReadString(settings, "name", Path.GetFileNameWithoutExtension(filePath)),
+                Name = parsed.Meta.Name,
                 UserDefined = true,
                 CustomFile = Path.GetFileNameWithoutExtension(filePath),
-                SurfaceTractionFactor = surfaceTractionFactor,
-                Deceleration = deceleration,
-                TopSpeed = topSpeed,
-                IdleFreq = idleFreq,
-                TopFreq = topFreq,
-                ShiftFreq = shiftFreq,
-                Gears = gears,
-                Steering = steering,
-                SteeringFactor = steeringFactor,
+                CustomVersion = parsed.Meta.Version,
+                CustomDescription = parsed.Meta.Description,
+                SurfaceTractionFactor = parsed.SurfaceTractionFactor,
+                Deceleration = parsed.Deceleration,
+                TopSpeed = parsed.TopSpeed,
+                IdleFreq = parsed.IdleFreq,
+                TopFreq = parsed.TopFreq,
+                ShiftFreq = parsed.ShiftFreq,
+                Gears = parsed.Gears,
+                Steering = parsed.Steering,
                 HasWipers = hasWipers,
-                IdleRpm = idleRpm,
-                MaxRpm = maxRpm,
-                RevLimiter = revLimiter,
-                AutoShiftRpm = autoShiftRpm > 0f ? autoShiftRpm : revLimiter * 0.92f,
-                EngineBraking = engineBraking,
-                MassKg = massKg,
-                DrivetrainEfficiency = drivetrainEfficiency,
-                EngineBrakingTorqueNm = engineBrakingTorque,
-                TireGripCoefficient = tireGrip,
-                PeakTorqueNm = peakTorqueNm,
-                PeakTorqueRpm = peakTorqueRpm,
-                IdleTorqueNm = idleTorqueNm,
-                RedlineTorqueNm = redlineTorqueNm,
-                DragCoefficient = dragCoefficient,
-                FrontalAreaM2 = frontalArea,
-                RollingResistanceCoefficient = rollingResistance,
-                LaunchRpm = launchRpm,
-                FinalDriveRatio = finalDriveRatio,
-                ReverseMaxSpeedKph = reverseMaxSpeedKph,
-                ReversePowerFactor = reversePowerFactor,
-                ReverseGearRatio = reverseGearRatio,
-                TireCircumferenceM = tireCircumferenceM,
-                LateralGripCoefficient = lateralGrip,
-                HighSpeedStability = highSpeedStability,
-                WheelbaseM = wheelbase,
-                MaxSteerDeg = maxSteerDeg,
-                WidthM = widthM,
-                LengthM = lengthM,
-                PowerFactor = powerFactor,
-                GearRatios = gearRatios,
-                BrakeStrength = brakeStrength,
-                TransmissionPolicy = transmissionPolicy
+                IdleRpm = parsed.IdleRpm,
+                MaxRpm = parsed.MaxRpm,
+                RevLimiter = parsed.RevLimiter,
+                AutoShiftRpm = parsed.AutoShiftRpm > 0f ? parsed.AutoShiftRpm : parsed.RevLimiter * 0.92f,
+                EngineBraking = parsed.EngineBraking,
+                MassKg = parsed.MassKg,
+                DrivetrainEfficiency = parsed.DrivetrainEfficiency,
+                EngineBrakingTorqueNm = parsed.EngineBrakingTorqueNm,
+                TireGripCoefficient = parsed.TireGripCoefficient,
+                PeakTorqueNm = parsed.PeakTorqueNm,
+                PeakTorqueRpm = parsed.PeakTorqueRpm,
+                IdleTorqueNm = parsed.IdleTorqueNm,
+                RedlineTorqueNm = parsed.RedlineTorqueNm,
+                DragCoefficient = parsed.DragCoefficient,
+                FrontalAreaM2 = parsed.FrontalAreaM2,
+                RollingResistanceCoefficient = parsed.RollingResistanceCoefficient,
+                LaunchRpm = parsed.LaunchRpm,
+                FinalDriveRatio = parsed.FinalDriveRatio,
+                ReverseMaxSpeedKph = parsed.ReverseMaxSpeedKph,
+                ReversePowerFactor = parsed.ReversePowerFactor,
+                ReverseGearRatio = parsed.ReverseGearRatio,
+                TireCircumferenceM = parsed.TireCircumferenceM,
+                LateralGripCoefficient = parsed.LateralGripCoefficient,
+                HighSpeedStability = parsed.HighSpeedStability,
+                WheelbaseM = parsed.WheelbaseM,
+                MaxSteerDeg = parsed.MaxSteerDeg,
+                WidthM = parsed.WidthM,
+                LengthM = parsed.LengthM,
+                PowerFactor = parsed.PowerFactor,
+                GearRatios = parsed.GearRatios,
+                BrakeStrength = parsed.BrakeStrength,
+                TransmissionPolicy = parsed.TransmissionPolicy
             };
 
-            def.SetSoundPath(VehicleAction.Engine, ResolveSound(ReadString(settings, "engine_sound", "engine.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Engine)));
-            def.SetSoundPath(VehicleAction.Start, ResolveSound(ReadString(settings, "start_sound", "start.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Start)));
-            def.SetSoundPath(VehicleAction.Horn, ResolveSound(ReadString(settings, "horn_sound", "horn.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Horn)));
-            def.SetSoundPath(VehicleAction.Throttle, ResolveSound(ReadString(settings, "throttle_sound", "throttle.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Throttle)));
-            def.SetSoundPath(VehicleAction.Crash, ResolveSound(ReadString(settings, "crash_sound", "crash.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Crash)));
-            def.SetSoundPath(VehicleAction.CrashMono, ResolveSound(ReadString(settings, "mono_crash_sound", "crash_mono.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.CrashMono)));
-            def.SetSoundPath(VehicleAction.Brake, ResolveSound(ReadString(settings, "brake_sound", "brake.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Brake)));
-            def.SetSoundPath(VehicleAction.Backfire, ResolveSound(ReadString(settings, "backfire_sound", "backfire.wav"), builtinRoot, customVehiclesRoot, p => p.GetSoundPath(VehicleAction.Backfire)));
+            def.SetSoundPath(VehicleAction.Engine, ResolveCustomVehicleSound(parsed.Sounds.Engine, builtinRoot, parsed.SourceDirectory, VehicleAction.Engine));
+            def.SetSoundPath(VehicleAction.Start, ResolveCustomVehicleSound(parsed.Sounds.Start, builtinRoot, parsed.SourceDirectory, VehicleAction.Start));
+            def.SetSoundPath(VehicleAction.Horn, ResolveCustomVehicleSound(parsed.Sounds.Horn, builtinRoot, parsed.SourceDirectory, VehicleAction.Horn));
+            if (!string.IsNullOrWhiteSpace(parsed.Sounds.Throttle))
+                def.SetSoundPath(VehicleAction.Throttle, ResolveCustomVehicleSound(parsed.Sounds.Throttle!, builtinRoot, parsed.SourceDirectory, VehicleAction.Throttle));
+            def.SetSoundPath(VehicleAction.Brake, ResolveCustomVehicleSound(parsed.Sounds.Brake, builtinRoot, parsed.SourceDirectory, VehicleAction.Brake));
+            def.SetSoundPaths(VehicleAction.Crash, ResolveCustomVehicleSoundList(parsed.Sounds.CrashVariants, builtinRoot, parsed.SourceDirectory, VehicleAction.Crash));
+            if (parsed.Sounds.BackfireVariants != null && parsed.Sounds.BackfireVariants.Count > 0)
+                def.SetSoundPaths(VehicleAction.Backfire, ResolveCustomVehicleSoundList(parsed.Sounds.BackfireVariants, builtinRoot, parsed.SourceDirectory, VehicleAction.Backfire));
 
             return def;
         }
@@ -246,11 +194,105 @@ namespace TopSpeed.Vehicles
                 case VehicleAction.Horn: return "horn.wav";
                 case VehicleAction.Throttle: return "throttle.wav";
                 case VehicleAction.Crash: return "crash.wav";
-                case VehicleAction.CrashMono: return "crash_mono.wav";
                 case VehicleAction.Brake: return "brake.wav";
                 case VehicleAction.Backfire: return "backfire.wav";
                 default: throw new ArgumentOutOfRangeException(nameof(action));
             }
+        }
+
+        private static string[] ResolveCustomVehicleSoundList(
+            IReadOnlyList<string> values,
+            string builtinRoot,
+            string vehicleRoot,
+            VehicleAction builtinAction)
+        {
+            var result = new List<string>();
+            for (var i = 0; i < values.Count; i++)
+            {
+                var resolved = ResolveCustomVehicleSound(values[i], builtinRoot, vehicleRoot, builtinAction);
+                if (!string.IsNullOrWhiteSpace(resolved))
+                    result.Add(resolved!);
+            }
+
+            if (result.Count == 0)
+                throw new InvalidDataException($"No valid sound paths resolved for {builtinAction}.");
+
+            return result.ToArray();
+        }
+
+        private static string ResolveCustomVehicleSound(
+            string value,
+            string builtinRoot,
+            string vehicleRoot,
+            VehicleAction builtinAction)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new InvalidDataException($"Missing required sound value for {builtinAction}.");
+
+            var trimmed = value.Trim();
+            if (trimmed.StartsWith(BuiltinPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var fromBuiltin = ResolveCustomBuiltinSound(trimmed, builtinRoot, builtinAction);
+                if (!string.IsNullOrWhiteSpace(fromBuiltin))
+                    return fromBuiltin!;
+                throw new InvalidDataException($"Builtin sound reference '{trimmed}' for {builtinAction} could not be resolved.");
+            }
+
+            if (Path.IsPathRooted(trimmed))
+                throw new InvalidDataException($"Absolute sound paths are not allowed for custom vehicles: {trimmed}");
+
+            var normalized = trimmed
+                .Replace('/', Path.DirectorySeparatorChar)
+                .Replace('\\', Path.DirectorySeparatorChar)
+                .TrimStart(Path.DirectorySeparatorChar);
+
+            if (normalized.IndexOf(':') >= 0 || ContainsTraversal(normalized))
+                throw new InvalidDataException($"Invalid custom sound path '{trimmed}'. Paths must stay inside the vehicle folder.");
+
+            var rootFull = Path.GetFullPath(vehicleRoot);
+            var candidate = Path.GetFullPath(Path.Combine(rootFull, normalized));
+            if (!IsInsideRoot(rootFull, candidate))
+                throw new InvalidDataException($"Custom sound path '{trimmed}' escapes the vehicle folder.");
+            if (!File.Exists(candidate))
+                throw new FileNotFoundException($"Custom vehicle sound file not found: {candidate}", candidate);
+            return candidate;
+        }
+
+        private static bool ContainsTraversal(string path)
+        {
+            var parts = path.Split(Path.DirectorySeparatorChar);
+            for (var i = 0; i < parts.Length; i++)
+            {
+                var segment = parts[i].Trim();
+                if (segment == "." || segment == "..")
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool IsInsideRoot(string rootFull, string candidate)
+        {
+            if (string.Equals(rootFull, candidate, StringComparison.OrdinalIgnoreCase))
+                return true;
+            var rootWithSeparator = rootFull.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            return candidate.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string? ResolveCustomBuiltinSound(string token, string builtinRoot, VehicleAction action)
+        {
+            if (!int.TryParse(token.Substring(BuiltinPrefix.Length), out var index))
+                return null;
+            index -= 1;
+            if (index < 0 || index >= VehicleCatalog.VehicleCount)
+                return null;
+
+            var vehiclesRoot = builtinRoot;
+            var parameters = VehicleCatalog.Vehicles[index];
+            var file = parameters.GetSoundPath(action);
+            if (!string.IsNullOrWhiteSpace(file))
+                return Path.Combine(vehiclesRoot, file!);
+
+            return ResolveOfficialFallback(vehiclesRoot, $"Vehicle{index + 1}", action);
         }
 
         private static string? ResolveSound(string? value, string builtinRoot, string customVehiclesRoot, Func<VehicleParameters, string?> selector)
@@ -285,8 +327,8 @@ namespace TopSpeed.Vehicles
             // Simple hack to detect the action from the selector if needed for builtin resolution
             // In a production environment, we'd pass the action explicitly.
             var testParams = new VehicleParameters(
-                "Test", "e", "s", "h", "t", "c", "cm", "b", "f",
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                "Test", "e", "s", "h", "t", "c", "b", "f",
+                0, 0, 0, 0, 0, 0, 0, 0, 0,
                 idleRpm: 0, maxRpm: 0, revLimiter: 0, autoShiftRpm: 0, engineBraking: 0,
                 massKg: 0, drivetrainEfficiency: 0, engineBrakingTorqueNm: 0, tireGripCoefficient: 0,
                 finalDriveRatio: 0, tireCircumferenceM: 0, powerFactor: 0, gearRatios: null, brakeStrength: 0);
@@ -298,7 +340,6 @@ namespace TopSpeed.Vehicles
                 case "h": return VehicleAction.Horn;
                 case "t": return VehicleAction.Throttle;
                 case "c": return VehicleAction.Crash;
-                case "cm": return VehicleAction.CrashMono;
                 case "b": return VehicleAction.Brake;
                 case "f": return VehicleAction.Backfire;
                 default: return VehicleAction.Engine;

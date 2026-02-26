@@ -81,7 +81,6 @@ namespace TopSpeed.Vehicles
         private int _shiftFreq;
         private int _gears;
         private float _steering;
-        private int _steeringFactor;
 
         private int _random;
         private int _prevFrequency;
@@ -220,7 +219,6 @@ namespace TopSpeed.Vehicles
             _shiftFreq = definition.ShiftFreq;
             _gears = definition.Gears;
             _steering = definition.Steering;
-            _steeringFactor = definition.SteeringFactor;
             _frequency = _idleFreq;
 
             _engine = new EngineModel(
