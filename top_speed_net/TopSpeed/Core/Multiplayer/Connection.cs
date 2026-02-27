@@ -152,7 +152,7 @@ namespace TopSpeed.Core.Multiplayer
                 _resetPendingState();
 
                 OnSessionCleared();
-                PlayNetworkSound("connected.wav");
+                PlayNetworkSound("connected.ogg");
 
                 var welcome = "Connected to server.";
                 if (!string.IsNullOrWhiteSpace(result.Motd))
@@ -171,7 +171,7 @@ namespace TopSpeed.Core.Multiplayer
         private void StartConnectingPulse()
         {
             StopConnectingPulse();
-            var handle = GetNetworkSound(ref _connectingSound, "connecting.wav");
+            var handle = GetNetworkSound(ref _connectingSound, "connecting.ogg");
             if (handle == null)
                 return;
 
@@ -223,18 +223,27 @@ namespace TopSpeed.Core.Multiplayer
                 return;
 
             AudioSourceHandle? handle;
-            if (string.Equals(fileName, "online.wav", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(fileName, "online.ogg", StringComparison.OrdinalIgnoreCase))
                 handle = GetNetworkSound(ref _onlineSound, fileName);
-            else if (string.Equals(fileName, "offline.wav", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(fileName, "offline.ogg", StringComparison.OrdinalIgnoreCase))
                 handle = GetNetworkSound(ref _offlineSound, fileName);
-            else if (string.Equals(fileName, "connecting.wav", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(fileName, "connecting.ogg", StringComparison.OrdinalIgnoreCase))
                 handle = GetNetworkSound(ref _connectingSound, fileName);
             else if (string.Equals(fileName, "ping_start.ogg", StringComparison.OrdinalIgnoreCase))
                 handle = GetNetworkSound(ref _pingStartSound, fileName);
-            else if (string.Equals(fileName, "ping_stop.ogg", StringComparison.OrdinalIgnoreCase))
-                handle = GetNetworkSound(ref _pingStopSound, fileName);
-            else
+            else if (string.Equals(fileName, "ping.ogg", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(fileName, "ping_stop.ogg", StringComparison.OrdinalIgnoreCase))
+                handle = GetNetworkSound(ref _pingSound, fileName);
+            else if (string.Equals(fileName, "room_created.ogg", StringComparison.OrdinalIgnoreCase))
+                handle = GetNetworkSound(ref _roomCreatedSound, fileName);
+            else if (string.Equals(fileName, "room_join.ogg", StringComparison.OrdinalIgnoreCase))
+                handle = GetNetworkSound(ref _roomJoinSound, fileName);
+            else if (string.Equals(fileName, "room_leave.ogg", StringComparison.OrdinalIgnoreCase))
+                handle = GetNetworkSound(ref _roomLeaveSound, fileName);
+            else if (string.Equals(fileName, "connected.ogg", StringComparison.OrdinalIgnoreCase))
                 handle = GetNetworkSound(ref _connectedSound, fileName);
+            else
+                handle = null;
 
             if (handle == null)
                 return;
@@ -372,7 +381,7 @@ namespace TopSpeed.Core.Multiplayer
             var elapsed = TimeSpan.FromTicks(endTicks - _pingStartedAtMs).TotalMilliseconds;
             if (elapsed < 0)
                 elapsed = 0;
-            PlayNetworkSound("ping_stop.ogg");
+            PlayNetworkSound("ping.ogg");
             _speech.Speak($"The ping took {(int)Math.Round(elapsed)} milliseconds.");
         }
     }

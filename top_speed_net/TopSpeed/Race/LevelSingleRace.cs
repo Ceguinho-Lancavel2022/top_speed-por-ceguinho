@@ -65,7 +65,7 @@ namespace TopSpeed.Race
             _playerNumber = playerNumber;
             _position = playerNumber + 1;
             _positionComment = playerNumber + 1;
-            _raceStartDelay = 6.5f;
+            _raceStartDelay = 4.0f;
             _botsScheduled = false;
 
             for (var i = 0; i < _nComputerPlayers; i++)
@@ -147,12 +147,10 @@ namespace TopSpeed.Race
         {
             if (_elapsedTotal == 0.0f)
             {
-                var countdownLength = _soundStart.GetLengthSeconds();
-                var countdownTotal = 1.5f + Math.Max(0f, countdownLength);
-                _raceStartDelay = Math.Max(6.5f, countdownTotal);
+                _raceStartDelay = 4.0f;
                 PushEvent(RaceEventType.CarStart, 3.0f);
                 PushEvent(RaceEventType.RaceStart, _raceStartDelay);
-                PushEvent(RaceEventType.PlaySound, 1.5f, _soundStart);
+                PushEvent(RaceEventType.PlaySound, 1.0f, _soundStart);
             }
 
             var dueEvents = CollectDueEvents();

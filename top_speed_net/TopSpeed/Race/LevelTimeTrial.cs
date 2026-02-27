@@ -49,9 +49,9 @@ namespace TopSpeed.Race
         {
             if (_elapsedTotal == 0.0f)
             {
-                PushEvent(RaceEventType.CarStart, 1.5f);
-                PushEvent(RaceEventType.RaceStart, 5.0f);
-                _soundStart.Play(loop: false);
+                PushEvent(RaceEventType.CarStart, 3.0f);
+                PushEvent(RaceEventType.RaceStart, 4.0f);
+                PushEvent(RaceEventType.PlaySound, 1.0f, _soundStart);
             }
 
             var dueEvents = CollectDueEvents();

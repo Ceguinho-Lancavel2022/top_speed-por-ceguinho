@@ -86,7 +86,13 @@ Because of this, high-gear tuning is often a combination of final drive, torque 
 
 Rolling resistance is a constant-like force that always fights motion. It is influenced by `rolling_resistance` and affects low, medium, and high speed, though it is usually most noticeable before aerodynamic drag becomes large.
 
+For beginners, the easiest way to think about rolling resistance is this: it is the \"always-on drag\" from tires and road contact. Even at moderate speed, the vehicle has to spend some engine force just to keep moving. If you raise `rolling_resistance`, the vehicle may feel heavier and more reluctant to gain speed in almost every gear, not just near top speed. If you lower it too much, the vehicle may coast for too long and feel unrealistically free-rolling.
+
 Aerodynamic drag depends on `drag_coefficient` and `frontal_area`, and it grows much more rapidly with speed. This is why a vehicle may accelerate quickly up to a point and then slowly crawl toward top speed.
+
+This difference matters when tuning. If a vehicle feels weak from launch, through mid speed, and also near top speed, the problem is usually not aerodynamic drag alone. It is more often a combination of `power_factor`, torque curve shape, `mass_kg`, gearing, and possibly rolling resistance. If a vehicle feels fine in lower gears but loses pull mainly at high speed, then drag-related parameters (`drag_coefficient`, `frontal_area`) and high-RPM torque (`redline_torque`) become the first places to inspect.
+
+In other words, rolling resistance mostly shapes the \"general heaviness\" of motion, while aerodynamic drag mostly shapes the \"top-speed wall\" feeling. You usually get better tuning results by deciding which of those two feelings is wrong before changing values.
 
 This behavior is often exactly what you want for game balance. If a vehicle is too strong near top speed, increasing drag or lowering `redline_torque` is usually a clean fix. If it feels weak at all speeds, look first at `power_factor`, `mass_kg`, and gearing before blaming drag.
 
@@ -112,6 +118,10 @@ The game applies surface-specific modifiers for asphalt, gravel, water, sand, an
 
 The `surface_traction_factor` and `deceleration` parameters still exist in the format because they affect baseline behavior and some surface-related calculations, but they are not your main modern tuning tools for a vehicle's overall handling quality. In most cases, the most meaningful tuning for traction and cornering feel comes from `tire_grip`, `lateral_grip`, `brake_strength`, `engine_braking`, and the engine/drivetrain setup.
 
+For beginners, this is an important trap to avoid: if a vehicle slips too much on asphalt, do not immediately start changing `surface_traction_factor`. That parameter sounds like the obvious fix, but in the current model it is more of a baseline reference than a simple \"more grip\" slider. Start with `tire_grip` for forward traction and braking grip, and use `lateral_grip` for cornering feel.
+
+Also remember that surfaces amplify or expose weaknesses in your tune. A vehicle with too much torque and weak traction may feel acceptable on asphalt but become almost impossible to manage on gravel or wet surfaces. A vehicle with very strong engine braking may feel responsive on asphalt but feel too abrupt on low-grip surfaces. This is why surface testing is useful after the basic asphalt tune is finished.
+
 ## Manual vs Automatic Transmission
 
 Manual mode allows the player to shift whenever they choose. RPM dropping after an upshift is normal. The important question is whether the next gear still has enough pull to recover speed and continue accelerating.
@@ -119,6 +129,10 @@ Manual mode allows the player to shift whenever they choose. RPM dropping after 
 Automatic mode now uses a policy-driven system. It looks at RPM, predicted acceleration in neighboring gears, shift cooldowns, and special rules for high gears and top-speed pursuit. This improves behavior in vehicles with many gears, especially 7-speed and 8-speed vehicles with overdrive gears.
 
 Policy improves shift decisions, but it does not fix weak physics. If a gear cannot physically pull because torque, drag, or gearing are wrong, policy can only avoid that gear or delay entry into it.
+
+For tuning work, manual mode is usually the best diagnostic tool because it exposes the raw powertrain behavior. If a vehicle stalls after a manual upshift, that is a physics or gearing problem. If manual mode feels good but automatic mode shifts too early, hunts between gears, or enters overdrive too soon, that is usually a policy problem.
+
+A practical workflow is to tune the vehicle so manual shifting feels healthy first, especially in the upper gears. After that, use `[policy]` to control automatic timing, overdrive behavior, and anti-hunting. This order prevents you from using policy to hide a powertrain problem that will still exist underneath.
 
 ## Creating a Custom Vehicle Package
 
@@ -261,7 +275,11 @@ prefer_intended_top_speed_gear_near_limit=true
 
 Custom vehicle sound paths are sandboxed to the custom vehicle folder. That means normal sound file paths must be relative paths inside the same folder as the `.tsv` file (or a subfolder under it). Paths that try to escape the folder, such as `..\\outside.wav`, are rejected. Absolute paths are also rejected for custom sound files.
 
+This rule is important for both safety and portability. A vehicle package should be self-contained so it can be shared with other players and still work. If a sound path points to a random file elsewhere on your computer, the vehicle may work only on your machine and fail for everyone else. The folder sandbox prevents that class of problem.
+
 The exception is built-in sound references using `builtinN`, such as `builtin1`, `builtin6`, and so on. Built-in references are allowed because they do not bypass the sandbox or access user file paths. They are useful for rapid prototyping and for authors who want to focus on physics first.
+
+In practice, a very good beginner workflow is to build the vehicle with `builtinN` sounds first, tune the physics until it feels correct, and only then replace the sounds with custom files. This reduces the number of things you are debugging at the same time.
 
 `crash` and `backfire` support comma-separated lists. All listed sounds are initialized when the vehicle loads, and the game randomizes among them at runtime when a crash or backfire event is played. This gives better variety without changing any physics behavior.
 
@@ -271,7 +289,11 @@ The custom vehicle parser is intentionally strict because earlier versions of th
 
 If a file has a mistake, the parser produces line-aware errors. For example, it can report that a key is unknown, that `gear_ratios` does not match `number_of_gears`, or that `max_speed` is outside the allowed range. This makes it much easier to fix configuration problems without guessing.
 
+\"Line-aware\" means the error points at the line where the problem was found, not just a generic failure message. This is especially helpful when a file is large or when a screen reader user wants to move directly to the problem area and correct one value at a time.
+
 The parser also validates cross-parameter relationships. For example, `rev_limiter` must be between `idle_rpm` and `max_rpm`, and `peak_torque_rpm` must be between `idle_rpm` and `rev_limiter`. `shift_freq` must stay between `idle_freq` and `top_freq`. `gear_ratios` must be non-increasing from gear 1 to the last gear.
+
+This is important because many configuration errors are not \"bad numbers\" by themselves. A value can look valid in isolation and still be invalid when compared to another value. For example, a `peak_torque_rpm` of `7000` is not wrong by itself, but it becomes wrong if the `rev_limiter` is `6500`.
 
 This strict behavior is not a restriction for its own sake. It exists to protect creators from invalid setups and to keep the game physics within reasonable, testable ranges.
 
@@ -319,6 +341,8 @@ Main engine sound. This is required. The value may be a relative path inside the
 
 There is no numeric range because this is a sound reference. The path must resolve safely inside the vehicle folder unless it is a `builtinN` reference.
 
+This sound usually carries most of the vehicle identity for blind players, so it is worth choosing carefully. If the physics feels right but the vehicle still feels \"wrong\" in gameplay, the engine sound pitch behavior (`idle_freq`, `top_freq`, `shift_freq`) is often the missing part.
+
 ### `start`
 
 Engine start sound. Required. Used when the vehicle is started.
@@ -336,6 +360,8 @@ There is no numeric range because this is a sound reference. The same path safet
 Optional additional throttle layer sound. This can be left empty. When present, it adds audio richness but does not change physics.
 
 There is no numeric range because this is a sound reference. If you provide a non-empty value, it must resolve successfully.
+
+This is often useful for vehicles that need a clearer sense of throttle application, turbo-like texture, or intake-style character. If your vehicle already sounds busy, leaving this empty is fine.
 
 ### `crash`
 
@@ -361,7 +387,7 @@ Low engine audio pitch frequency anchor. This affects how the engine sound is pi
 
 Allowed range is 100 to 200000.
 
-It does not change physics, but it strongly changes how slow or relaxed the vehicle sounds.
+It does not change physics, but it strongly changes how slow or relaxed the vehicle sounds. If this is set too high, the vehicle may sound unnaturally \"busy\" even when moving slowly. If it is set too low, the engine may sound dull or too deep.
 
 ### `top_freq`
 
@@ -369,7 +395,7 @@ High engine audio pitch frequency anchor. This affects how the engine sound is p
 
 Allowed range is 100 to 200000, and it must be greater than or equal to `idle_freq`.
 
-It does not change physics, but it strongly affects the perceived character of the engine.
+It does not change physics, but it strongly affects the perceived character of the engine. A very high `top_freq` can make a vehicle sound sharp, high-rev, or aggressive. A lower `top_freq` can make it sound heavier or less sporty.
 
 ### `shift_freq`
 
@@ -377,7 +403,7 @@ Intermediate audio frequency anchor used in engine pitch/shift-related sound beh
 
 Allowed range is 100 to 200000, and it must be between `idle_freq` and `top_freq`.
 
-It does not change acceleration or top speed, but poor values can make the vehicle sound inconsistent or unnatural.
+It does not change acceleration or top speed, but poor values can make the vehicle sound inconsistent or unnatural. As a beginner rule, keep `shift_freq` somewhere between the other two values in a way that matches the vehicle character, then adjust by listening during real shifts.
 
 ## `[general]` Section
 
@@ -411,6 +437,8 @@ Allowed range is 10 to 500.
 
 This is a hard cap. Even if the powertrain could continue accelerating, the vehicle speed is clamped. Because this cap interacts with automatic transmission policy, it is often paired with `top_speed_gear` and overdrive settings in `[policy]`.
 
+For beginners, this should be treated as a gameplay target, not a realism promise. A real vehicle may be capable of more speed, but you can intentionally set a lower `max_speed` to protect game balance while preserving the vehicle's identity through torque, gearing, sound, and handling.
+
 ### `has_wipers`
 
 Boolean-like flag for wiper behavior and related weather audio behavior.
@@ -418,6 +446,8 @@ Boolean-like flag for wiper behavior and related weather audio behavior.
 This key is parsed as a boolean integer (`0` or `1`).
 
 There is no numeric tuning range beyond that. It does not affect physics.
+
+This is still worth setting correctly because weather audio feedback is important in an audio-based game. A road car or van will usually use `1`. Many bikes and open or non-wiper vehicles may use `0`.
 
 ## `[engine]` Section
 
@@ -543,6 +573,10 @@ Allowed range is 0.001 to 0.1.
 
 This affects resistance across the speed range and is especially noticeable at low and medium speed. If a vehicle feels weak everywhere, inspect this along with mass and power settings.
 
+For road vehicles, realistic values are usually much lower than the top end of the allowed range. In practice, many normal road-vehicle tunes will sit roughly in the low hundredths. The `0.1` maximum is an intentionally generous upper limit for gameplay safety and experimentation, not a recommended target for normal cars or motorcycles.
+
+A useful beginner test is coasting behavior. If the vehicle loses speed too quickly even when the engine and brakes are not the main issue, `rolling_resistance` may be too high. If the vehicle seems to glide too easily and never feels like it settles, it may be too low.
+
 ### `launch_rpm`
 
 Launch RPM assist floor under throttle at low speed.
@@ -570,6 +604,10 @@ Final drive ratio applied to all forward gears.
 Allowed range is 0.3 to 8.0.
 
 This is one of the strongest tuning controls because it changes effective gearing in every forward gear. Increasing it makes all gears shorter and usually improves pull. Decreasing it makes all gears taller and can reduce acceleration or make upper gears harder to use.
+
+Because it affects every gear, `final_drive` is often the fastest way to move a vehicle in the right direction, but it can also create side effects very quickly. A change that fixes weak 7th gear might make 1st and 2nd gear too aggressive. A change that calms launch might make top-speed gears impossible to pull.
+
+For beginners, a good rule is to use `final_drive` for broad changes and `gear_ratios` for fine shaping. If the whole vehicle feels too short or too tall, change `final_drive`. If only one or two gears feel wrong, adjust the gear ratio list.
 
 ### `reverse_max_speed`
 
@@ -625,6 +663,10 @@ Each individual ratio must be between 0.20 and 8.00. The list must be non-increa
 
 Higher values make shorter gears with stronger torque multiplication. Lower values make taller gears with less pull and lower RPM at the same speed. Gear ratios always interact with `final_drive`, so tune them together.
 
+For beginner tuning, think of the gear list as the shape of the acceleration experience. Early gears control launch and low-speed response. Middle gears control the most common acceleration feel during normal driving and racing. Late gears control high-speed pull and overdrive behavior.
+
+If an upshift causes the engine to drop into a weak RPM zone, the next gear may be too tall, the previous gear may be too short, the final drive may be too low, or the torque curve may not support that RPM. The fix is not always \"change that one ratio only.\" Always test the effect on the gears before and after it.
+
 ## `[handling]` Section
 
 The `[handling]` section controls steering response, grip, and high-speed turning stability.
@@ -665,9 +707,11 @@ Higher values calm the vehicle at speed and reduce twitchiness. Too high can mak
 
 Wheelbase in meters.
 
-Allowed range is 0.5 to 8.0.
+Allowed range is 0.3 to 8.0.
 
 Shorter wheelbase usually feels more responsive and more willing to rotate. Longer wheelbase usually feels calmer and less agile. It interacts strongly with `steering` and `max_steer_deg`.
+
+For beginners, wheelbase is easy to misunderstand because it does not feel like a direct \"more turning\" or \"less turning\" knob. Instead, it changes how strongly the same steering angle bends the vehicle path. That means it changes the character of steering, not only the amount.
 
 ### `max_steer_deg`
 
@@ -689,6 +733,8 @@ Allowed range is 0.2 to 5.0.
 
 This affects spatial/audio placement and vehicle size behavior, not engine power or top speed directly.
 
+Even though it is not a power parameter, it still matters for how the vehicle feels in an audio game. Width contributes to spatial presence and how wide the vehicle seems relative to lanes and nearby traffic or objects.
+
 ### `vehicle_length`
 
 Vehicle length in meters.
@@ -696,6 +742,8 @@ Vehicle length in meters.
 Allowed range is 0.3 to 20.0.
 
 This also affects spatial representation and presence rather than direct acceleration physics.
+
+For beginners, this should generally reflect the actual body length of the vehicle type you are creating, even if you are not trying to be perfectly realistic. A value that is far too short or far too long can make the vehicle feel spatially \"wrong\" even when the engine and handling are tuned well.
 
 ## `[tires]` Section
 
@@ -711,11 +759,15 @@ If provided and greater than zero, it is used directly. Allowed range is 0.2 to 
 
 This value affects the speed-to-RPM relationship. Incorrect tire circumference can make gearing and RPM behavior feel wrong even when other parameters are correct.
 
+This is one of the easiest hidden causes of confusing tuning problems. If tire circumference is too small, the engine RPM will appear higher than expected at a given speed, which can make gears seem shorter than they really are. If it is too large, RPM may seem too low and gears may feel too tall.
+
 ### `tire_width`
 
 Tire width in millimeters used for circumference calculation when direct circumference is not provided.
 
 Allowed range is 20 to 450.
+
+This value is only used when circumference is being calculated from tire size. It does not act as a direct grip parameter in the current custom format. Use `tire_grip` and `lateral_grip` for actual handling tuning.
 
 ### `tire_aspect`
 
@@ -723,11 +775,15 @@ Tire aspect ratio (sidewall height percentage of tire width) used for circumfere
 
 Allowed range is 5 to 150.
 
+This is also used only for circumference calculation fallback, not as a direct handling-physics grip knob.
+
 ### `tire_rim`
 
 Rim diameter in inches used for circumference calculation fallback.
 
 Allowed range is 4 to 30.
+
+This is also used only for circumference calculation fallback. If you already know tire circumference, providing `tire_circumference` directly is usually simpler and reduces mistakes.
 
 If you provide the size triplet, the game calculates tire circumference automatically after validation.
 
@@ -745,6 +801,8 @@ Allowed range is 1 to `number_of_gears`.
 
 This is especially important for 7-speed and 8-speed vehicles with overdrive gears. It tells automatic mode which gear should usually be treated as the main top-speed gear.
 
+For example, an 8-speed vehicle may be designed to reach the game top speed in 6th gear, while 7th and 8th are calmer cruising or overdrive gears. Declaring that intention in policy helps automatic mode avoid entering those higher gears too early.
+
 ### `allow_overdrive_above_game_top_speed`
 
 Boolean policy flag for allowing gears above `top_speed_gear` near or above the top-speed region.
@@ -753,6 +811,8 @@ This key has no numeric range because it is boolean. Use `true` or `false`.
 
 If `true`, automatic mode can use higher gears as overdrives when appropriate. If `false`, it avoids them while pursuing top speed.
 
+This setting does not make the overdrive gear physically usable by itself. It only changes whether automatic mode is allowed to choose it. If overdrive gears still feel dead in manual mode, fix torque, drag, or gearing first.
+
 ### `base_auto_shift_cooldown`
 
 Base automatic shift cooldown in seconds.
@@ -760,6 +820,8 @@ Base automatic shift cooldown in seconds.
 Allowed range is 0.0 to 2.0.
 
 Higher values make automatic mode calmer and less likely to shift rapidly. Too high can make the transmission feel lazy.
+
+This is a good first control for automatic behavior because it improves stability without changing the underlying powertrain. If the automatic mode feels nervous or chatters between gears, try a small increase here before changing several other policy values.
 
 ### `upshift_delay_default`
 
@@ -840,6 +902,8 @@ Minimum acceptable net acceleration in the next gear before an upshift is allowe
 Allowed range is -20.0 to 20.0.
 
 This is an important anti-stall protection for high gears. It helps prevent automatic mode from shifting into a gear that would immediately decelerate or feel dead.
+
+For beginners, the exact unit (`m/s²`) is less important than the effect: it is a \"do not upshift if the next gear is too weak\" rule. If automatic mode enters high gears too early and the vehicle falls flat, this parameter is one of the most useful policy controls to review.
 
 ### `prefer_intended_top_speed_gear_near_limit`
 

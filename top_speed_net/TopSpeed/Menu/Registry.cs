@@ -468,7 +468,7 @@ namespace TopSpeed.Menu
                     value => _settings.AudioVolumes.MasterPercent = value,
                     "Controls the overall audio volume for the game. Set lower to reduce every sound category."),
                 BuildVolumeSlider(
-                    "Your vehicle engine sounds",
+                    "Vehicle engine sounds",
                     () => _settings.AudioVolumes.PlayerVehicleEnginePercent,
                     value => _settings.AudioVolumes.PlayerVehicleEnginePercent = value,
                     "Controls your own engine and throttle sounds, including engine start and stop."),

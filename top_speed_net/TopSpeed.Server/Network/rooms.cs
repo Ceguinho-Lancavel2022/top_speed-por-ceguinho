@@ -55,7 +55,6 @@ namespace TopSpeed.Server.Network
             _rooms[room.Id] = room;
             SetTrack(room, room.TrackName);
             JoinRoom(player, room);
-            SendProtocolMessage(player, ProtocolMessageCode.Ok, $"Created {room.Name}.");
             EmitRoomLifecycleEvent(room, RoomEventKind.RoomCreated);
             BroadcastLobbyAnnouncement($"{DescribePlayer(player)} created game room {room.Name}.");
             _logger.Info($"Room created: room={room.Id} \"{room.Name}\", host={player.Id}, type={room.RoomType}, playersToStart={room.PlayersToStart}.");
@@ -84,7 +83,6 @@ namespace TopSpeed.Server.Network
             }
 
             JoinRoom(player, room);
-            SendProtocolMessage(player, ProtocolMessageCode.Ok, $"Joined {room.Name}.");
             EmitRoomLifecycleEvent(room, RoomEventKind.RoomSummaryUpdated);
             _logger.Info($"Player joined room: room={room.Id} \"{room.Name}\", player={player.Id}, participants={GetRoomParticipantCount(room)}/{room.PlayersToStart}.");
         }

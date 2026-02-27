@@ -72,7 +72,10 @@ namespace TopSpeed.Core.Multiplayer
         private AudioSourceHandle? _onlineSound;
         private AudioSourceHandle? _offlineSound;
         private AudioSourceHandle? _pingStartSound;
-        private AudioSourceHandle? _pingStopSound;
+        private AudioSourceHandle? _pingSound;
+        private AudioSourceHandle? _roomCreatedSound;
+        private AudioSourceHandle? _roomJoinSound;
+        private AudioSourceHandle? _roomLeaveSound;
         private bool _pingPending;
         private long _pingStartedAtMs;
         private SavedServerEntry _savedServerDraft = new SavedServerEntry();

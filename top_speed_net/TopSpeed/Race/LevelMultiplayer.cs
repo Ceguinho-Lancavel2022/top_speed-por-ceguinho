@@ -192,12 +192,10 @@ namespace TopSpeed.Race
         {
             if (_elapsedTotal == 0.0f)
             {
-                var countdownLength = _soundStart.GetLengthSeconds();
-                var countdownTotal = 1.5f + Math.Max(0f, countdownLength);
-                var raceStartDelay = Math.Max(6.5f, countdownTotal);
+                var raceStartDelay = 4.0f;
                 PushEvent(RaceEventType.CarStart, 3.0f);
                 PushEvent(RaceEventType.RaceStart, raceStartDelay);
-                PushEvent(RaceEventType.PlaySound, 1.5f, _soundStart);
+                PushEvent(RaceEventType.PlaySound, 1.0f, _soundStart);
             }
 
             var dueEvents = CollectDueEvents();

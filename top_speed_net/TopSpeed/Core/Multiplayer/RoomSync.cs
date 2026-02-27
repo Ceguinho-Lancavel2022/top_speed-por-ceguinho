@@ -33,16 +33,11 @@ namespace TopSpeed.Core.Multiplayer
             if (_roomState.InRoom)
             {
                 if (!wasInRoom || previousRoomId != _roomState.RoomId)
-                {
-                    var roomName = string.IsNullOrWhiteSpace(_roomState.RoomName) ? "game room" : _roomState.RoomName;
-                    _speech.Speak($"Joined {roomName}.");
-                }
-
-                if (_roomState.IsHost && (!_wasHost || !wasInRoom))
-                    _speech.Speak("You are now host of this game.");
+                    PlayNetworkSound("room_join.ogg");
             }
             else if (wasInRoom)
             {
+                PlayNetworkSound("room_leave.ogg");
                 _speech.Speak("You left the game room.");
             }
 
@@ -77,6 +72,14 @@ namespace TopSpeed.Core.Multiplayer
             if (roomEvent == null)
                 return;
 
+            if (roomEvent.Kind == RoomEventKind.RoomCreated)
+            {
+                var session = SessionOrNull();
+                var isCreator = session != null && roomEvent.HostPlayerId == session.PlayerId;
+                if (!isCreator)
+                    PlayNetworkSound("room_created.ogg");
+            }
+
             ApplyRoomListEvent(roomEvent);
 
             ApplyCurrentRoomEvent(roomEvent, out var beginLoadout, out var localHostChanged);
@@ -98,9 +101,9 @@ namespace TopSpeed.Core.Multiplayer
                 return;
 
             if (message.Code == ProtocolMessageCode.ServerPlayerConnected)
-                PlayNetworkSound("online.wav");
+                PlayNetworkSound("online.ogg");
             else if (message.Code == ProtocolMessageCode.ServerPlayerDisconnected)
-                PlayNetworkSound("offline.wav");
+                PlayNetworkSound("offline.ogg");
 
             if (!string.IsNullOrWhiteSpace(message.Message))
                 _speech.Speak(message.Message);
@@ -173,15 +176,26 @@ namespace TopSpeed.Core.Multiplayer
             _roomState.TrackName = roomEvent.TrackName ?? string.Empty;
             _roomState.Laps = roomEvent.Laps;
             _roomState.IsHost = session != null && roomEvent.HostPlayerId == session.PlayerId;
+            var localPlayerId = session?.PlayerId ?? 0u;
 
             switch (roomEvent.Kind)
             {
                 case RoomEventKind.ParticipantJoined:
+                    if (roomEvent.SubjectPlayerId != 0 && roomEvent.SubjectPlayerId != localPlayerId)
+                        PlayNetworkSound("room_join.ogg");
+                    UpsertCurrentRoomParticipant(roomEvent);
+                    break;
+
                 case RoomEventKind.BotAdded:
                     UpsertCurrentRoomParticipant(roomEvent);
                     break;
 
                 case RoomEventKind.ParticipantLeft:
+                    if (roomEvent.SubjectPlayerId != 0 && roomEvent.SubjectPlayerId != localPlayerId)
+                        PlayNetworkSound("room_leave.ogg");
+                    RemoveCurrentRoomParticipant(roomEvent.SubjectPlayerId);
+                    break;
+
                 case RoomEventKind.BotRemoved:
                     RemoveCurrentRoomParticipant(roomEvent.SubjectPlayerId);
                     break;
@@ -196,8 +210,13 @@ namespace TopSpeed.Core.Multiplayer
             }
 
             localHostChanged = previousIsHost != _roomState.IsHost;
-            if (localHostChanged && _roomState.IsHost)
+            if (localHostChanged &&
+                _roomState.IsHost &&
+                (roomEvent.Kind == RoomEventKind.ParticipantLeft || roomEvent.Kind == RoomEventKind.HostChanged) &&
+                (roomEvent.PlayerCount <= 1 || (_roomState.Players?.Length ?? int.MaxValue) <= 1))
+            {
                 _speech.Speak("You are now host of this game.");
+            }
 
             _wasHost = _roomState.IsHost;
             return true;

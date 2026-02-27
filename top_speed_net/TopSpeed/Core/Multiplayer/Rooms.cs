@@ -316,7 +316,6 @@ namespace TopSpeed.Core.Multiplayer
                 playersToStart = 2;
 
             session.SendRoomCreate(_createRoomName, _createRoomType, playersToStart);
-            _speech.Speak("Creating game room.");
             _menu.ShowRoot(MultiplayerLobbyMenuId);
         }
 
