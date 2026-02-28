@@ -136,8 +136,8 @@ namespace TopSpeed.Race
             Array.Clear(_disconnectedPlayerSlots, 0, _disconnectedPlayerSlots.Length);
 
             var rowSpacing = Math.Max(10.0f, _car.LengthM * 1.5f);
-            var positionX = CalculateStartX(_playerNumber, _car.WidthM);
-            var positionY = CalculateStartY(_playerNumber, rowSpacing);
+            var positionX = CalculateGridStartX(_playerNumber, _car.WidthM, StartLineY);
+            var positionY = CalculateGridStartY(_playerNumber, rowSpacing, StartLineY);
             _car.SetPosition(positionX, positionY);
 
             for (var i = 0; i < MaxPlayers; i++)
@@ -190,35 +190,8 @@ namespace TopSpeed.Race
 
         public void Run(float elapsed)
         {
-            if (_elapsedTotal == 0.0f)
-            {
-                ScheduleDefaultStartSequence();
-            }
-
-            var dueEvents = CollectDueEvents();
-            foreach (var e in dueEvents)
-            {
-                if (HandleSharedLifecycleEvent(e))
-                    continue;
-
-                switch (e.Type)
-                {
-                    case RaceEventType.PlaySound:
-                        QueueSound(e.Sound);
-                        break;
-                    case RaceEventType.PlayRadioSound:
-                        _unkeyQueue--;
-                        if (_unkeyQueue == 0)
-                            Speak(_soundUnkey[Algorithm.RandomInt(MaxUnkeys)]);
-                        break;
-                    case RaceEventType.AcceptPlayerInfo:
-                        _acceptPlayerInfo = true;
-                        break;
-                    case RaceEventType.AcceptCurrentRaceInfo:
-                        _acceptCurrentRaceInfo = true;
-                        break;
-                }
-            }
+            EnsureStartSequenceScheduled();
+            ProcessDueEvents();
 
             ApplyBufferedRaceSnapshots(elapsed);
             UpdatePositions();
@@ -274,35 +247,8 @@ namespace TopSpeed.Race
                 }
             }
 
-            // Allow starting engine initially or restarting after crash
-            HandleEngineStartRequest();
-
-            HandleCurrentGearRequest();
-            HandleCurrentLapNumberRequest();
-            HandleCurrentRacePercentageRequest();
-            HandleCurrentLapPercentageRequest();
-            HandleCurrentRaceTimeRequestWithFinish();
-
-            _lastComment += elapsed;
-            if (_settings.AutomaticInfo == AutomaticInfoMode.On && _lastComment > 6.0f)
-            {
-                Comment(automatic: true);
-                _lastComment = 0.0f;
-            }
-
-            if (_input.GetRequestInfo() && _infoKeyReleased)
-            {
-                if (_lastComment > 2.0f)
-                {
-                    _infoKeyReleased = false;
-                    Comment(automatic: false);
-                    _lastComment = 0.0f;
-                }
-            }
-            else if (!_input.GetRequestInfo() && !_infoKeyReleased)
-            {
-                _infoKeyReleased = true;
-            }
+            HandleCoreRaceMetricsRequests(includeFinishedRaceTime: true);
+            HandleCommentRequests(elapsed, Comment, ref _lastComment, ref _infoKeyReleased);
 
             if (_input.TryGetPlayerInfo(out var infoPlayer)
                 && _acceptPlayerInfo
@@ -328,18 +274,8 @@ namespace TopSpeed.Race
                 PushEvent(RaceEventType.AcceptPlayerInfo, 0.5f);
             }
 
-            HandleTrackNameRequest();
-
-            if (_input.GetPlayerNumber() && _acceptCurrentRaceInfo)
-            {
-                _acceptCurrentRaceInfo = false;
-                QueueSound(_soundNumbers[_playerNumber + 1]);
-                PushEvent(RaceEventType.AcceptCurrentRaceInfo, _soundNumbers[_playerNumber + 1].GetLengthSeconds());
-            }
-
-            HandleSpeedReportRequest();
-            HandleDistanceReportRequest();
-            HandlePauseRequest(ref _pauseKeyReleased);
+            HandlePlayerNumberRequest(_playerNumber);
+            HandleGeneralInfoRequests(ref _pauseKeyReleased);
 
             _sendAccumulator += elapsed;
             if (_sendAccumulator >= SendIntervalSeconds)
@@ -370,10 +306,8 @@ namespace TopSpeed.Race
                     LocalMediaId);
             }
 
-            if (UpdateExitWhenQueueIdle())
+            if (CompleteFrame(elapsed))
                 return;
-
-            _elapsedTotal += elapsed;
         }
 
         protected override void OnRaceStartEvent()
@@ -910,23 +844,6 @@ namespace TopSpeed.Race
                 if (remote.Player.PositionY > _car.PositionY)
                     _position++;
             }
-        }
-
-        private float CalculateStartX(int gridIndex, float vehicleWidth)
-        {
-            var halfWidth = Math.Max(0.1f, vehicleWidth * 0.5f);
-            var margin = 0.3f;
-            var laneHalfWidth = _track.LaneHalfWidthAtPosition(StartLineY);
-            var laneOffset = laneHalfWidth - halfWidth - margin;
-            if (laneOffset < 0f)
-                laneOffset = 0f;
-            return gridIndex % 2 == 1 ? laneOffset : -laneOffset;
-        }
-
-        private float CalculateStartY(int gridIndex, float rowSpacing)
-        {
-            var row = gridIndex / 2;
-            return StartLineY - (row * rowSpacing);
         }
 
         private void Comment(bool automatic)

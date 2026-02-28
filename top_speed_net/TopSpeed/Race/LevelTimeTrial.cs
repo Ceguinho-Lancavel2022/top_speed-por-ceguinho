@@ -47,35 +47,8 @@ namespace TopSpeed.Race
 
         public void Run(float elapsed)
         {
-            if (_elapsedTotal == 0.0f)
-            {
-                ScheduleDefaultStartSequence();
-            }
-
-            var dueEvents = CollectDueEvents();
-            foreach (var e in dueEvents)
-            {
-                if (HandleSharedLifecycleEvent(e))
-                    continue;
-
-                switch (e.Type)
-                {
-                    case RaceEventType.PlaySound:
-                        QueueSound(e.Sound);
-                        break;
-                    case RaceEventType.PlayRadioSound:
-                        _unkeyQueue--;
-                        if (_unkeyQueue == 0)
-                            Speak(_soundUnkey[Algorithm.RandomInt(MaxUnkeys)]);
-                        break;
-                    case RaceEventType.AcceptPlayerInfo:
-                        _acceptPlayerInfo = true;
-                        break;
-                    case RaceEventType.AcceptCurrentRaceInfo:
-                        _acceptCurrentRaceInfo = true;
-                        break;
-                }
-            }
+            EnsureStartSequenceScheduled();
+            ProcessDueEvents();
 
             UpdateVehiclePanels(elapsed);
             _car.Run(elapsed);
@@ -106,14 +79,7 @@ namespace TopSpeed.Race
                 }
             }
 
-            // Allow starting engine initially or restarting after crash
-            HandleEngineStartRequest();
-
-            HandleCurrentGearRequest();
-            HandleCurrentLapNumberRequest();
-            HandleCurrentRacePercentageRequest();
-            HandleCurrentLapPercentageRequest();
-            HandleCurrentRaceTimeRequestActiveOnly();
+            HandleCoreRaceMetricsRequests(includeFinishedRaceTime: false);
 
             if (_input.TryGetPlayerInfo(out var player) && _acceptPlayerInfo && player == 0)
             {
@@ -122,15 +88,10 @@ namespace TopSpeed.Race
                 PushEvent(RaceEventType.AcceptPlayerInfo, 0.5f);
             }
 
-            HandleTrackNameRequest();
-            HandleSpeedReportRequest();
-            HandleDistanceReportRequest();
-            HandlePauseRequest(ref _pauseKeyReleased);
+            HandleGeneralInfoRequests(ref _pauseKeyReleased);
 
-            if (UpdateExitWhenQueueIdle())
+            if (CompleteFrame(elapsed))
                 return;
-
-            _elapsedTotal += elapsed;
         }
 
         protected override void OnRaceFinishEvent()

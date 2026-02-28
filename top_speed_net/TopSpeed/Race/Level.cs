@@ -18,7 +18,7 @@ using TS.Audio;
 
 namespace TopSpeed.Race
 {
-    internal abstract class Level : IDisposable
+    internal abstract partial class Level : IDisposable
     {
         protected const int MaxLaps = 16;
         protected const int MaxUnkeys = 12;
