@@ -1,0 +1,147 @@
+using System;
+using TopSpeed.Audio;
+using TopSpeed.Data;
+using TopSpeed.Input;
+using TopSpeed.Protocol;
+using TopSpeed.Tracks;
+using TopSpeed.Vehicles.Audio;
+using TopSpeed.Vehicles.Core;
+using TopSpeed.Vehicles.Events;
+using TopSpeed.Vehicles.Physics;
+using TS.Audio;
+
+namespace TopSpeed.Vehicles
+{
+    internal partial class Car
+    {
+        private const int MaxSurfaceFreq = 100000;
+        private const float BaseLateralSpeed = 7.0f;
+        private const float StabilitySpeedRef = 45.0f;
+        private const float CrashVibrationSeconds = 1.5f;
+        private const float BumpVibrationSeconds = 0.2f;
+        private const int ReverseGear = 0;
+        private const int FirstForwardGear = 1;
+        private const float ReverseShiftMaxSpeedKmh = 15.0f;
+
+        private bool _stickReleased = true;
+
+        private readonly AudioManager _audio;
+        private readonly Track _track;
+        private readonly RaceSettings _settings;
+        private readonly Func<float> _currentTime;
+        private readonly Func<bool> _started;
+        private readonly string _legacyRoot;
+        private readonly string _effectsRoot;
+        private readonly EventQueue _events;
+        private readonly Processor _eventProcessor;
+        private readonly IFlow _audioFlow;
+        private readonly CarRuntimeContext _runtimeContext;
+        private readonly IVibrationDevice? _vibration;
+
+        private IModel _physicsModel;
+
+        private CarState _state;
+        private TrackSurface _surface;
+        private int _gear;
+        private float _speed;
+        private float _positionX;
+        private float _positionY;
+        private bool _manualTransmission;
+        private bool _backfirePlayed;
+        private bool _backfirePlayedAuto;
+        private int _hasWipers;
+        private int _switchingGear;
+        private float _autoShiftCooldown;
+        private CarType _carType;
+        private ICarListener? _listener;
+        private string? _customFile;
+        private bool _userDefined;
+
+        private float _surfaceTractionFactor;
+        private float _deceleration;
+        private float _topSpeed;
+        private float _massKg;
+        private float _drivetrainEfficiency;
+        private float _engineBrakingTorqueNm;
+        private float _tireGripCoefficient;
+        private float _brakeStrength;
+        private float _wheelRadiusM;
+        private float _engineBraking;
+        private float _idleRpm;
+        private float _revLimiter;
+        private float _finalDriveRatio;
+        private float _reverseMaxSpeedKph;
+        private float _reversePowerFactor;
+        private float _reverseGearRatio;
+        private float _powerFactor;
+        private float _peakTorqueNm;
+        private float _peakTorqueRpm;
+        private float _idleTorqueNm;
+        private float _redlineTorqueNm;
+        private float _dragCoefficient;
+        private float _frontalAreaM2;
+        private float _rollingResistanceCoefficient;
+        private float _launchRpm;
+        private float _lastDriveRpm;
+        private float _lateralGripCoefficient;
+        private float _highSpeedStability;
+        private float _wheelbaseM;
+        private float _maxSteerDeg;
+        private float _widthM;
+        private float _lengthM;
+        private int _idleFreq;
+        private int _topFreq;
+        private int _shiftFreq;
+        private int _gears;
+        private float _steering;
+        private float _thrust;
+        private int _prevFrequency;
+        private int _frequency;
+        private int _prevBrakeFrequency;
+        private int _brakeFrequency;
+        private int _prevSurfaceFrequency;
+        private int _surfaceFrequency;
+        private float _laneWidth;
+        private float _relPos;
+        private int _panPos;
+        private int _currentSteering;
+        private int _currentThrottle;
+        private int _currentBrake;
+        private float _currentSurfaceTractionFactor;
+        private float _currentDeceleration;
+        private float _speedDiff;
+        private int _factor1;
+        private int _frame;
+        private float _prevThrottleVolume;
+        private float _throttleVolume;
+        private float _lastAudioX;
+        private float _lastAudioY;
+        private bool _audioInitialized;
+        private float _lastAudioElapsed;
+
+        private AudioSourceHandle _soundEngine = default!;
+        private AudioSourceHandle? _soundThrottle;
+        private AudioSourceHandle _soundHorn = default!;
+        private AudioSourceHandle _soundStart = default!;
+        private AudioSourceHandle _soundBrake = default!;
+        private AudioSourceHandle _soundCrash = default!;
+        private AudioSourceHandle[] _soundCrashVariants = Array.Empty<AudioSourceHandle>();
+        private AudioSourceHandle _soundMiniCrash = default!;
+        private AudioSourceHandle _soundAsphalt = default!;
+        private AudioSourceHandle _soundGravel = default!;
+        private AudioSourceHandle _soundWater = default!;
+        private AudioSourceHandle _soundSand = default!;
+        private AudioSourceHandle _soundSnow = default!;
+        private AudioSourceHandle? _soundWipers;
+        private AudioSourceHandle _soundBump = default!;
+        private AudioSourceHandle _soundBadSwitch = default!;
+        private AudioSourceHandle? _soundBackfire;
+        private AudioSourceHandle[] _soundBackfireVariants = Array.Empty<AudioSourceHandle>();
+        private int _lastPlayerEngineVolumePercent = -1;
+        private int _lastPlayerEventsVolumePercent = -1;
+        private int _lastSurfaceLoopVolumePercent = -1;
+
+        private EngineModel _engine = default!;
+        private TransmissionPolicy _transmissionPolicy = TransmissionPolicy.Default;
+    }
+}

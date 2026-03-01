@@ -22,8 +22,8 @@ namespace TopSpeed.Network.Session
         public void Dispose()
         {
             _cts.Cancel();
-            try { _pollTask.Wait(250); } catch { }
-            try { _keepAliveTask.Wait(250); } catch { }
+            WaitForStop(_pollTask);
+            WaitForStop(_keepAliveTask);
             _cts.Dispose();
         }
 
@@ -53,6 +53,40 @@ namespace TopSpeed.Network.Session
                     break;
                 }
             }
+        }
+
+        private static void WaitForStop(Task task)
+        {
+            try
+            {
+                task.Wait(250);
+            }
+            catch (AggregateException ex) when (IsCancellationOnly(ex))
+            {
+            }
+            catch (TaskCanceledException)
+            {
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        private static bool IsCancellationOnly(AggregateException ex)
+        {
+            if (ex == null)
+                return false;
+
+            var list = ex.Flatten().InnerExceptions;
+            if (list.Count == 0)
+                return false;
+            for (var i = 0; i < list.Count; i++)
+            {
+                if (!(list[i] is TaskCanceledException) && !(list[i] is OperationCanceledException))
+                    return false;
+            }
+
+            return true;
         }
     }
 }

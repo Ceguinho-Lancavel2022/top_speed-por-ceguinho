@@ -14,11 +14,54 @@ namespace TopSpeed.Core
                 return new List<string>();
 
             var files = new List<string>();
-            foreach (var directory in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories))
+            IEnumerable<string> directories;
+            try
             {
-                var first = Directory.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly)
-                    .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
-                    .FirstOrDefault();
+                directories = Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories);
+            }
+            catch (IOException)
+            {
+                return files;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return files;
+            }
+            catch (ArgumentException)
+            {
+                return files;
+            }
+            catch (NotSupportedException)
+            {
+                return files;
+            }
+
+            foreach (var directory in directories)
+            {
+                string? first;
+                try
+                {
+                    first = Directory.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly)
+                        .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+                        .FirstOrDefault();
+                }
+                catch (IOException)
+                {
+                    continue;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    continue;
+                }
+                catch (ArgumentException)
+                {
+                    continue;
+                }
+                catch (NotSupportedException)
+                {
+                    continue;
+                }
+
                 if (!string.IsNullOrWhiteSpace(first))
                     files.Add(first);
             }
@@ -41,7 +84,19 @@ namespace TopSpeed.Core
                 lastWriteUtc = File.GetLastWriteTimeUtc(file);
                 hasStamp = true;
             }
-            catch
+            catch (IOException)
+            {
+                hasStamp = false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                hasStamp = false;
+            }
+            catch (ArgumentException)
+            {
+                hasStamp = false;
+            }
+            catch (NotSupportedException)
             {
                 hasStamp = false;
             }
@@ -54,20 +109,13 @@ namespace TopSpeed.Core
                 return true;
             }
 
-            try
-            {
-                var parsed = parse(file);
-                if (!parsed.Success)
-                    return false;
-                value = parsed.Value;
-                if (hasStamp)
-                    cache[file] = (lastWriteUtc, value);
-                return true;
-            }
-            catch
-            {
+            var parsed = parse(file);
+            if (!parsed.Success)
                 return false;
-            }
+            value = parsed.Value;
+            if (hasStamp)
+                cache[file] = (lastWriteUtc, value);
+            return true;
         }
 
         public static void Prune<T>(

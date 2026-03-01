@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TopSpeed.Vehicles;
+using TopSpeed.Vehicles.Parsing;
 
 namespace TopSpeed.Core
 {

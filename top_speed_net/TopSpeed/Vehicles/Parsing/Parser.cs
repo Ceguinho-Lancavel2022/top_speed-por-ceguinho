@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 
-namespace TopSpeed.Vehicles
+namespace TopSpeed.Vehicles.Parsing
 {
     internal static partial class VehicleTsvParser
     {

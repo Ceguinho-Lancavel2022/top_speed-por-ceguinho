@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+using TopSpeed.Vehicles;
 
-namespace TopSpeed.Vehicles
+namespace TopSpeed.Vehicles.Parsing
 {
     internal enum VehicleTsvIssueSeverity
     {

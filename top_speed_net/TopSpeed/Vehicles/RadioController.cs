@@ -70,7 +70,32 @@ namespace TopSpeed.Vehicles
                     _source.Play(loop: true);
                 return true;
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            catch (ArgumentException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            catch (NotSupportedException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            catch (ObjectDisposedException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            catch (InvalidOperationException ex)
             {
                 error = ex.Message;
                 return false;
@@ -102,7 +127,32 @@ namespace TopSpeed.Vehicles
                 SafeDelete(path);
                 return false;
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            catch (ArgumentException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            catch (NotSupportedException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            catch (ObjectDisposedException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            catch (InvalidOperationException ex)
             {
                 error = ex.Message;
                 return false;
@@ -209,7 +259,10 @@ namespace TopSpeed.Vehicles
                 if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
                     File.Delete(path);
             }
-            catch
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Best effort cleanup only.
             }

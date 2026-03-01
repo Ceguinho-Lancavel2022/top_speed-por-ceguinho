@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace TopSpeed.Vehicles
+namespace TopSpeed.Vehicles.Parsing
 {
     internal static partial class VehicleTsvParser
     {

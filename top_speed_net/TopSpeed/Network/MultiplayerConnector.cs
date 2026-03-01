@@ -32,7 +32,15 @@ namespace TopSpeed.Network
 
                 address ??= addresses.Length > 0 ? addresses[0] : null;
             }
-            catch (Exception ex)
+            catch (SocketException ex)
+            {
+                return ConnectResult.CreateFail($"Unable to resolve server address: {ex.Message}");
+            }
+            catch (ArgumentException ex)
+            {
+                return ConnectResult.CreateFail($"Unable to resolve server address: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 return ConnectResult.CreateFail($"Unable to resolve server address: {ex.Message}");
             }
@@ -110,7 +118,12 @@ namespace TopSpeed.Network
                         handshakeSent = true;
                         nextKeepAliveUtc = DateTime.UtcNow + TimeSpan.FromSeconds(1);
                     }
-                    catch (Exception ex)
+                    catch (ObjectDisposedException ex)
+                    {
+                        manager.Stop();
+                        return ConnectResult.CreateFail($"Failed to send handshake: {ex.Message}");
+                    }
+                    catch (InvalidOperationException ex)
                     {
                         manager.Stop();
                         return ConnectResult.CreateFail($"Failed to send handshake: {ex.Message}");
@@ -123,7 +136,11 @@ namespace TopSpeed.Network
                     {
                         connectedPeer.Send(keepAlive, DeliveryMethod.Unreliable);
                     }
-                    catch
+                    catch (ObjectDisposedException)
+                    {
+                        // Ignore keepalive failures during connect.
+                    }
+                    catch (InvalidOperationException)
                     {
                         // Ignore keepalive failures during connect.
                     }

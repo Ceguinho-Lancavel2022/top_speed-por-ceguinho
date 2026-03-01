@@ -4,7 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 
-namespace TopSpeed.Vehicles
+namespace TopSpeed.Vehicles.Parsing
 {
     internal static partial class VehicleTsvParser
     {

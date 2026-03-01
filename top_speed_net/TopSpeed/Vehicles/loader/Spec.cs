@@ -1,11 +1,12 @@
 using TopSpeed.Data;
 using TopSpeed.Tracks;
+using TopSpeed.Vehicles.Parsing;
 
-namespace TopSpeed.Vehicles
+namespace TopSpeed.Vehicles.Loader
 {
-    internal static partial class VehicleLoader
+    internal static class Spec
     {
-        private sealed class CommonSpec
+        internal sealed class Common
         {
             public float SurfaceTractionFactor { get; set; }
             public float Deceleration { get; set; }
@@ -50,9 +51,9 @@ namespace TopSpeed.Vehicles
             public TransmissionPolicy TransmissionPolicy { get; set; } = TransmissionPolicy.Default;
         }
 
-        private static CommonSpec BuildSpec(VehicleParameters parameters, TrackWeather weather)
+        public static Common FromParameters(VehicleParameters parameters, TrackWeather weather)
         {
-            return new CommonSpec
+            return new Common
             {
                 SurfaceTractionFactor = parameters.SurfaceTractionFactor,
                 Deceleration = parameters.Deceleration,
@@ -98,9 +99,9 @@ namespace TopSpeed.Vehicles
             };
         }
 
-        private static CommonSpec BuildSpec(CustomVehicleTsvData parsed, TrackWeather weather)
+        public static Common FromCustom(CustomVehicleTsvData parsed, TrackWeather weather)
         {
-            return new CommonSpec
+            return new Common
             {
                 SurfaceTractionFactor = parsed.SurfaceTractionFactor,
                 Deceleration = parsed.Deceleration,
@@ -146,7 +147,7 @@ namespace TopSpeed.Vehicles
             };
         }
 
-        private static void ApplyCommon(VehicleDefinition def, CommonSpec spec)
+        public static void Apply(VehicleDefinition def, Common spec)
         {
             def.SurfaceTractionFactor = spec.SurfaceTractionFactor;
             def.Deceleration = spec.Deceleration;

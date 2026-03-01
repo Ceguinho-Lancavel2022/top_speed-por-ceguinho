@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
+using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
 using TopSpeed.Input;
 
@@ -54,7 +55,43 @@ namespace TopSpeed.Core.Settings
             {
                 document = ReadDocument(_settingsPath);
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                issues.Add(new SettingsIssue(
+                    SettingsIssueSeverity.Error,
+                    "settings",
+                    BuildSettingsParseErrorMessage(_settingsPath, ex)));
+                Save(settings);
+                return new SettingsLoadResult(settings, new ReadOnlyCollection<SettingsIssue>(issues));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                issues.Add(new SettingsIssue(
+                    SettingsIssueSeverity.Error,
+                    "settings",
+                    BuildSettingsParseErrorMessage(_settingsPath, ex)));
+                Save(settings);
+                return new SettingsLoadResult(settings, new ReadOnlyCollection<SettingsIssue>(issues));
+            }
+            catch (SerializationException ex)
+            {
+                issues.Add(new SettingsIssue(
+                    SettingsIssueSeverity.Error,
+                    "settings",
+                    BuildSettingsParseErrorMessage(_settingsPath, ex)));
+                Save(settings);
+                return new SettingsLoadResult(settings, new ReadOnlyCollection<SettingsIssue>(issues));
+            }
+            catch (InvalidDataException ex)
+            {
+                issues.Add(new SettingsIssue(
+                    SettingsIssueSeverity.Error,
+                    "settings",
+                    BuildSettingsParseErrorMessage(_settingsPath, ex)));
+                Save(settings);
+                return new SettingsLoadResult(settings, new ReadOnlyCollection<SettingsIssue>(issues));
+            }
+            catch (FormatException ex)
             {
                 issues.Add(new SettingsIssue(
                     SettingsIssueSeverity.Error,
@@ -106,7 +143,19 @@ namespace TopSpeed.Core.Settings
             {
                 WriteDocument(_settingsPath, document);
             }
-            catch
+            catch (IOException)
+            {
+                // Ignore settings write failures.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Ignore settings write failures.
+            }
+            catch (SerializationException)
+            {
+                // Ignore settings write failures.
+            }
+            catch (NotSupportedException)
             {
                 // Ignore settings write failures.
             }
@@ -133,7 +182,19 @@ namespace TopSpeed.Core.Settings
             {
                 json = File.ReadAllText(settingsPath);
             }
-            catch
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+            catch (NotSupportedException)
             {
                 return false;
             }

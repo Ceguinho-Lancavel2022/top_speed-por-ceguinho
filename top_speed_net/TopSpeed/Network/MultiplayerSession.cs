@@ -218,7 +218,11 @@ namespace TopSpeed.Network
             {
                 _manager.PollEvents();
             }
-            catch
+            catch (ObjectDisposedException)
+            {
+                // Keep session alive even if the transport reports a transient poll error.
+            }
+            catch (InvalidOperationException)
             {
                 // Keep session alive even if the transport reports a transient poll error.
             }
@@ -244,7 +248,15 @@ namespace TopSpeed.Network
                 {
                     sink(packet);
                 }
-                catch
+                catch (ObjectDisposedException)
+                {
+                    // Keep main-thread packet handling resilient against callback failures.
+                }
+                catch (InvalidOperationException)
+                {
+                    // Keep main-thread packet handling resilient against callback failures.
+                }
+                catch (ArgumentException)
                 {
                     // Keep main-thread packet handling resilient against callback failures.
                 }

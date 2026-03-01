@@ -81,7 +81,31 @@ namespace TopSpeed.Core
             {
                 return ParseCore(file);
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                AddFileIssue(file);
+                AddIssue(ex.Message);
+                return (false, default!);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                AddFileIssue(file);
+                AddIssue(ex.Message);
+                return (false, default!);
+            }
+            catch (InvalidDataException ex)
+            {
+                AddFileIssue(file);
+                AddIssue(ex.Message);
+                return (false, default!);
+            }
+            catch (FormatException ex)
+            {
+                AddFileIssue(file);
+                AddIssue(ex.Message);
+                return (false, default!);
+            }
+            catch (ArgumentException ex)
             {
                 AddFileIssue(file);
                 AddIssue(ex.Message);

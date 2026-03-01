@@ -4,18 +4,20 @@ using System.IO;
 using TopSpeed.Data;
 using TopSpeed.Protocol;
 
-namespace TopSpeed.Vehicles
+namespace TopSpeed.Vehicles.Loader
 {
-    internal static partial class VehicleLoader
+    internal static class Sound
     {
-        private static string? ResolveOfficialFallback(string root, string vehicleFolder, VehicleAction action)
+        private const string BuiltinPrefix = "builtin";
+        private const string DefaultVehicleFolder = "default";
+
+        public static string? ResolveOfficialFallback(string root, string vehicleFolder, VehicleAction action)
         {
             var fileName = GetDefaultFileName(action);
             var primaryPath = Path.GetFullPath(Path.Combine(root, vehicleFolder, fileName));
             if (File.Exists(primaryPath))
                 return primaryPath;
 
-            // Only fallback to 'default' folder for non-optional sounds.
             if (action == VehicleAction.Backfire || action == VehicleAction.Throttle)
                 return null;
 
@@ -26,22 +28,7 @@ namespace TopSpeed.Vehicles
             return null;
         }
 
-        private static string GetDefaultFileName(VehicleAction action)
-        {
-            switch (action)
-            {
-                case VehicleAction.Engine: return "engine.wav";
-                case VehicleAction.Start: return "start.wav";
-                case VehicleAction.Horn: return "horn.wav";
-                case VehicleAction.Throttle: return "throttle.wav";
-                case VehicleAction.Crash: return "crash.wav";
-                case VehicleAction.Brake: return "brake.wav";
-                case VehicleAction.Backfire: return "backfire.wav";
-                default: throw new ArgumentOutOfRangeException(nameof(action));
-            }
-        }
-
-        private static string[] ResolveCustomVehicleSoundList(
+        public static string[] ResolveCustomList(
             IReadOnlyList<string> values,
             string builtinRoot,
             string vehicleRoot,
@@ -50,7 +37,7 @@ namespace TopSpeed.Vehicles
             var result = new List<string>();
             for (var i = 0; i < values.Count; i++)
             {
-                var resolved = ResolveCustomVehicleSound(values[i], builtinRoot, vehicleRoot, builtinAction);
+                var resolved = ResolveCustom(values[i], builtinRoot, vehicleRoot, builtinAction);
                 if (!string.IsNullOrWhiteSpace(resolved))
                     result.Add(resolved!);
             }
@@ -61,7 +48,7 @@ namespace TopSpeed.Vehicles
             return result.ToArray();
         }
 
-        private static string ResolveCustomVehicleSound(
+        public static string ResolveCustom(
             string value,
             string builtinRoot,
             string vehicleRoot,
@@ -73,7 +60,7 @@ namespace TopSpeed.Vehicles
             var trimmed = value.Trim();
             if (trimmed.StartsWith(BuiltinPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                var fromBuiltin = ResolveCustomBuiltinSound(trimmed, builtinRoot, builtinAction);
+                var fromBuiltin = ResolveCustomBuiltin(trimmed, builtinRoot, builtinAction);
                 if (!string.IsNullOrWhiteSpace(fromBuiltin))
                     return fromBuiltin!;
                 throw new InvalidDataException($"Builtin sound reference '{trimmed}' for {builtinAction} could not be resolved.");
@@ -99,6 +86,21 @@ namespace TopSpeed.Vehicles
             return candidate;
         }
 
+        private static string GetDefaultFileName(VehicleAction action)
+        {
+            switch (action)
+            {
+                case VehicleAction.Engine: return "engine.wav";
+                case VehicleAction.Start: return "start.wav";
+                case VehicleAction.Horn: return "horn.wav";
+                case VehicleAction.Throttle: return "throttle.wav";
+                case VehicleAction.Crash: return "crash.wav";
+                case VehicleAction.Brake: return "brake.wav";
+                case VehicleAction.Backfire: return "backfire.wav";
+                default: throw new ArgumentOutOfRangeException(nameof(action));
+            }
+        }
+
         private static bool ContainsTraversal(string path)
         {
             var parts = path.Split(Path.DirectorySeparatorChar);
@@ -108,6 +110,7 @@ namespace TopSpeed.Vehicles
                 if (segment == "." || segment == "..")
                     return true;
             }
+
             return false;
         }
 
@@ -119,7 +122,7 @@ namespace TopSpeed.Vehicles
             return candidate.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
         }
 
-        private static string? ResolveCustomBuiltinSound(string token, string builtinRoot, VehicleAction action)
+        private static string? ResolveCustomBuiltin(string token, string builtinRoot, VehicleAction action)
         {
             if (!int.TryParse(token.Substring(BuiltinPrefix.Length), out var index))
                 return null;
