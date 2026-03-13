@@ -21,6 +21,8 @@ namespace TopSpeed.Core.Multiplayer
             _state.Rooms.WasHost = false;
             _state.Rooms.LastRoomId = 0;
             _state.Rooms.IsRoomBrowserOpenPending = false;
+            _state.Rooms.OnlinePlayers = new OnlineListInfo();
+            _state.Rooms.IsOnlinePlayersOpenPending = false;
             ResetCreateRoomDraft();
             _state.Rooms.PendingLoadoutVehicleIndex = 0;
             _state.Rooms.RoomOptionsDraftActive = false;
@@ -42,6 +44,7 @@ namespace TopSpeed.Core.Multiplayer
             RebuildRoomControlsMenu();
             RebuildRoomOptionsMenu();
             RebuildRoomPlayersMenu();
+            RebuildOnlinePlayersMenu();
             RebuildLoadoutVehicleMenu();
             RebuildLoadoutTransmissionMenu();
             UpdateRoomBrowserMenu();

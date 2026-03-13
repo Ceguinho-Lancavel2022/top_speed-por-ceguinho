@@ -15,6 +15,7 @@ namespace TopSpeed.Core.Multiplayer
             {
                 new MenuItem("Create a new game room", MenuAction.None, onActivate: OpenCreateRoomMenu),
                 new MenuItem("Join an existing game", MenuAction.None, onActivate: OpenRoomBrowser),
+                new MenuItem("Who is online", MenuAction.None, onActivate: OpenOnlinePlayersMenu),
                 new MenuItem("Options", MenuAction.None, nextMenuId: "options_main"),
                 new MenuItem("Disconnect from server", MenuAction.None, flags: MenuItemFlags.Close)
             };

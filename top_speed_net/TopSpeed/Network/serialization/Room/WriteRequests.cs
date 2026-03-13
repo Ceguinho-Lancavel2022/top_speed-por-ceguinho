@@ -16,6 +16,11 @@ namespace TopSpeed.Network
             return WriteGeneral(Command.RoomStateRequest);
         }
 
+        public static byte[] WriteOnlinePlayersRequest()
+        {
+            return WriteGeneral(Command.OnlinePlayersRequest);
+        }
+
         public static byte[] WriteRoomGetRequest(uint roomId)
         {
             var buffer = WritePacketHeader(Command.RoomGetRequest, 4);

@@ -235,6 +235,20 @@ namespace TopSpeed.Protocol
         public string SubjectPlayerName = string.Empty;
     }
 
+    public sealed class PacketOnlinePlayer
+    {
+        public uint PlayerId;
+        public byte PlayerNumber;
+        public OnlinePresenceState PresenceState;
+        public string Name = string.Empty;
+        public string RoomName = string.Empty;
+    }
+
+    public sealed class PacketOnlinePlayers
+    {
+        public PacketOnlinePlayer[] Players = Array.Empty<PacketOnlinePlayer>();
+    }
+
     public sealed class PacketProtocolMessage
     {
         public ProtocolMessageCode Code;

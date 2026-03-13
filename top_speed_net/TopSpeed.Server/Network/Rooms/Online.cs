@@ -1,0 +1,91 @@
+using System;
+using System.Linq;
+using TopSpeed.Protocol;
+using TopSpeed.Server.Protocol;
+
+namespace TopSpeed.Server.Network
+{
+    internal sealed partial class RaceServer
+    {
+        private const string MainRoomName = "main room";
+
+        private void HandleOnlinePlayersRequest(PlayerConnection requester)
+        {
+            var players = _players.Values
+                .Where(IsPlayerOnlineVisible)
+                .OrderBy(GetOnlineDisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.PlayerNumber)
+                .Take(ProtocolConstants.MaxRoomListEntries)
+                .Select(BuildOnlinePlayerPacket)
+                .ToArray();
+
+            var payload = new PacketOnlinePlayers
+            {
+                Players = players
+            };
+            SendStream(requester, PacketSerializer.WriteOnlinePlayers(payload), PacketStream.Query);
+        }
+
+        private bool IsPlayerOnlineVisible(PlayerConnection player)
+        {
+            return player != null && player.Handshake == HandshakeState.Complete;
+        }
+
+        private PacketOnlinePlayer BuildOnlinePlayerPacket(PlayerConnection player)
+        {
+            var room = ResolvePlayerRoom(player);
+            return new PacketOnlinePlayer
+            {
+                PlayerId = player.Id,
+                PlayerNumber = player.PlayerNumber,
+                Name = GetOnlineDisplayName(player),
+                PresenceState = ResolveOnlinePresenceState(player, room),
+                RoomName = ResolveOnlineRoomName(room)
+            };
+        }
+
+        private RaceRoom? ResolvePlayerRoom(PlayerConnection player)
+        {
+            if (!player.RoomId.HasValue)
+                return null;
+            return _rooms.TryGetValue(player.RoomId.Value, out var room) ? room : null;
+        }
+
+        private OnlinePresenceState ResolveOnlinePresenceState(PlayerConnection player, RaceRoom? room)
+        {
+            if (room != null
+                && room.RaceStarted
+                && (player.State == PlayerState.AwaitingStart || player.State == PlayerState.Racing || player.State == PlayerState.Finished))
+            {
+                return OnlinePresenceState.Racing;
+            }
+
+            if (room != null
+                && room.PreparingRace
+                && room.PlayerIds.Contains(player.Id)
+                && !room.PendingLoadouts.ContainsKey(player.Id)
+                && !room.PrepareSkips.Contains(player.Id))
+            {
+                return OnlinePresenceState.PreparingToRace;
+            }
+
+            return OnlinePresenceState.Available;
+        }
+
+        private static string ResolveOnlineRoomName(RaceRoom? room)
+        {
+            if (room == null)
+                return MainRoomName;
+            if (!string.IsNullOrWhiteSpace(room.Name))
+                return room.Name;
+            return $"room {room.Id}";
+        }
+
+        private static string GetOnlineDisplayName(PlayerConnection player)
+        {
+            if (!string.IsNullOrWhiteSpace(player.Name))
+                return player.Name;
+            return $"Player {player.PlayerNumber + 1}";
+        }
+    }
+}

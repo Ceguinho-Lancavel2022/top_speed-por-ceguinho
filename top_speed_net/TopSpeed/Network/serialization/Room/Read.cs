@@ -165,5 +165,38 @@ namespace TopSpeed.Network
             packet.Players = players;
             return true;
         }
+
+        public static bool TryReadOnlinePlayers(byte[] data, out PacketOnlinePlayers packet)
+        {
+            packet = new PacketOnlinePlayers();
+            if (data.Length < 2 + 1)
+                return false;
+            if (data[0] != ProtocolConstants.Version || data[1] != (byte)Command.OnlinePlayers)
+                return false;
+
+            var reader = new PacketReader(data);
+            reader.ReadByte();
+            reader.ReadByte();
+            var count = reader.ReadByte();
+            var stride = 4 + 1 + 1 + ProtocolConstants.MaxPlayerNameLength + ProtocolConstants.MaxRoomNameLength;
+            var available = Math.Max(0, (data.Length - 3) / stride);
+            var actualCount = Math.Min(count, available);
+            var players = new PacketOnlinePlayer[actualCount];
+
+            for (var i = 0; i < actualCount; i++)
+            {
+                players[i] = new PacketOnlinePlayer
+                {
+                    PlayerId = reader.ReadUInt32(),
+                    PlayerNumber = reader.ReadByte(),
+                    PresenceState = (OnlinePresenceState)reader.ReadByte(),
+                    Name = reader.ReadFixedString(ProtocolConstants.MaxPlayerNameLength),
+                    RoomName = reader.ReadFixedString(ProtocolConstants.MaxRoomNameLength)
+                };
+            }
+
+            packet.Players = players;
+            return true;
+        }
     }
 }

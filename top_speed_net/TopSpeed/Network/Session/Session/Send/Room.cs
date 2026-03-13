@@ -19,6 +19,11 @@ namespace TopSpeed.Network
             return _sender.TrySend(ClientPacketSerializer.WriteRoomStateRequest(), PacketStream.Query);
         }
 
+        public bool SendOnlinePlayersRequest()
+        {
+            return _sender.TrySend(ClientPacketSerializer.WriteOnlinePlayersRequest(), PacketStream.Query);
+        }
+
         public bool SendRoomGetRequest(uint roomId)
         {
             return _sender.TrySend(ClientPacketSerializer.WriteRoomGetRequest(roomId), PacketStream.Query);

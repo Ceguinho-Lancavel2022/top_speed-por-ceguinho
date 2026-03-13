@@ -158,5 +158,28 @@ namespace TopSpeed.Server.Protocol
             return buffer;
         }
 
+        public static byte[] WriteOnlinePlayers(PacketOnlinePlayers packet)
+        {
+            var count = Math.Min(packet.Players.Length, ProtocolConstants.MaxRoomListEntries);
+            var payload = 1 + (count * (4 + 1 + 1 + ProtocolConstants.MaxPlayerNameLength + ProtocolConstants.MaxRoomNameLength));
+            var buffer = WritePacketHeader(Command.OnlinePlayers, payload);
+            var writer = new PacketWriter(buffer);
+            writer.WriteByte(ProtocolConstants.Version);
+            writer.WriteByte((byte)Command.OnlinePlayers);
+            writer.WriteByte((byte)count);
+
+            for (var i = 0; i < count; i++)
+            {
+                var player = packet.Players[i];
+                writer.WriteUInt32(player.PlayerId);
+                writer.WriteByte(player.PlayerNumber);
+                writer.WriteByte((byte)player.PresenceState);
+                writer.WriteFixedString(player.Name ?? string.Empty, ProtocolConstants.MaxPlayerNameLength);
+                writer.WriteFixedString(player.RoomName ?? string.Empty, ProtocolConstants.MaxRoomNameLength);
+            }
+
+            return buffer;
+        }
+
     }
 }

@@ -10,6 +10,7 @@ namespace TopSpeed.Server.Network
         {
             _pktReg.Add("room", Command.RoomListRequest, (player, _, _) => SendRoomList(player));
             _pktReg.Add("room", Command.RoomStateRequest, (player, _, _) => HandleRoomStateRequest(player));
+            _pktReg.Add("room", Command.OnlinePlayersRequest, (player, _, _) => HandleOnlinePlayersRequest(player));
             _pktReg.Add("room", Command.RoomGetRequest, (player, payload, endPoint) =>
             {
                 if (PacketSerializer.TryReadRoomGetRequest(payload, out var get))

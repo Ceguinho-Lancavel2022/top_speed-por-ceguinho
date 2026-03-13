@@ -19,6 +19,7 @@ namespace TopSpeed.Core.Multiplayer
             MultiplayerMenuKeys.CreateRoom,
             MultiplayerMenuKeys.RoomControls,
             MultiplayerMenuKeys.RoomPlayers,
+            MultiplayerMenuKeys.OnlinePlayers,
             MultiplayerMenuKeys.RoomOptions,
             MultiplayerMenuKeys.RoomTrackType,
             MultiplayerMenuKeys.RoomTrackRace,

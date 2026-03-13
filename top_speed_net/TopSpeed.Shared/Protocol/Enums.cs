@@ -26,6 +26,13 @@ namespace TopSpeed.Protocol
         Finished = 4
     }
 
+    public enum OnlinePresenceState : byte
+    {
+        Available = 0,
+        PreparingToRace = 1,
+        Racing = 2
+    }
+
     public enum VehicleAction : byte
     {
         Engine = 0,
@@ -94,7 +101,9 @@ namespace TopSpeed.Protocol
         PlayerLiveStart = 46,
         PlayerLiveFrame = 47,
         PlayerLiveStop = 48,
-        RoomPlayerWithdraw = 49
+        RoomPlayerWithdraw = 49,
+        OnlinePlayersRequest = 50,
+        OnlinePlayers = 51
     }
 
     public enum ProtocolMessageCode : byte

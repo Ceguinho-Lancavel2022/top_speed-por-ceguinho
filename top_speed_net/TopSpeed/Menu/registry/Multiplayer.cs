@@ -109,6 +109,16 @@ namespace TopSpeed.Menu
             return _menu.CreateMenu("multiplayer_room_players", items, "Players in room");
         }
 
+        private MenuScreen BuildMultiplayerOnlinePlayersMenu()
+        {
+            var items = new List<MenuItem>
+            {
+                new MenuItem("No players are currently connected.", MenuAction.None),
+                BackItem()
+            };
+            return _menu.CreateMenu("multiplayer_online_players", items, "Online players");
+        }
+
         private MenuScreen BuildMultiplayerRoomOptionsMenu()
         {
             var items = new List<MenuItem>

@@ -11,6 +11,8 @@ namespace TopSpeed.Core.Multiplayer
         public uint LastRoomId;
         public bool WasHost;
         public bool IsRoomBrowserOpenPending;
+        public OnlineListInfo OnlinePlayers = new OnlineListInfo();
+        public bool IsOnlinePlayersOpenPending;
         public GameRoomType CreateRoomType = GameRoomType.BotsRace;
         public byte CreateRoomPlayersToStart = 2;
         public string CreateRoomName = string.Empty;

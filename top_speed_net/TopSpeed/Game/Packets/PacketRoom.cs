@@ -14,6 +14,7 @@ namespace TopSpeed.Game
             _mpPktReg.Add("room", Command.RoomList, HandleMpRoomListPacket);
             _mpPktReg.Add("room", Command.RoomState, HandleMpRoomStatePacket);
             _mpPktReg.Add("room", Command.RoomEvent, HandleMpRoomEventPacket);
+            _mpPktReg.Add("room", Command.OnlinePlayers, HandleMpOnlinePlayersPacket);
         }
 
         private bool HandleMpPlayerJoinedPacket(IncomingPacket packet)
@@ -70,6 +71,13 @@ namespace TopSpeed.Game
         {
             if (ClientPacketSerializer.TryReadRoomEvent(packet.Payload, out var roomEvent))
                 _multiplayerCoordinator.HandleRoomEvent(roomEvent);
+            return true;
+        }
+
+        private bool HandleMpOnlinePlayersPacket(IncomingPacket packet)
+        {
+            if (ClientPacketSerializer.TryReadOnlinePlayers(packet.Payload, out var onlinePlayers))
+                _multiplayerCoordinator.HandleOnlinePlayers(onlinePlayers);
             return true;
         }
     }
