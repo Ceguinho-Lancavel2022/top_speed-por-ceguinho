@@ -1,0 +1,28 @@
+using System;
+using SharpDX.DirectInput;
+
+namespace TopSpeed.Shortcuts
+{
+    internal readonly struct ShortcutBinding
+    {
+        public ShortcutBinding(string actionId, string displayName, string description, Key key)
+        {
+            if (string.IsNullOrWhiteSpace(actionId))
+                throw new ArgumentException("Shortcut action id is required.", nameof(actionId));
+            if (string.IsNullOrWhiteSpace(displayName))
+                throw new ArgumentException("Shortcut display name is required.", nameof(displayName));
+            if (string.IsNullOrWhiteSpace(description))
+                throw new ArgumentException("Shortcut description is required.", nameof(description));
+
+            ActionId = actionId.Trim();
+            DisplayName = displayName.Trim();
+            Description = description.Trim();
+            Key = key;
+        }
+
+        public string ActionId { get; }
+        public string DisplayName { get; }
+        public string Description { get; }
+        public Key Key { get; }
+    }
+}

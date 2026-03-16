@@ -7,7 +7,6 @@ namespace TopSpeed.Menu
     internal sealed class MenuView
     {
         private readonly List<MenuItem> _items = new List<MenuItem>();
-        private readonly List<MenuShortcut> _shortcuts = new List<MenuShortcut>();
         private int _savedSelection = -1;
 
         public MenuView(
@@ -16,8 +15,7 @@ namespace TopSpeed.Menu
             string? title = null,
             Func<string>? titleProvider = null,
             bool preserveSelection = false,
-            SpeechService.SpeakFlag titleSpeakFlag = SpeechService.SpeakFlag.Interruptable,
-            IEnumerable<MenuShortcut>? shortcuts = null)
+            SpeechService.SpeakFlag titleSpeakFlag = SpeechService.SpeakFlag.Interruptable)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("Screen id is required.", nameof(id));
@@ -28,7 +26,6 @@ namespace TopSpeed.Menu
             PreserveSelection = preserveSelection;
             TitleSpeakFlag = titleSpeakFlag;
             ReplaceItems(items);
-            SetShortcuts(shortcuts);
         }
 
         public string Id { get; }
@@ -37,7 +34,6 @@ namespace TopSpeed.Menu
         public bool PreserveSelection { get; set; }
         public SpeechService.SpeakFlag TitleSpeakFlag { get; set; }
         public IReadOnlyList<MenuItem> Items => _items;
-        public IReadOnlyList<MenuShortcut> Shortcuts => _shortcuts;
         public string DisplayTitle => TitleProvider?.Invoke() ?? Title;
 
         internal int SavedSelection
@@ -60,13 +56,5 @@ namespace TopSpeed.Menu
             }
         }
 
-        public void SetShortcuts(IEnumerable<MenuShortcut>? shortcuts)
-        {
-            _shortcuts.Clear();
-            if (shortcuts == null)
-                return;
-
-            _shortcuts.AddRange(shortcuts);
-        }
     }
 }

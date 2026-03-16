@@ -8,6 +8,7 @@ using TopSpeed.Data;
 using TopSpeed.Input;
 using TopSpeed.Menu;
 using TopSpeed.Network;
+using TopSpeed.Shortcuts;
 using TopSpeed.Speech;
 using TopSpeed.Windowing;
 
@@ -44,6 +45,7 @@ namespace TopSpeed.Game
             _selection = new RaceSelection(_setup, _settings);
             _menuRegistry = new MenuRegistry(_menu, _settings, _setup, _raceInput, _selection, this, this, this, this, this, this);
             _inputMapping = new InputMappingHandler(input, _raceInput, _settings, speech, SaveSettings);
+            _shortcutMapping = new ShortcutMappingHandler(input, _menu, _settings, speech, SaveSettings);
             _updateConfig = UpdateConfig.Default;
             _updateService = new UpdateService(_updateConfig);
             _multiplayerCoordinator = new MultiplayerCoordinator(
@@ -66,6 +68,7 @@ namespace TopSpeed.Game
             RegisterMultiplayerPacketHandlers();
             _menuRegistry.RegisterAll();
             _multiplayerCoordinator.ConfigureMenuCloseHandlers();
+            ApplySavedShortcutBindings();
             _settings.AudioVolumes ??= new AudioVolumeSettings();
             _settings.SyncAudioCategoriesFromMusicVolume();
             ApplyAudioSettings();

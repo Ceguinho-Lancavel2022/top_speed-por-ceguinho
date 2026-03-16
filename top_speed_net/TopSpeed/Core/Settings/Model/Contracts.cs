@@ -95,8 +95,28 @@ namespace TopSpeed.Core.Settings
         [DataMember(Name = "keyboard")]
         public SettingsKeyboardDocument? Keyboard { get; set; }
 
+        [DataMember(Name = "menuShortcuts")]
+        public SettingsMenuShortcutsDocument? MenuShortcuts { get; set; }
+
         [DataMember(Name = "joystick")]
         public SettingsJoystickDocument? Joystick { get; set; }
+    }
+
+    [DataContract]
+    internal sealed class SettingsMenuShortcutsDocument
+    {
+        [DataMember(Name = "bindings")]
+        public List<SettingsMenuShortcutBindingDocument>? Bindings { get; set; }
+    }
+
+    [DataContract]
+    internal sealed class SettingsMenuShortcutBindingDocument
+    {
+        [DataMember(Name = "id")]
+        public string? Id { get; set; }
+
+        [DataMember(Name = "key")]
+        public int? Key { get; set; }
     }
 
     [DataContract]

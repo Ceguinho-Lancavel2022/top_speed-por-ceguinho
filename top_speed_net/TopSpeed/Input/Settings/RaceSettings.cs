@@ -84,6 +84,7 @@ namespace TopSpeed.Input
         public bool AutoCheckUpdates { get; set; }
         public string RadioLastFolder { get; set; } = string.Empty;
         public bool RadioShuffle { get; set; }
+        public Dictionary<string, Key> ShortcutKeyBindings { get; set; } = new Dictionary<string, Key>(StringComparer.Ordinal);
         public List<SavedServerEntry> SavedServers { get; set; } = new List<SavedServerEntry>();
 
         public bool UseJoystick
@@ -166,6 +167,7 @@ namespace TopSpeed.Input
             AutoCheckUpdates = true;
             RadioLastFolder = string.Empty;
             RadioShuffle = false;
+            ShortcutKeyBindings = new Dictionary<string, Key>(StringComparer.Ordinal);
             SavedServers = new List<SavedServerEntry>();
         }
 

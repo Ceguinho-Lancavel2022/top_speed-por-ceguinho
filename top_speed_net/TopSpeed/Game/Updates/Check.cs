@@ -104,7 +104,8 @@ namespace TopSpeed.Game
                 || _multiplayerCoordinator.Questions.IsQuestionMenu(_menu.CurrentId)
                 || _choices.IsChoiceMenu(_menu.CurrentId)
                 || _textInputPromptActive
-                || _inputMapping.IsActive)
+                || _inputMapping.IsActive
+                || _shortcutMapping.IsActive)
                 return;
 
             var update = _pendingUpdateInfo;

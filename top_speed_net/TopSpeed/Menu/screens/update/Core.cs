@@ -12,9 +12,6 @@ namespace TopSpeed.Menu
             if (!TryHandlePendingTitle(input))
                 return MenuUpdateResult.None;
 
-            if (TryHandleShortcut(input))
-                return MenuUpdateResult.None;
-
             var state = CaptureInputState(input);
 
             if (input.ShouldIgnoreMenuBack())

@@ -89,6 +89,12 @@ namespace TopSpeed.Game
                     return;
                 }
 
+                if (_game._shortcutMapping.IsActive)
+                {
+                    _game._shortcutMapping.Update();
+                    return;
+                }
+
                 var action = _game._menu.Update(_game._input);
                 _game.HandleMenuAction(action);
             }

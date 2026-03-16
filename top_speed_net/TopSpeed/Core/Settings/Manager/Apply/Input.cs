@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SharpDX.DirectInput;
 using TopSpeed.Input;
 
 namespace TopSpeed.Core.Settings
@@ -17,6 +18,8 @@ namespace TopSpeed.Core.Settings
                 issues.Add(new SettingsIssue(SettingsIssueSeverity.Warning, "input.keyboard", "Keyboard bindings section is missing. Defaults were used for keyboard bindings."));
             else
                 ApplyKeyboard(settings, input.Keyboard, issues);
+
+            ApplyMenuShortcuts(settings, input.MenuShortcuts, issues);
 
             if (input.Joystick == null)
                 issues.Add(new SettingsIssue(SettingsIssueSeverity.Warning, "input.joystick", "Joystick bindings section is missing. Defaults were used for joystick bindings."));
@@ -83,6 +86,42 @@ namespace TopSpeed.Core.Settings
             if (joystick.Center.Slider1.HasValue) center.Slider1 = joystick.Center.Slider1.Value;
             if (joystick.Center.Slider2.HasValue) center.Slider2 = joystick.Center.Slider2.Value;
             settings.JoystickCenter = center;
+        }
+
+        private static void ApplyMenuShortcuts(RaceSettings settings, SettingsMenuShortcutsDocument? menuShortcuts, List<SettingsIssue> issues)
+        {
+            settings.ShortcutKeyBindings = new Dictionary<string, Key>(System.StringComparer.Ordinal);
+            if (menuShortcuts?.Bindings == null)
+                return;
+
+            for (var i = 0; i < menuShortcuts.Bindings.Count; i++)
+            {
+                var binding = menuShortcuts.Bindings[i];
+                if (binding == null || string.IsNullOrWhiteSpace(binding.Id))
+                {
+                    issues.Add(new SettingsIssue(
+                        SettingsIssueSeverity.Warning,
+                        $"input.menuShortcuts.bindings[{i}].id",
+                        "Shortcut binding id is missing and was ignored."));
+                    continue;
+                }
+
+                if (!binding.Key.HasValue)
+                    continue;
+
+                var keyValue = binding.Key.Value;
+                if (!System.Enum.IsDefined(typeof(Key), keyValue) || keyValue < 0)
+                {
+                    issues.Add(new SettingsIssue(
+                        SettingsIssueSeverity.Warning,
+                        $"input.menuShortcuts.bindings[{i}].key",
+                        $"The key input.menuShortcuts.bindings[{i}].key has invalid value {keyValue} and was ignored."));
+                    continue;
+                }
+
+                var actionId = binding.Id!.Trim();
+                settings.ShortcutKeyBindings[actionId] = (Key)keyValue;
+            }
         }
     }
 }

@@ -34,6 +34,7 @@ namespace TopSpeed.Game
         void IMenuSettingsActions.UpdateSetting(Action update) => UpdateSetting(update);
 
         void IMenuMappingActions.BeginMapping(InputMappingMode mode, InputAction action) => _inputMapping.BeginMapping(mode, action);
+        void IMenuMappingActions.BeginShortcutMapping(string groupId, string actionId, string displayName) => _shortcutMapping.BeginMapping(groupId, actionId, displayName);
         string IMenuMappingActions.FormatMappingValue(InputAction action, InputMappingMode mode) => _inputMapping.FormatMappingValue(action, mode);
     }
 }

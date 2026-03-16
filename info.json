@@ -1,8 +1,8 @@
 {
-  "version": "2026.3.16.1",
+  "version": "2026.3.16.2",
   "serverVersion": "2026.3.11.4",
   "changes": [
-    "High-speed steering is now far more controlled, so quick left or right taps no longer cause sudden spin-outs."
+    "Add the ability to remap menu shortcuts, for example those are found in certain menus, such as online mode. You can find all shortcuts in settings, > controls, > map menu shortcuts."
   ],
   "serverChanges": [
     "Added server support for race-preparation withdrawal, allowing a player to skip the current prep round without leaving the room.",

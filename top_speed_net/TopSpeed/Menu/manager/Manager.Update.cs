@@ -1,5 +1,6 @@
 using System;
 using TopSpeed.Input;
+using TopSpeed.Shortcuts;
 
 namespace TopSpeed.Menu
 {
@@ -10,10 +11,10 @@ namespace TopSpeed.Menu
             if (_stack.Count == 0)
                 return MenuAction.None;
 
-            if (TryHandleGlobalShortcuts(input))
+            var current = _stack.Peek();
+            if (TryHandleShortcut(input, current))
                 return MenuAction.None;
 
-            var current = _stack.Peek();
             var result = current.Update(input);
 
             if (result.BackRequested)
@@ -41,26 +42,15 @@ namespace TopSpeed.Menu
             return item.Action;
         }
 
-        private bool TryHandleGlobalShortcuts(IGameInput input)
+        private bool TryHandleShortcut(IGameInput input, MenuScreen current)
         {
-            if (_globalShortcuts.Count == 0)
+            var context = new ShortcutContext(current.Id, current.ActiveViewId);
+            if (!_shortcutCatalog.TryResolveTriggeredAction(input, in context, out var action))
                 return false;
 
-            for (var i = 0; i < _globalShortcuts.Count; i++)
-            {
-                var shortcut = _globalShortcuts[i];
-                if (shortcut == null)
-                    continue;
-                if (!input.WasPressed(shortcut.Key))
-                    continue;
-
-                if (_stack.Count > 0)
-                    _stack.Peek().CancelPendingHint();
-                shortcut.OnTrigger();
-                return true;
-            }
-
-            return false;
+            current.CancelPendingHint();
+            action.Trigger();
+            return true;
         }
 
         private MenuAction HandleClose(MenuScreen current, MenuCloseSource source)

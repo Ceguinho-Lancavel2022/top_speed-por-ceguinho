@@ -22,8 +22,6 @@ namespace TopSpeed.Menu
         private readonly List<MenuItem> _items;
         private readonly List<MenuView> _views;
         private readonly string _defaultViewId;
-        private readonly List<MenuShortcut> _shortcuts;
-        private readonly List<MenuShortcut> _sharedShortcuts;
         private readonly AudioManager _audio;
         private readonly SpeechService _speech;
         private readonly Func<bool> _usageHintsEnabled;
@@ -92,6 +90,7 @@ namespace TopSpeed.Menu
         internal bool IsMusicPlaying => _music != null && _music.IsPlaying;
         internal void CancelPendingHint() => CancelHint();
         internal bool TryHandleClose(MenuCloseSource source) => CloseHandler?.Invoke(source) == true;
+        internal string ActiveViewId => ActiveView.Id;
 
         public MenuScreen(
             string id,
@@ -112,8 +111,6 @@ namespace TopSpeed.Menu
             var defaultView = new MenuView(_defaultViewId, items, title, titleProvider);
             _views.Add(defaultView);
             LoadActiveViewItems();
-            _shortcuts = new List<MenuShortcut>();
-            _sharedShortcuts = new List<MenuShortcut>();
             _defaultMenuSoundRoot = Path.Combine(AssetPaths.SoundsRoot, "En", "Menu");
             _legacySoundRoot = Path.Combine(AssetPaths.SoundsRoot, "Legacy");
             _musicRoot = Path.Combine(AssetPaths.SoundsRoot, "En", "Music");
@@ -121,24 +118,6 @@ namespace TopSpeed.Menu
         }
 
         public string Title => ActiveView.DisplayTitle;
-
-        public void SetShortcuts(IEnumerable<MenuShortcut>? shortcuts)
-        {
-            _shortcuts.Clear();
-            if (shortcuts == null)
-                return;
-
-            _shortcuts.AddRange(shortcuts);
-        }
-
-        public void SetSharedShortcuts(IEnumerable<MenuShortcut>? shortcuts)
-        {
-            _sharedShortcuts.Clear();
-            if (shortcuts == null)
-                return;
-
-            _sharedShortcuts.AddRange(shortcuts);
-        }
 
         public void SetScreens(IEnumerable<MenuView>? screens, string? initialScreenId = null)
         {

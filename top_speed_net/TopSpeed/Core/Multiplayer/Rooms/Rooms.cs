@@ -11,8 +11,9 @@ namespace TopSpeed.Core.Multiplayer
         private const string MultiplayerPingShortcutActionId = "multiplayer_ping";
         private const string MultiplayerChatShortcutActionId = "multiplayer_chat";
         private const string MultiplayerRoomChatShortcutActionId = "multiplayer_room_chat";
+        private const string MultiplayerShortcutScopeId = "multiplayer";
 
-        private static readonly string[] MultiplayerPingShortcutMenus =
+        private static readonly string[] MultiplayerScopeMenus =
         {
             MultiplayerMenuKeys.Lobby,
             MultiplayerMenuKeys.RoomBrowser,
@@ -28,18 +29,6 @@ namespace TopSpeed.Core.Multiplayer
             MultiplayerMenuKeys.LoadoutTransmission
         };
 
-        private static readonly string[] MultiplayerRoomShortcutMenus =
-        {
-            MultiplayerMenuKeys.RoomControls,
-            MultiplayerMenuKeys.RoomPlayers,
-            MultiplayerMenuKeys.RoomOptions,
-            MultiplayerMenuKeys.RoomTrackType,
-            MultiplayerMenuKeys.RoomTrackRace,
-            MultiplayerMenuKeys.RoomTrackAdventure,
-            MultiplayerMenuKeys.LoadoutVehicle,
-            MultiplayerMenuKeys.LoadoutTransmission
-        };
-
         public void ConfigureMenuCloseHandlers()
         {
             _roomsFlow.ConfigureMenuCloseHandlers();
@@ -47,28 +36,43 @@ namespace TopSpeed.Core.Multiplayer
 
         internal void ConfigureMenuCloseHandlersCore()
         {
-            _menu.RegisterSharedShortcutAction(
+            _menu.RegisterShortcutAction(
                 MultiplayerPingShortcutActionId,
-                new MenuShortcut(SharpDX.DirectInput.Key.F1, CheckCurrentPing));
-            _menu.RegisterSharedShortcutAction(
+                "Check ping",
+                "Speaks your current ping while you are in multiplayer menus.",
+                SharpDX.DirectInput.Key.F1,
+                CheckCurrentPing);
+
+            _menu.RegisterShortcutAction(
                 MultiplayerChatShortcutActionId,
-                new MenuShortcut(SharpDX.DirectInput.Key.Slash, OpenGlobalChatInput));
-            _menu.RegisterSharedShortcutAction(
+                "Open global chat",
+                "Opens chat input for the global multiplayer lobby chat.",
+                SharpDX.DirectInput.Key.Slash,
+                OpenGlobalChatInput);
+
+            _menu.RegisterShortcutAction(
                 MultiplayerRoomChatShortcutActionId,
-                new MenuShortcut(SharpDX.DirectInput.Key.Backslash, OpenRoomChatInput));
+                "Open room chat",
+                "Opens chat input for the current room chat when you are inside a room.",
+                SharpDX.DirectInput.Key.Backslash,
+                OpenRoomChatInput,
+                () => IsInRoomCore);
 
-            for (var i = 0; i < MultiplayerPingShortcutMenus.Length; i++)
-            {
-                _menu.SetSharedShortcutActions(
-                    MultiplayerPingShortcutMenus[i],
-                    new[] { MultiplayerPingShortcutActionId, MultiplayerChatShortcutActionId });
-            }
+            _menu.SetScopeShortcutActions(
+                MultiplayerShortcutScopeId,
+                new[]
+                {
+                    MultiplayerPingShortcutActionId,
+                    MultiplayerChatShortcutActionId,
+                    MultiplayerRoomChatShortcutActionId
+                },
+                "Multiplayer shortcuts");
 
-            for (var i = 0; i < MultiplayerRoomShortcutMenus.Length; i++)
+            for (var i = 0; i < MultiplayerScopeMenus.Length; i++)
             {
-                _menu.SetSharedShortcutActions(
-                    MultiplayerRoomShortcutMenus[i],
-                    new[] { MultiplayerPingShortcutActionId, MultiplayerChatShortcutActionId, MultiplayerRoomChatShortcutActionId });
+                _menu.SetMenuShortcutScopes(
+                    MultiplayerScopeMenus[i],
+                    new[] { MultiplayerShortcutScopeId });
             }
 
             _menu.SetCloseHandler(MultiplayerMenuKeys.Lobby, _ =>

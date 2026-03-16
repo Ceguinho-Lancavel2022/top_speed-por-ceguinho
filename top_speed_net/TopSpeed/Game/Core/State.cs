@@ -15,6 +15,7 @@ using TopSpeed.Menu;
 using TopSpeed.Network;
 using TopSpeed.Protocol;
 using TopSpeed.Race;
+using TopSpeed.Shortcuts;
 using TopSpeed.Speech;
 using TopSpeed.Windowing;
 using CoreRaceMode = TopSpeed.Core.RaceMode;
@@ -57,6 +58,7 @@ namespace TopSpeed.Game
         private readonly ConcurrentQueue<QueuedIncomingPacket> _queuedMultiplayerPackets;
         private MultiplayerSession? _session;
         private readonly InputMappingHandler _inputMapping;
+        private readonly ShortcutMappingHandler _shortcutMapping;
         private LogoScreen? _logo;
         private AppState _state;
         private AppState _pausedState;

@@ -8,6 +8,9 @@ namespace TopSpeed.Menu
 {
     internal sealed partial class MenuRegistry
     {
+        private const string PreviousChatCategoryShortcutActionId = "chat_prev_category";
+        private const string NextChatCategoryShortcutActionId = "chat_next_category";
+
         private readonly MenuManager _menu;
         private readonly RaceSettings _settings;
         private readonly RaceSetup _setup;
@@ -53,15 +56,11 @@ namespace TopSpeed.Menu
                 title: "History",
                 preserveSelection: true,
                 titleSpeakFlag: TopSpeed.Speech.SpeechService.SpeakFlag.None);
-            _sharedLobbyChatScreen.SetShortcuts(new[]
-            {
-                new MenuShortcut(Key.Left, _server.PreviousChatCategory),
-                new MenuShortcut(Key.Right, _server.NextChatCategory)
-            });
         }
 
         public void RegisterAll()
         {
+            RegisterSharedLobbyChatShortcuts();
             RegisterMainMenu();
 
             _menu.Register(BuildMultiplayerMenu());
@@ -107,9 +106,31 @@ namespace TopSpeed.Menu
             _menu.Register(BuildOptionsControlsDeviceMenu());
             _menu.Register(BuildOptionsControlsKeyboardMenu());
             _menu.Register(BuildOptionsControlsJoystickMenu());
+            _menu.Register(BuildOptionsControlsShortcutGroupsMenu());
+            _menu.Register(BuildOptionsControlsShortcutBindingsMenu());
             _menu.Register(BuildOptionsRaceSettingsMenu());
             _menu.Register(BuildOptionsRestoreMenu());
             _menu.Register(BuildOptionsServerSettingsMenu());
+        }
+
+        private void RegisterSharedLobbyChatShortcuts()
+        {
+            _menu.RegisterShortcutAction(
+                PreviousChatCategoryShortcutActionId,
+                "Previous chat category",
+                "Switches chat history to the previous category in the shared lobby chat view.",
+                Key.Left,
+                _server.PreviousChatCategory);
+            _menu.RegisterShortcutAction(
+                NextChatCategoryShortcutActionId,
+                "Next chat category",
+                "Switches chat history to the next category in the shared lobby chat view.",
+                Key.Right,
+                _server.NextChatCategory);
+            _menu.SetViewShortcutActions(
+                _sharedLobbyChatScreen.Id,
+                new[] { PreviousChatCategoryShortcutActionId, NextChatCategoryShortcutActionId },
+                "Shared lobby chat");
         }
 
         private void RegisterMainMenu()

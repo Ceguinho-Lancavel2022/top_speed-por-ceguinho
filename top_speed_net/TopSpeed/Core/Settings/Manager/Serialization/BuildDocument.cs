@@ -58,6 +58,7 @@ namespace TopSpeed.Core.Settings
                         TrackName = (int)settings.KeyTrackName,
                         Pause = (int)settings.KeyPause
                     },
+                    MenuShortcuts = BuildMenuShortcuts(settings.ShortcutKeyBindings),
                     Joystick = new SettingsJoystickDocument
                     {
                         Left = (int)settings.JoystickLeft,
@@ -133,6 +134,31 @@ namespace TopSpeed.Core.Settings
                     LastFolder = settings.RadioLastFolder,
                     ShuffleEnabled = settings.RadioShuffle
                 }
+            };
+        }
+
+        private static SettingsMenuShortcutsDocument BuildMenuShortcuts(Dictionary<string, SharpDX.DirectInput.Key>? shortcuts)
+        {
+            var bindings = new List<SettingsMenuShortcutBindingDocument>();
+            if (shortcuts != null)
+            {
+                foreach (var pair in shortcuts)
+                {
+                    if (string.IsNullOrWhiteSpace(pair.Key))
+                        continue;
+
+                    bindings.Add(new SettingsMenuShortcutBindingDocument
+                    {
+                        Id = pair.Key,
+                        Key = (int)pair.Value
+                    });
+                }
+            }
+
+            bindings.Sort((left, right) => string.Compare(left.Id, right.Id, StringComparison.Ordinal));
+            return new SettingsMenuShortcutsDocument
+            {
+                Bindings = bindings
             };
         }
 

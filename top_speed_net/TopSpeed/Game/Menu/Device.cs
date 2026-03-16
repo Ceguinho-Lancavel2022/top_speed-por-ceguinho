@@ -9,7 +9,7 @@ namespace TopSpeed.Game
         {
             if (!IsMenuState(_state))
                 return;
-            if (_textInputPromptActive || _inputMapping.IsActive)
+            if (_textInputPromptActive || _inputMapping.IsActive || _shortcutMapping.IsActive)
                 return;
             if (_choices.HasActiveChoiceDialog)
                 return;

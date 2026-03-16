@@ -20,6 +20,7 @@ namespace TopSpeed.Game
             _menu.SetWrapNavigation(_settings.MenuWrapNavigation);
             _menu.SetMenuSoundPreset(_settings.MenuSoundPreset);
             _menu.SetMenuNavigatePanning(_settings.MenuNavigatePanning);
+            _menu.ResetShortcutBindings();
             ApplyAudioSettings();
             SaveSettings();
             _speech.Speak("Defaults restored.");

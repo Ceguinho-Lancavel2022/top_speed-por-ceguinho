@@ -1,0 +1,414 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using SharpDX.DirectInput;
+using TopSpeed.Input;
+
+namespace TopSpeed.Shortcuts
+{
+    internal sealed class ShortcutCatalog
+    {
+        private const string GlobalGroupId = "global";
+        private const string ScopeGroupPrefix = "scope:";
+        private const string MenuGroupPrefix = "menu:";
+        private const string ViewGroupPrefix = "view:";
+
+        private readonly Dictionary<string, ShortcutAction> _actions =
+            new Dictionary<string, ShortcutAction>(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<string>> _scopeActionIds =
+            new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<string>> _menuActionIds =
+            new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<string>> _viewActionIds =
+            new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<string>> _menuScopeIds =
+            new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _scopeNames =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _menuNames =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _viewNames =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly List<string> _globalActionIds = new List<string>();
+
+        public void RegisterAction(
+            string actionId,
+            string displayName,
+            string description,
+            Key key,
+            Action onTrigger,
+            Func<bool>? canExecute = null)
+        {
+            var action = new ShortcutAction(actionId, displayName, description, key, onTrigger, canExecute);
+            _actions[action.Id] = action;
+        }
+
+        public void SetBinding(string actionId, Key key)
+        {
+            var normalized = NormalizeRequiredId(actionId, nameof(actionId));
+            if (!_actions.TryGetValue(normalized, out var action))
+                throw new InvalidOperationException($"Shortcut action '{normalized}' is not registered.");
+
+            action.SetKey(key);
+        }
+
+        public void SetGlobalActions(IEnumerable<string>? actionIds)
+        {
+            SetActionList(_globalActionIds, actionIds);
+        }
+
+        public void SetScopeActions(string scopeId, IEnumerable<string>? actionIds, string? scopeName = null)
+        {
+            SetActionMap(_scopeActionIds, _scopeNames, scopeId, actionIds, scopeName);
+        }
+
+        public void SetMenuActions(string menuId, IEnumerable<string>? actionIds, string? menuName = null)
+        {
+            SetActionMap(_menuActionIds, _menuNames, menuId, actionIds, menuName);
+        }
+
+        public void SetViewActions(string viewId, IEnumerable<string>? actionIds, string? viewName = null)
+        {
+            SetActionMap(_viewActionIds, _viewNames, viewId, actionIds, viewName);
+        }
+
+        public void SetMenuScopes(string menuId, IEnumerable<string>? scopeIds)
+        {
+            SetIdMap(_menuScopeIds, menuId, scopeIds);
+        }
+
+        public bool TryResolveTriggeredAction(IGameInput input, in ShortcutContext context, out ShortcutAction action)
+        {
+            action = null!;
+            if (input == null)
+                return false;
+
+            var candidateIds = BuildCandidateActionIds(in context);
+            for (var i = 0; i < candidateIds.Count; i++)
+            {
+                var actionId = candidateIds[i];
+                if (!_actions.TryGetValue(actionId, out var candidate))
+                    continue;
+                if (!input.WasPressed(candidate.Key))
+                    continue;
+                if (!candidate.CanExecute())
+                    continue;
+
+                action = candidate;
+                return true;
+            }
+
+            return false;
+        }
+
+        public IReadOnlyList<ShortcutGroup> GetGroups()
+        {
+            var groups = new List<ShortcutGroup>
+            {
+                new ShortcutGroup(GlobalGroupId, "Global shortcuts", isGlobal: true)
+            };
+
+            AddGroups(groups, ScopeGroupPrefix, _scopeActionIds, _scopeNames);
+            AddGroups(groups, MenuGroupPrefix, _menuActionIds, _menuNames);
+            AddGroups(groups, ViewGroupPrefix, _viewActionIds, _viewNames);
+
+            groups.Sort((left, right) =>
+            {
+                if (left.IsGlobal && !right.IsGlobal)
+                    return -1;
+                if (!left.IsGlobal && right.IsGlobal)
+                    return 1;
+                return StringComparer.OrdinalIgnoreCase.Compare(left.Name, right.Name);
+            });
+
+            return groups;
+        }
+
+        public IReadOnlyList<ShortcutBinding> GetGroupBindings(string groupId)
+        {
+            if (!TryGetGroupActionIds(groupId, out var actionIds))
+                return Array.Empty<ShortcutBinding>();
+
+            var bindings = new List<ShortcutBinding>(actionIds.Count);
+            for (var i = 0; i < actionIds.Count; i++)
+            {
+                var actionId = actionIds[i];
+                if (!_actions.TryGetValue(actionId, out var action))
+                    continue;
+
+                bindings.Add(CreateBinding(action));
+            }
+
+            return bindings;
+        }
+
+        public bool TryGetBinding(string actionId, out ShortcutBinding binding)
+        {
+            binding = default;
+            var normalizedActionId = NormalizeRequiredId(actionId, nameof(actionId));
+            if (!_actions.TryGetValue(normalizedActionId, out var action))
+                return false;
+
+            binding = CreateBinding(action);
+            return true;
+        }
+
+        public bool IsKeyInUseInGroup(string groupId, Key key, string ignoredActionId)
+        {
+            if (!TryGetGroupActionIds(groupId, out var actionIds))
+                return false;
+
+            var ignoredId = string.IsNullOrWhiteSpace(ignoredActionId)
+                ? string.Empty
+                : ignoredActionId.Trim();
+            for (var i = 0; i < actionIds.Count; i++)
+            {
+                var actionId = actionIds[i];
+                if (!string.IsNullOrWhiteSpace(ignoredId) && string.Equals(actionId, ignoredId, StringComparison.Ordinal))
+                    continue;
+                if (!_actions.TryGetValue(actionId, out var action))
+                    continue;
+                if (action.Key == key)
+                    return true;
+            }
+
+            return false;
+        }
+
+        public void ResetBindings()
+        {
+            foreach (var pair in _actions)
+                pair.Value.ResetKey();
+        }
+
+        private List<string> BuildCandidateActionIds(in ShortcutContext context)
+        {
+            var resolved = new List<string>();
+            var unique = new HashSet<string>(StringComparer.Ordinal);
+
+            AddActionIds(_viewActionIds, context.ViewId, resolved, unique);
+            AddActionIds(_menuActionIds, context.MenuId, resolved, unique);
+
+            if (_menuScopeIds.TryGetValue(context.MenuId, out var scopeIds))
+            {
+                for (var i = 0; i < scopeIds.Count; i++)
+                    AddActionIds(_scopeActionIds, scopeIds[i], resolved, unique);
+            }
+
+            for (var i = 0; i < _globalActionIds.Count; i++)
+            {
+                var actionId = _globalActionIds[i];
+                if (unique.Add(actionId))
+                    resolved.Add(actionId);
+            }
+
+            return resolved;
+        }
+
+        private static void AddActionIds(
+            Dictionary<string, List<string>> source,
+            string ownerId,
+            List<string> resolved,
+            HashSet<string> unique)
+        {
+            if (string.IsNullOrWhiteSpace(ownerId))
+                return;
+            if (!source.TryGetValue(ownerId, out var actionIds))
+                return;
+
+            for (var i = 0; i < actionIds.Count; i++)
+            {
+                var actionId = actionIds[i];
+                if (unique.Add(actionId))
+                    resolved.Add(actionId);
+            }
+        }
+
+        private static void SetActionMap(
+            Dictionary<string, List<string>> target,
+            Dictionary<string, string> names,
+            string ownerId,
+            IEnumerable<string>? actionIds,
+            string? ownerName = null)
+        {
+            var normalizedOwnerId = NormalizeRequiredId(ownerId, nameof(ownerId));
+            var normalizedActionIds = NormalizeIds(actionIds);
+            if (normalizedActionIds.Count == 0)
+            {
+                target.Remove(normalizedOwnerId);
+                names.Remove(normalizedOwnerId);
+                return;
+            }
+
+            target[normalizedOwnerId] = normalizedActionIds;
+            SetName(names, normalizedOwnerId, ownerName);
+        }
+
+        private static void SetIdMap(
+            Dictionary<string, List<string>> target,
+            string ownerId,
+            IEnumerable<string>? ids)
+        {
+            var normalizedOwnerId = NormalizeRequiredId(ownerId, nameof(ownerId));
+            var normalizedIds = NormalizeIds(ids);
+            if (normalizedIds.Count == 0)
+            {
+                target.Remove(normalizedOwnerId);
+                return;
+            }
+
+            target[normalizedOwnerId] = normalizedIds;
+        }
+
+        private static void SetActionList(List<string> target, IEnumerable<string>? actionIds)
+        {
+            target.Clear();
+            var normalizedActionIds = NormalizeIds(actionIds);
+            if (normalizedActionIds.Count == 0)
+                return;
+
+            target.AddRange(normalizedActionIds);
+        }
+
+        private static List<string> NormalizeIds(IEnumerable<string>? ids)
+        {
+            var normalized = new List<string>();
+            if (ids == null)
+                return normalized;
+
+            var unique = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var id in ids)
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+
+                var candidate = id.Trim();
+                if (!unique.Add(candidate))
+                    continue;
+
+                normalized.Add(candidate);
+            }
+
+            return normalized;
+        }
+
+        private static string NormalizeRequiredId(string value, string paramName)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("Identifier is required.", paramName);
+            return value.Trim();
+        }
+
+        private static void SetName(Dictionary<string, string> names, string ownerId, string? ownerName)
+        {
+            if (ownerName == null)
+                return;
+
+            var normalizedName = ownerName.Trim();
+            if (string.IsNullOrWhiteSpace(normalizedName))
+                names.Remove(ownerId);
+            else
+                names[ownerId] = normalizedName;
+        }
+
+        private static void AddGroups(
+            List<ShortcutGroup> target,
+            string prefix,
+            Dictionary<string, List<string>> source,
+            Dictionary<string, string> names)
+        {
+            foreach (var pair in source)
+            {
+                if (pair.Value.Count == 0)
+                    continue;
+
+                var ownerId = pair.Key;
+                var groupId = $"{prefix}{ownerId}";
+                var groupName = names.TryGetValue(ownerId, out var customName)
+                    ? customName
+                    : FormatName(ownerId);
+                target.Add(new ShortcutGroup(groupId, groupName, isGlobal: false));
+            }
+        }
+
+        private bool TryGetGroupActionIds(string groupId, out List<string> actionIds)
+        {
+            actionIds = null!;
+            var normalizedGroupId = NormalizeRequiredId(groupId, nameof(groupId));
+            if (string.Equals(normalizedGroupId, GlobalGroupId, StringComparison.Ordinal))
+            {
+                actionIds = _globalActionIds;
+                return true;
+            }
+
+            if (TryGetOwnerId(normalizedGroupId, ScopeGroupPrefix, out var scopeId) &&
+                _scopeActionIds.TryGetValue(scopeId, out actionIds))
+            {
+                return true;
+            }
+
+            if (TryGetOwnerId(normalizedGroupId, MenuGroupPrefix, out var menuId) &&
+                _menuActionIds.TryGetValue(menuId, out actionIds))
+            {
+                return true;
+            }
+
+            if (TryGetOwnerId(normalizedGroupId, ViewGroupPrefix, out var viewId) &&
+                _viewActionIds.TryGetValue(viewId, out actionIds))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetOwnerId(string groupId, string prefix, out string ownerId)
+        {
+            ownerId = string.Empty;
+            if (!groupId.StartsWith(prefix, StringComparison.Ordinal))
+                return false;
+
+            ownerId = groupId.Substring(prefix.Length);
+            return !string.IsNullOrWhiteSpace(ownerId);
+        }
+
+        private static ShortcutBinding CreateBinding(ShortcutAction action)
+        {
+            return new ShortcutBinding(action.Id, action.DisplayName, action.Description, action.Key);
+        }
+
+        private static string FormatName(string source)
+        {
+            if (string.IsNullOrWhiteSpace(source))
+                return string.Empty;
+
+            var builder = new StringBuilder(source.Length);
+            var newWord = true;
+            for (var i = 0; i < source.Length; i++)
+            {
+                var c = source[i];
+                if (c == '_' || c == '-' || c == ':' || c == '.')
+                {
+                    if (builder.Length > 0 && builder[builder.Length - 1] != ' ')
+                        builder.Append(' ');
+                    newWord = true;
+                    continue;
+                }
+
+                if (char.IsWhiteSpace(c))
+                {
+                    if (builder.Length > 0 && builder[builder.Length - 1] != ' ')
+                        builder.Append(' ');
+                    newWord = true;
+                    continue;
+                }
+
+                builder.Append(newWord ? char.ToUpperInvariant(c) : c);
+                newWord = false;
+            }
+
+            var result = builder.ToString().Trim();
+            return string.IsNullOrWhiteSpace(result) ? source.Trim() : result;
+        }
+    }
+}
