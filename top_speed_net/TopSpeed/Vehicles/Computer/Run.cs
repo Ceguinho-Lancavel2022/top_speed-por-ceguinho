@@ -67,6 +67,7 @@ namespace TopSpeed.Vehicles
                 _speedDiff = _speed - beforeSpeed;
 
                 _engine.SyncFromSpeed(_speed, _gear, elapsed, _currentThrottle, inReverse: false);
+                UpdateEngineFreq();
 
                 if (_frame % 4 == 0)
                 {
@@ -78,7 +79,6 @@ namespace TopSpeed.Vehicles
                         _soundBrake.SetFrequency(_brakeFrequency);
                         _prevBrakeFrequency = _brakeFrequency;
                     }
-                    UpdateEngineFreq();
                 }
 
                 var road = _track.RoadComputer(_positionY);
@@ -90,10 +90,10 @@ namespace TopSpeed.Vehicles
                 _speed -= (elapsed * 100 * _deceleration);
                 if (_speed < 0)
                     _speed = 0;
+                UpdateEngineFreq();
                 if (_frame % 4 == 0)
                 {
                     _frame = 0;
-                    UpdateEngineFreq();
                 }
                 _frame++;
             }

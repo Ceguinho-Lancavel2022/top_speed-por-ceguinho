@@ -49,10 +49,6 @@ namespace TopSpeed.Vehicles
             var torqueIntegratedRpm = clampedBaseRpm + (rpmPerSecond * elapsed);
             torqueIntegratedRpm = Math.Max(_idleRpm, Math.Min(_maxRpm, torqueIntegratedRpm));
 
-            var launchTargetRpm = _idleRpm + (throttle * (_revLimiter - _idleRpm) * 0.35f);
-            if (torqueIntegratedRpm < launchTargetRpm)
-                torqueIntegratedRpm = launchTargetRpm;
-
             var couplingAlpha = Math.Max(0f, Math.Min(1f, _drivelineCouplingRate * elapsed));
             var blendedRpm = torqueIntegratedRpm + ((coupledRpm - torqueIntegratedRpm) * couplingAlpha);
             _rpm = Math.Max(_idleRpm, Math.Min(_maxRpm, blendedRpm));

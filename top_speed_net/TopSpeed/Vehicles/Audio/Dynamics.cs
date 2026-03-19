@@ -98,6 +98,9 @@ namespace TopSpeed.Vehicles
 
         private void UpdateFrameAudioAndFeedback()
         {
+            // Keep engine pitch tightly synced with RPM, even between batched audio updates.
+            UpdateEngineFreq();
+
             if (_frame % 4 != 0)
                 return;
 
@@ -116,10 +119,6 @@ namespace TopSpeed.Vehicles
             var brakeVolume = (int)Math.Round(speedVolume * (inputVolume / 100f));
             SetPlayerEventVolumePercent(_soundBrake, brakeVolume);
 
-            if (_manualTransmission)
-                UpdateEngineFreqManual();
-            else
-                UpdateEngineFreq();
             UpdateSoundRoad();
 
             if (_vibration == null)

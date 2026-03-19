@@ -57,11 +57,12 @@ namespace TopSpeed.Vehicles
             if (_speed < 0f)
                 _speed = 0f;
 
+            UpdateEngineFreq();
+
             if (_frame % 4 != 0)
                 return;
 
             _frame = 0;
-            UpdateEngineFreq();
             UpdateSoundRoad();
         }
     }

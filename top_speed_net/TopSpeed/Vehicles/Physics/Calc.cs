@@ -76,12 +76,17 @@ namespace TopSpeed.Vehicles
                 newSpeedMps = 0f;
 
             _speedDiff = (newSpeedMps - speedMpsCurrent) * 3.6f;
-            _lastDriveRpm = Calculator.DriveRpm(
-                _powertrainConfiguration,
-                GetDriveGear(),
-                newSpeedMps,
-                throttle,
-                inReverse);
+            var wheelCircumference = _wheelRadiusM * 2.0f * (float)Math.PI;
+            if (wheelCircumference > 0f)
+            {
+                var gearRatio = inReverse ? _reverseGearRatio : _engine.GetGearRatio(GetDriveGear());
+                var coupledRpm = (newSpeedMps / wheelCircumference) * 60f * gearRatio * _finalDriveRatio;
+                _lastDriveRpm = Math.Max(_idleRpm, Math.Min(_revLimiter, coupledRpm));
+            }
+            else
+            {
+                _lastDriveRpm = _idleRpm;
+            }
             if (_backfirePlayed)
                 _backfirePlayed = false;
         }
