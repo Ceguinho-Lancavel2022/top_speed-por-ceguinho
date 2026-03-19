@@ -19,7 +19,7 @@ namespace TopSpeed.Server.Commands
         private readonly ServerSettingsStore _settingsStore;
         private readonly Logger _logger;
         private readonly CancellationTokenSource _shutdownSource;
-        private readonly ServerUpdateRunner _updater;
+        private ServerUpdateRunner _updater;
         private readonly CommandRegistry _registry;
         private Thread? _thread;
         private bool _stopRequested;
@@ -160,7 +160,7 @@ namespace TopSpeed.Server.Commands
             while (!_stopRequested && !_shutdownSource.IsCancellationRequested)
             {
                 var options = BuildOptionsMenuEntries();
-                if (!CommandInput.TryPromptMenuChoice(LocalizationService.Mark("Server options:"), options, out var choiceIndex))
+                if (!CommandInput.TryPromptMenuChoice(LocalizationService.Mark("Server options:"), options, out var choiceIndex, backOptionIndex: options.Count - 1))
                 {
                     DisableCommands(LocalizationService.Mark("Standard input is no longer available. Server commands are disabled."));
                     return;
@@ -184,6 +184,9 @@ namespace TopSpeed.Server.Commands
                         EditMaxPlayers();
                         break;
                     case 5:
+                        EditRuntimeArchitecture();
+                        break;
+                    case 6:
                         ToggleCheckForUpdatesOnStartup();
                         break;
                     default:
@@ -201,6 +204,7 @@ namespace TopSpeed.Server.Commands
                 LocalizationService.Format(LocalizationService.Mark("Server port: {0}"), _settings.Port),
                 LocalizationService.Format(LocalizationService.Mark("Discovery port: {0}"), _settings.DiscoveryPort),
                 LocalizationService.Format(LocalizationService.Mark("Max players: {0}"), _settings.MaxPlayers),
+                BuildOptionLine(LocalizationService.Mark("Server architecture"), CurrentRuntimeAssetLabel()),
                 BuildOptionLine(LocalizationService.Mark("Check for updates on startup"), CommandInput.FormatOnOff(_settings.CheckForUpdatesOnStartup)),
                 LocalizationService.Translate(LocalizationService.Mark("Back"))
             };
@@ -210,6 +214,11 @@ namespace TopSpeed.Server.Commands
         {
             var languages = ServerLanguages.Load();
             return ServerLanguages.ResolveDisplayLabel(_settings.Language, languages);
+        }
+
+        private string CurrentRuntimeAssetLabel()
+        {
+            return ServerUpdateConfig.ResolveCurrentRuntimeLabel(_settings.UpdateRuntimeAssetTag);
         }
 
         private void EditLanguage()
@@ -226,7 +235,7 @@ namespace TopSpeed.Server.Commands
                 options.Add(languages[i].ListLabel);
             options.Add(LocalizationService.Translate(LocalizationService.Mark("Back")));
 
-            if (!CommandInput.TryPromptMenuChoice(LocalizationService.Mark("Choose server language:"), options, out var choiceIndex))
+            if (!CommandInput.TryPromptMenuChoice(LocalizationService.Mark("Choose server language:"), options, out var choiceIndex, backOptionIndex: options.Count - 1))
             {
                 DisableCommands(LocalizationService.Mark("Standard input is no longer available. Server commands are disabled."));
                 return;
@@ -249,6 +258,38 @@ namespace TopSpeed.Server.Commands
             }
 
             ConsoleSink.WriteLineFormat(LocalizationService.Mark("Server language remains {0}."), selected.ListLabel);
+        }
+
+        private void EditRuntimeArchitecture()
+        {
+            var runtimeOptions = ServerUpdateConfig.GetRuntimeOptions();
+            var options = new List<string>(runtimeOptions.Count + 1);
+            for (var i = 0; i < runtimeOptions.Count; i++)
+                options.Add(ServerUpdateConfig.FormatRuntimeOptionLabel(runtimeOptions[i]));
+            options.Add(LocalizationService.Translate(LocalizationService.Mark("Back")));
+
+            if (!CommandInput.TryPromptMenuChoice("Choose server architecture:", options, out var choiceIndex, backOptionIndex: options.Count - 1))
+            {
+                DisableCommands(LocalizationService.Mark("Standard input is no longer available. Server commands are disabled."));
+                return;
+            }
+
+            if (choiceIndex < 0 || choiceIndex >= runtimeOptions.Count)
+                return;
+
+            var selected = runtimeOptions[choiceIndex];
+            var changed = !string.Equals(_settings.UpdateRuntimeAssetTag, selected.ShortName, StringComparison.OrdinalIgnoreCase);
+            _settings.UpdateRuntimeAssetTag = selected.ShortName;
+            SaveSettings();
+            _updater = new ServerUpdateRunner(ServerUpdateConfig.Create(_settings.UpdateRuntimeAssetTag), _logger);
+
+            if (changed)
+            {
+                ConsoleSink.WriteLine("Server architecture set to " + ServerUpdateConfig.FormatRuntimeOptionLabel(selected) + ".");
+                return;
+            }
+
+            ConsoleSink.WriteLine("Server architecture remains " + ServerUpdateConfig.FormatRuntimeOptionLabel(selected) + ".");
         }
 
         private void EditMotd()

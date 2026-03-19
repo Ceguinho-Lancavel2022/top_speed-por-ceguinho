@@ -13,6 +13,8 @@ namespace TopSpeed.Server.Network
 {
     internal sealed partial class RaceServer
     {
+        private const float FallbackWallHalfWidthMeters = RoadModel.DefaultLaneHalfWidth;
+
         private sealed class CollisionActor
         {
             public uint Id;
@@ -38,6 +40,7 @@ namespace TopSpeed.Server.Network
         {
             foreach (var room in _rooms.Values)
             {
+                var roadModel = BuildRoadModel(room);
                 var racers = room.PlayerIds.Where(id => _players.TryGetValue(id, out var p) && p.State == PlayerState.Racing)
                     .Select(id => _players[id]).ToList();
                 var botRacers = room.Bots.Where(bot => bot.State == PlayerState.Racing).ToList();
@@ -74,10 +77,9 @@ namespace TopSpeed.Server.Network
                     {
                         var first = actors[i];
                         var second = actors[j];
-                        if (!VehicleCollisionResolver.TryResolve(
-                                BuildCollisionBody(first),
-                                BuildCollisionBody(second),
-                                out var response))
+                        var firstBody = BuildCollisionBody(first);
+                        var secondBody = BuildCollisionBody(second);
+                        if (!VehicleCollisionResolver.TryResolve(firstBody, secondBody, out var response))
                             continue;
 
                         var pairKey = MakePairKey(first.Id, second.Id);
@@ -85,8 +87,24 @@ namespace TopSpeed.Server.Network
                         if (room.ActiveBumpPairs.Contains(pairKey))
                             continue;
 
-                        ApplyCollisionImpulse(first, response.First);
-                        ApplyCollisionImpulse(second, response.Second);
+                        ResolveRoadBounds(roadModel, firstBody.PositionY, out var firstLeft, out var firstRight);
+                        ResolveRoadBounds(roadModel, secondBody.PositionY, out var secondLeft, out var secondRight);
+
+                        var firstImpulse = CollisionWallConsequence.Apply(
+                            firstBody,
+                            response.First,
+                            response,
+                            firstLeft,
+                            firstRight);
+                        var secondImpulse = CollisionWallConsequence.Apply(
+                            secondBody,
+                            response.Second,
+                            response,
+                            secondLeft,
+                            secondRight);
+
+                        ApplyCollisionImpulse(first, firstImpulse);
+                        ApplyCollisionImpulse(second, secondImpulse);
 
                         if (!first.IsBot && !second.IsBot)
                             _bumpEventsHumanHuman++;
@@ -99,6 +117,38 @@ namespace TopSpeed.Server.Network
                 foreach (var pairKey in activePairs)
                     room.ActiveBumpPairs.Add(pairKey);
             }
+        }
+
+        private static RoadModel? BuildRoadModel(RaceRoom room)
+        {
+            var trackData = room.TrackData;
+            if (trackData == null)
+                return null;
+            var defs = trackData.Definitions;
+            if (defs == null || defs.Length == 0)
+                return null;
+            return new RoadModel(defs);
+        }
+
+        private static void ResolveRoadBounds(RoadModel? roadModel, float positionY, out float left, out float right)
+        {
+            if (roadModel == null)
+            {
+                left = -FallbackWallHalfWidthMeters;
+                right = FallbackWallHalfWidthMeters;
+                return;
+            }
+
+            var road = roadModel.At(positionY);
+            if (road.Right <= road.Left)
+            {
+                left = -FallbackWallHalfWidthMeters;
+                right = FallbackWallHalfWidthMeters;
+                return;
+            }
+
+            left = road.Left;
+            right = road.Right;
         }
 
         private static VehicleCollisionBody BuildCollisionBody(CollisionActor actor)

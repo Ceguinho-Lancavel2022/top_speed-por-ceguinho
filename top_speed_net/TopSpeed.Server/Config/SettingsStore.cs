@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using TopSpeed.Localization;
 using TopSpeed.Server.Logging;
+using TopSpeed.Server.Updates;
 
 namespace TopSpeed.Server.Config
 {
@@ -66,6 +67,7 @@ namespace TopSpeed.Server.Config
             settings.Language = string.IsNullOrWhiteSpace(settings.Language)
                 ? "en"
                 : settings.Language.Trim();
+            settings.UpdateRuntimeAssetTag = ServerUpdateConfig.NormalizeConfiguredRuntimeAssetTag(settings.UpdateRuntimeAssetTag);
             return settings;
         }
     }

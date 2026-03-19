@@ -7,6 +7,7 @@ namespace TopSpeed.Server.Config
         public int DiscoveryPort { get; set; } = 28631;
         public int MaxPlayers { get; set; } = 64;
         public string Motd { get; set; } = string.Empty;
+        public string UpdateRuntimeAssetTag { get; set; } = "auto";
         public bool CheckForUpdatesOnStartup { get; set; }
     }
 }

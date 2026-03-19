@@ -33,15 +33,34 @@ namespace TopSpeed.Server.Commands
             }
         }
 
-        public static bool TryPromptMenuChoice(string title, IReadOnlyList<string> options, out int selectedIndex)
+        public static bool TryPromptMenuChoice(
+            string title,
+            IReadOnlyList<string> options,
+            out int selectedIndex,
+            int backOptionIndex = -1)
         {
             selectedIndex = -1;
             if (options == null || options.Count == 0)
                 return false;
+            if (backOptionIndex < -1 || backOptionIndex >= options.Count)
+                return false;
 
             ConsoleSink.WriteLine(title);
+
+            var menuToIndex = new Dictionary<int, int>();
+            var displayNumber = 1;
             for (var i = 0; i < options.Count; i++)
-                ConsoleSink.WriteLine((i + 1).ToString(CultureInfo.InvariantCulture) + ". " + options[i]);
+            {
+                if (i == backOptionIndex)
+                    continue;
+
+                ConsoleSink.WriteLine(displayNumber.ToString(CultureInfo.InvariantCulture) + ". " + options[i]);
+                menuToIndex[displayNumber] = i;
+                displayNumber++;
+            }
+
+            if (backOptionIndex >= 0)
+                ConsoleSink.WriteLine("0. " + options[backOptionIndex]);
 
             while (true)
             {
@@ -54,8 +73,13 @@ namespace TopSpeed.Server.Commands
                     continue;
                 }
 
-                var index = menuNumber - 1;
-                if (index < 0 || index >= options.Count)
+                if (backOptionIndex >= 0 && menuNumber == 0)
+                {
+                    selectedIndex = backOptionIndex;
+                    return true;
+                }
+
+                if (!menuToIndex.TryGetValue(menuNumber, out var index))
                 {
                     ConsoleSink.WriteLine(LocalizationService.Mark("Invalid option number."));
                     continue;

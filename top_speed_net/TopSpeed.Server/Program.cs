@@ -58,7 +58,7 @@ namespace TopSpeed.Server
             LocalizationBootstrap.Configure(settings.Language, LocalizationBootstrap.ServerCatalogGroup);
             ApplyArgumentOverrides(settings, args, logger);
             store.Save(settings, logger);
-            var updater = new ServerUpdateRunner(ServerUpdateConfig.Default, logger);
+            var updater = new ServerUpdateRunner(ServerUpdateConfig.Create(settings.UpdateRuntimeAssetTag), logger);
             if (settings.CheckForUpdatesOnStartup && updater.RunInteractiveCheck())
                 return 0;
 

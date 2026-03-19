@@ -2,58 +2,6 @@ using System;
 
 namespace TopSpeed.Collision
 {
-    public readonly struct VehicleCollisionBody
-    {
-        public VehicleCollisionBody(
-            float positionX,
-            float positionY,
-            float speedKph,
-            float widthM,
-            float lengthM,
-            float massKg)
-        {
-            PositionX = positionX;
-            PositionY = Math.Max(0f, positionY);
-            SpeedKph = Math.Max(0f, speedKph);
-            WidthM = Math.Max(0.1f, widthM);
-            LengthM = Math.Max(0.1f, lengthM);
-            MassKg = Math.Max(1f, massKg);
-        }
-
-        public float PositionX { get; }
-        public float PositionY { get; }
-        public float SpeedKph { get; }
-        public float WidthM { get; }
-        public float LengthM { get; }
-        public float MassKg { get; }
-    }
-
-    public readonly struct VehicleCollisionImpulse
-    {
-        public VehicleCollisionImpulse(float bumpX, float bumpY, float speedDeltaKph)
-        {
-            BumpX = bumpX;
-            BumpY = bumpY;
-            SpeedDeltaKph = speedDeltaKph;
-        }
-
-        public float BumpX { get; }
-        public float BumpY { get; }
-        public float SpeedDeltaKph { get; }
-    }
-
-    public readonly struct VehicleCollisionResponse
-    {
-        public VehicleCollisionResponse(VehicleCollisionImpulse first, VehicleCollisionImpulse second)
-        {
-            First = first;
-            Second = second;
-        }
-
-        public VehicleCollisionImpulse First { get; }
-        public VehicleCollisionImpulse Second { get; }
-    }
-
     public static class VehicleCollisionResolver
     {
         private const float Epsilon = 0.0001f;
@@ -91,6 +39,7 @@ namespace TopSpeed.Collision
             var longitudinalSign = ResolveSign(dy, speedDiff);
             var longitudinalContact = (yOverlap <= xOverlap) || firstRearClosing || secondRearClosing;
             var closingSpeed = firstRearClosing ? speedDiff : (secondRearClosing ? -speedDiff : 0f);
+            var relativeSpeed = Math.Abs(speedDiff);
 
             var severity = Clamp01(closingSpeed / 70f);
             var exchangeFactor = longitudinalContact ? 0.78f : 0.32f;
@@ -131,6 +80,12 @@ namespace TopSpeed.Collision
             if (secondDelta < -second.SpeedKph)
                 secondDelta = -second.SpeedKph;
 
+            var overlapSeverity = Clamp01(Math.Max(
+                xOverlap / Math.Max(Epsilon, halfWidthSum),
+                yOverlap / Math.Max(Epsilon, halfLengthSum)));
+            var impactSeverity = Math.Max(severity, overlapSeverity * 0.75f);
+            var contactType = ResolveContactType(longitudinalContact, firstRearClosing, secondRearClosing, xOverlap, yOverlap);
+
             response = new VehicleCollisionResponse(
                 new VehicleCollisionImpulse(
                     sideSign * lateralMagnitude * firstMassEffect,
@@ -139,8 +94,27 @@ namespace TopSpeed.Collision
                 new VehicleCollisionImpulse(
                     -sideSign * lateralMagnitude * secondMassEffect,
                     -longitudinalSign * longitudinalMagnitude * secondMassEffect,
-                    secondDelta));
+                    secondDelta),
+                contactType,
+                impactSeverity,
+                relativeSpeed);
             return true;
+        }
+
+        private static VehicleCollisionContactType ResolveContactType(
+            bool longitudinalContact,
+            bool firstRearClosing,
+            bool secondRearClosing,
+            float xOverlap,
+            float yOverlap)
+        {
+            if (firstRearClosing || secondRearClosing)
+                return VehicleCollisionContactType.RearEnd;
+            if (!longitudinalContact)
+                return VehicleCollisionContactType.SideSwipe;
+            if (xOverlap > yOverlap)
+                return VehicleCollisionContactType.Mixed;
+            return VehicleCollisionContactType.Unknown;
         }
 
         private static float ResolveSign(float axisDelta, float speedDiff)
