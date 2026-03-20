@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import datetime as _dt
 import html
 from pathlib import Path
 import sys
@@ -16,10 +15,8 @@ DEFAULT_INPUT = "vehicle-physics-and-creation-guide.md"
 DEFAULT_OUTPUT = "vehicle-physics-and-creation-guide.html"
 
 
-def build_html(title: str, body_html: str, source_name: str) -> str:
-    now_utc = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+def build_html(title: str, body_html: str) -> str:
     safe_title = html.escape(title)
-    safe_source = html.escape(source_name)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -124,18 +121,12 @@ def build_html(title: str, body_html: str, source_name: str) -> str:
       padding: 4px 12px;
       color: var(--muted);
     }}
-    .footer {{
-      margin-top: 14px;
-      color: var(--muted);
-      font-size: 0.9em;
-    }}
   </style>
 </head>
 <body>
   <main class="page">
     <article class="doc">
 {body_html}
-      <div class="footer">Rendered from {safe_source} on {now_utc}</div>
     </article>
   </main>
 </body>
@@ -202,7 +193,11 @@ def render_markdown(input_path: Path, output_path: Path) -> None:
         output_format="html5",
     )
     title = input_path.stem.replace("-", " ").title()
-    full_html = build_html(title=title, body_html=body, source_name=input_path.name)
+    full_html = build_html(title=title, body_html=body)
+    if output_path.exists():
+        current_html = output_path.read_text(encoding="utf-8")
+        if current_html == full_html:
+            return
     output_path.write_text(full_html, encoding="utf-8")
 
 

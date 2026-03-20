@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-19 00:02+0200\n"
+"POT-Creation-Date: 2026-03-20 09:20+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -81,7 +81,7 @@ msgid "Ambients and sound sources"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:25
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:69
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:71
 msgid "America"
 msgstr ""
 
@@ -124,7 +124,7 @@ msgid "Audio"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:26
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:71
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:73
 msgid "Austria"
 msgstr ""
 
@@ -160,6 +160,10 @@ msgstr ""
 msgid "Automatic transmission"
 msgstr ""
 
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:38
+msgid "Automatically focus first menu item"
+msgstr ""
+
 #: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\Multiplayer.cs:74
 msgid "Available game rooms"
 msgstr ""
@@ -173,7 +177,7 @@ msgid "B"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:27
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:73
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:75
 msgid "Belgium"
 msgstr ""
 
@@ -195,7 +199,7 @@ msgid "Brake pedal direction"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:28
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:75
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:77
 msgid "Brazil"
 msgstr ""
 
@@ -230,7 +234,7 @@ msgstr ""
 msgid "Check for updates"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:49
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:54
 msgid "Check for updates on startup"
 msgstr ""
 
@@ -243,7 +247,7 @@ msgid "Checking for updates."
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:29
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:77
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:79
 msgid "China"
 msgstr ""
 
@@ -528,7 +532,7 @@ msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\Selection\TrackSource.cs:38
 #: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\Race.cs:30
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:117
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:119
 msgid "Custom track"
 msgstr ""
 
@@ -570,7 +574,7 @@ msgstr ""
 msgid "Default server port: {0}"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Game\Settings\Core.cs:28
+#: D:\top_speed\top_speed_net\TopSpeed\Game\Settings\Core.cs:29
 msgid "Defaults restored."
 msgstr ""
 
@@ -672,11 +676,11 @@ msgstr ""
 msgid "Enable HRTF audio"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:44
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:49
 msgid "Enable menu navigation panning"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:38
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:43
 msgid "Enable menu wrapping"
 msgstr ""
 
@@ -691,7 +695,7 @@ msgid ""
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:30
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:79
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:81
 msgid "England"
 msgstr ""
 
@@ -701,7 +705,7 @@ msgid "English (Original)"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:48
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:107
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:109
 msgid "English country"
 msgstr ""
 
@@ -833,7 +837,7 @@ msgid "File: {0}"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:31
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:81
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:83
 msgid "Finland"
 msgstr ""
 
@@ -842,12 +846,12 @@ msgid "Force feedback"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:32
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:83
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:85
 msgid "France"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:47
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:105
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:107
 msgid "French coast"
 msgstr ""
 
@@ -873,7 +877,7 @@ msgid "Gear {0}"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:33
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:85
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:87
 msgid "Germany"
 msgstr ""
 
@@ -1012,12 +1016,12 @@ msgstr ""
 msgid "Invalid sound type '{0}'."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:341
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:357
 #, csharp-format
 msgid "Invalid torque curve key '{0}'. Use format like 2000rpm=200."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:350
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:366
 #, csharp-format
 msgid "Invalid torque value '{0}' for '{1}'."
 msgstr ""
@@ -1038,12 +1042,12 @@ msgid "Inverted"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:34
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:87
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:89
 msgid "Ireland"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:35
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:89
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:91
 msgid "Italy"
 msgstr ""
 
@@ -1144,7 +1148,7 @@ msgstr ""
 msgid "Language set to {0}."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:62
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:67
 #, csharp-format
 msgid "Language: {0}"
 msgstr ""
@@ -1267,15 +1271,15 @@ msgstr ""
 msgid "Maximum players allowed in this room"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Core\Settings\Manager\Apply\RaceUi.cs:47
+#: D:\top_speed\top_speed_net\TopSpeed\Core\Settings\Manager\Apply\RaceUi.cs:49
 msgid "Menu sound preset was empty and was reset to default."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:79
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:84
 msgid "Menu sounds"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:72
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:77
 #, csharp-format
 msgid "Menu sounds: {0}"
 msgstr ""
@@ -1335,7 +1339,7 @@ msgid "Music volume is not a valid number and was reset to default."
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:36
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:91
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:93
 msgid "Netherlands"
 msgstr ""
 
@@ -1640,12 +1644,12 @@ msgid "Please wait. Scanning for servers on the local network."
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:52
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:115
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:117
 msgid "Polar escape"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:37
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:93
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:95
 msgid "Portugal"
 msgstr ""
 
@@ -1687,7 +1691,7 @@ msgstr ""
 msgid "Property '{0}' is outside any section."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:186
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:201
 msgid ""
 "Provide tire_circumference or all of tire_width, tire_aspect, and tire_rim."
 msgstr ""
@@ -1778,12 +1782,12 @@ msgid "Radio volume"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:50
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:111
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:113
 msgid "Rally desert"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:46
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:103
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:105
 msgid "Rally hills"
 msgstr ""
 
@@ -1810,7 +1814,7 @@ msgstr ""
 msgid "Ready. Waiting for other players."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:53
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:58
 msgid "Recalibrate screen reader rate"
 msgstr ""
 
@@ -1869,7 +1873,7 @@ msgid "Review these details before connecting."
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:49
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:109
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:111
 msgid "Ride airport"
 msgstr ""
 
@@ -1897,12 +1901,12 @@ msgid "Room options updated."
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:51
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:113
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:115
 msgid "Rush hour"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:38
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:95
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:97
 msgid "Russia"
 msgstr ""
 
@@ -1941,7 +1945,7 @@ msgstr ""
 msgid "Section '{0}' requires an id."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:387
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:403
 msgid ""
 "Section [torque_curve] must define at least two RPM points, or a preset with "
 "enough points."
@@ -2009,7 +2013,7 @@ msgstr ""
 msgid "Select radio media folder"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:84
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:89
 msgid "Select the menu sound preset. Use LEFT or RIGHT to change."
 msgstr ""
 
@@ -2226,7 +2230,7 @@ msgid "Sound list for '{0}' cannot be empty."
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:39
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:97
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:99
 msgid "Spain"
 msgstr ""
 
@@ -2268,7 +2272,7 @@ msgid "Surface loop sounds"
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\TrackList.cs:40
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:99
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:101
 msgid "Sweden"
 msgstr ""
 
@@ -2296,7 +2300,7 @@ msgstr ""
 msgid "Switserland"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:101
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:103
 msgid "Switzerland"
 msgstr ""
 
@@ -2486,17 +2490,17 @@ msgstr ""
 msgid "Top-level key '{0}' is not supported."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:359
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:375
 #, csharp-format
 msgid "Torque curve RPM '{0:F0}' must be between 300 and 25000."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:368
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:384
 #, csharp-format
 msgid "Torque value '{0:F1}' must be between 0 and 5000 Nm."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:126
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:128
 #: D:\top_speed\top_speed_net\TopSpeed\Tracks\TrackLoadException.cs:27
 msgid "Track"
 msgstr ""
@@ -2614,7 +2618,7 @@ msgstr ""
 msgid "Unknown sound key '{0}'."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:312
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:328
 #, csharp-format
 msgid "Unknown torque curve preset '{0}'. Valid values: {1}."
 msgstr ""
@@ -2679,11 +2683,11 @@ msgstr ""
 msgid "Use horn"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:60
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:62
 #: D:\top_speed\top_speed_net\TopSpeed\Race\Modes\single\Commentary.cs:134
 #: D:\top_speed\top_speed_net\TopSpeed\Race\Multiplayer\MultiplayerMode\Commentary.cs:156
 #: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Car.cs:35
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\VehicleDefinition.cs:10
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\VehicleDefinition.cs:14
 msgid "Vehicle"
 msgstr ""
 
@@ -2736,19 +2740,25 @@ msgid ""
 "positioning. Press ENTER to toggle."
 msgstr ""
 
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:42
+msgid ""
+"When checked, each menu automatically focuses and announces the first item "
+"after the title. Press ENTER to toggle."
+msgstr ""
+
 #: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:37
 msgid ""
 "When checked, menu items can speak usage hints after a short delay. Press "
 "ENTER to toggle."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:48
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:53
 msgid ""
 "When checked, menu navigation sounds pan left or right based on the item "
 "position. Press ENTER to toggle."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:42
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:47
 msgid ""
 "When checked, menu navigation wraps from the last item to the first. Press "
 "ENTER to toggle."
@@ -2766,7 +2776,7 @@ msgid ""
 "ENTER to toggle."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:52
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:57
 msgid ""
 "When checked, the game checks for updates automatically after the logo. "
 "Press ENTER to toggle."
@@ -2877,7 +2887,7 @@ msgstr ""
 msgid "auto_downshift_rpm must be 0 or between idle_rpm and rev_limiter."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:146
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:148
 msgid "auto_shift_rpm must be 0 or between idle_rpm and rev_limiter."
 msgstr ""
 
@@ -2909,7 +2919,7 @@ msgstr ""
 msgid "curves only"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:75
+#: D:\top_speed\top_speed_net\TopSpeed\Menu\registry\options\Game.cs:80
 msgid "default"
 msgstr ""
 
@@ -2934,16 +2944,16 @@ msgstr ""
 msgid "game room"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:120
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:122
 #, csharp-format
 msgid "gear_ratios count ({0}) must match number_of_gears ({1})."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:134
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:136
 msgid "gear_ratios must be non-increasing from gear 1 to last gear."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:128
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:130
 #, csharp-format
 msgid "gear_ratios[{0}] is outside allowed range 0.20 to 8.00."
 msgstr ""
@@ -2956,7 +2966,7 @@ msgstr ""
 msgid "hard"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:156
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:171
 msgid ""
 "high_speed_steer_full_kph must be greater than high_speed_steer_start_kph."
 msgstr ""
@@ -2986,7 +2996,7 @@ msgstr ""
 msgid "laps only"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:150
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:152
 msgid "launch_rpm must not exceed rev_limiter."
 msgstr ""
 
@@ -2995,7 +3005,7 @@ msgstr ""
 msgid "main room"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:142
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:144
 msgid "max_rpm must be greater than or equal to idle_rpm."
 msgstr ""
 
@@ -3036,8 +3046,17 @@ msgstr ""
 msgid "panel"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:148
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:150
 msgid "peak_torque_rpm must be between idle_rpm and rev_limiter."
+msgstr ""
+
+#: D:\top_speed\top_speed_net\TopSpeed\Race\Core\Mode\Format.cs:56
+msgid "percent"
+msgstr ""
+
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:166
+#, csharp-format
+msgid "pitch_curve_exponent must be between {0} and {1}."
 msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed\Core\Multiplayer\Coordinator\Core.cs:30
@@ -3064,7 +3083,7 @@ msgstr ""
 msgid "radio button"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:144
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:146
 msgid "rev_limiter must be between idle_rpm and max_rpm."
 msgstr ""
 
@@ -3076,7 +3095,7 @@ msgstr ""
 msgid "room events"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:154
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:156
 msgid "shift_freq must be between idle_freq and top_freq."
 msgstr ""
 
@@ -3096,23 +3115,23 @@ msgstr ""
 msgid "switch"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:193
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:208
 msgid "tire_aspect must be between 5 and 150."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:178
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:193
 msgid "tire_circumference must be between 0.2 and 5.0 meters."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:195
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:210
 msgid "tire_rim must be between 4 and 30 inches."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:191
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:206
 msgid "tire_width must be between 20 and 450 mm."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:152
+#: D:\top_speed\top_speed_net\TopSpeed\Vehicles\Parsing\Build\Core.cs:154
 msgid "top_freq must be greater than or equal to idle_freq."
 msgstr ""
 

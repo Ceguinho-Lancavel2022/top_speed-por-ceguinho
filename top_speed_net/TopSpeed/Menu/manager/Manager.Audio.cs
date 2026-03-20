@@ -56,6 +56,11 @@ namespace TopSpeed.Menu
                 screen.MenuNavigatePanning = enabled;
         }
 
+        public void SetMenuAutoFocus(bool enabled)
+        {
+            _menuAutoFocus = enabled;
+        }
+
         public void SetMenuMusicVolume(float volume)
         {
             foreach (var screen in _screens.Values)
@@ -64,7 +69,7 @@ namespace TopSpeed.Menu
 
         public MenuScreen CreateMenu(string id, IEnumerable<MenuItem> items, string? title = null, Func<string>? titleProvider = null)
         {
-            var screen = new MenuScreen(id, items, _audio, _speech, title, titleProvider, _usageHintsEnabled)
+            var screen = new MenuScreen(id, items, _audio, _speech, title, titleProvider, _usageHintsEnabled, () => _menuAutoFocus)
             {
                 WrapNavigation = _wrapNavigation,
                 MenuNavigatePanning = _menuNavigatePanning

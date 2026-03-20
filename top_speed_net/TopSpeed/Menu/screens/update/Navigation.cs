@@ -12,7 +12,7 @@ namespace TopSpeed.Menu
             _activeActionIndex = NoSelection;
             _pendingFocusIndex = preferredSelectionIndex;
             _justEntered = true;
-            _autoFocusPending = true;
+            QueueAutoFocusFirstItem();
             CancelHint();
         }
 
@@ -41,7 +41,7 @@ namespace TopSpeed.Menu
                 _activeActionIndex = NoSelection;
                 _pendingFocusIndex = null;
                 _justEntered = false;
-                _autoFocusPending = false;
+                ClearAutoFocusPending();
                 return;
             }
 
@@ -52,7 +52,7 @@ namespace TopSpeed.Menu
                 _activeActionIndex = NoSelection;
                 _pendingFocusIndex = null;
                 _justEntered = false;
-                _autoFocusPending = false;
+                ClearAutoFocusPending();
                 return;
             }
 
@@ -60,7 +60,7 @@ namespace TopSpeed.Menu
             _activeActionIndex = NoSelection;
             _pendingFocusIndex = null;
             _justEntered = true;
-            _autoFocusPending = true;
+            QueueAutoFocusFirstItem();
         }
 
         public bool SwitchToNextScreen()
@@ -81,25 +81,25 @@ namespace TopSpeed.Menu
                 {
                     _activeActionIndex = NoSelection;
                     MoveToIndex(0);
-                    _autoFocusPending = false;
+                    ClearAutoFocusPending();
                 }
                 else if (state.MoveUp)
                 {
                     _activeActionIndex = NoSelection;
                     MoveToIndex(_items.Count - 1);
-                    _autoFocusPending = false;
+                    ClearAutoFocusPending();
                 }
                 else if (state.MoveHome)
                 {
                     _activeActionIndex = NoSelection;
                     MoveToIndex(0);
-                    _autoFocusPending = false;
+                    ClearAutoFocusPending();
                 }
                 else if (state.MoveEnd)
                 {
                     _activeActionIndex = NoSelection;
                     MoveToIndex(_items.Count - 1);
-                    _autoFocusPending = false;
+                    ClearAutoFocusPending();
                 }
 
                 return;
@@ -242,7 +242,7 @@ namespace TopSpeed.Menu
             _activeActionIndex = NoSelection;
             _pendingFocusIndex = null;
             _justEntered = true;
-            _autoFocusPending = true;
+            QueueAutoFocusFirstItem();
             CancelHint();
             _titlePending = false;
             AnnounceTitle();
@@ -272,7 +272,7 @@ namespace TopSpeed.Menu
                 _activeActionIndex = NoSelection;
                 _pendingFocusIndex = null;
                 _justEntered = false;
-                _autoFocusPending = false;
+                ClearAutoFocusPending();
                 return;
             }
 
@@ -283,7 +283,7 @@ namespace TopSpeed.Menu
                 _activeActionIndex = NoSelection;
                 _pendingFocusIndex = null;
                 _justEntered = false;
-                _autoFocusPending = false;
+                ClearAutoFocusPending();
                 return;
             }
 
@@ -291,7 +291,7 @@ namespace TopSpeed.Menu
             _activeActionIndex = NoSelection;
             _pendingFocusIndex = null;
             _justEntered = true;
-            _autoFocusPending = true;
+            QueueAutoFocusFirstItem();
         }
     }
 }

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-19 00:02+0200\n"
+"POT-Creation-Date: 2026-03-20 09:20+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,7 +46,7 @@ msgstr ""
 msgid "  TopSpeed.Server [options]"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:341
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:382
 msgid "(empty)"
 msgstr ""
 
@@ -80,8 +80,9 @@ msgstr ""
 msgid "Available commands:"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:205
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:227
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:209
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:236
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:269
 msgid "Back"
 msgstr ""
 
@@ -164,8 +165,8 @@ msgstr ""
 msgid "Changes:"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:204
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:315
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:208
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:356
 msgid "Check for updates on startup"
 msgstr ""
 
@@ -173,7 +174,7 @@ msgstr ""
 msgid "Checking for update..."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:229
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:238
 msgid "Choose server language:"
 msgstr ""
 
@@ -229,12 +230,12 @@ msgstr ""
 msgid "Could not launch updater: {0}"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:294
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:335
 #, csharp-format
 msgid "Discovery port updated to {0}. Restart required for this change."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:202
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:205
 #, csharp-format
 msgid "Discovery port: {0}"
 msgstr ""
@@ -310,24 +311,24 @@ msgstr ""
 msgid "English (Original)"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:286
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:327
 msgid "Enter discovery port (1-65535):"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:299
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:340
 msgid "Enter max players (1-255):"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:257
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:298
 #, csharp-format
 msgid "Enter message of the day (max {0} chars, empty clears value):"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:48
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:67
 msgid "Enter option number:"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:273
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:314
 msgid "Enter server port (1-65535):"
 msgstr ""
 
@@ -340,12 +341,12 @@ msgstr ""
 msgid "Failed to parse {0} packet from {1}."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Config\SettingsStore.cs:38
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Config\SettingsStore.cs:39
 #, csharp-format
 msgid "Failed to read server settings, using defaults: {0}"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Config\SettingsStore.cs:59
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Config\SettingsStore.cs:60
 #, csharp-format
 msgid "Failed to save server settings: {0}"
 msgstr ""
@@ -392,8 +393,8 @@ msgstr ""
 msgid "Invalid command \"{0}\". Type \"help\" for the list of commands."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:53
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:79
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:72
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:103
 msgid "Invalid input. Enter a valid number."
 msgstr ""
 
@@ -406,7 +407,7 @@ msgstr ""
 msgid "Invalid numeric value '{0}' for key '{1}'."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:60
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:84
 msgid "Invalid option number."
 msgstr ""
 
@@ -493,7 +494,7 @@ msgstr ""
 msgid "Key '{0}' is missing a value."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:199
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:202
 msgid "Language"
 msgstr ""
 
@@ -537,21 +538,21 @@ msgstr ""
 msgid "Manually check for server updates."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:308
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:349
 #, csharp-format
 msgid "Max players updated to {0}."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:203
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:206
 #, csharp-format
 msgid "Max players: {0}"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:200
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:203
 msgid "Message of the day"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:268
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:309
 msgid "Message of the day updated."
 msgstr ""
 
@@ -559,7 +560,7 @@ msgstr ""
 msgid "No changes were listed for this update."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:220
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:229
 msgid "No languages are available."
 msgstr ""
 
@@ -848,6 +849,10 @@ msgstr ""
 msgid "Segment sound source list cannot be empty."
 msgstr ""
 
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:207
+msgid "Server architecture"
+msgstr ""
+
 #: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:62
 msgid ""
 "Server command interface ready. Type \"help\" to get the list of commands."
@@ -862,12 +867,12 @@ msgstr ""
 msgid "Server is up-to-date."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:251
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:260
 #, csharp-format
 msgid "Server language remains {0}."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:247
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:256
 #, csharp-format
 msgid "Server language set to {0}."
 msgstr ""
@@ -876,12 +881,12 @@ msgstr ""
 msgid "Server options:"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:281
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:322
 #, csharp-format
 msgid "Server port updated to {0}. Restart required for this change."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:201
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:204
 #, csharp-format
 msgid "Server port: {0}"
 msgstr ""
@@ -960,11 +965,12 @@ msgstr ""
 
 #: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:83
 #: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:165
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:231
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:261
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:275
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:288
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:301
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:240
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:273
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:302
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:316
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:329
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Host.cs:342
 msgid "Standard input is no longer available. Server commands are disabled."
 msgstr ""
 
@@ -1103,16 +1109,16 @@ msgstr ""
 msgid "Updater not found: {0}"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:105
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:129
 msgid "Value cannot be empty."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:111
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:135
 #, csharp-format
 msgid "Value is too long. Maximum length is {0} characters."
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:85
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:109
 #, csharp-format
 msgid "Value must be between {0} and {1}."
 msgstr ""
@@ -1245,11 +1251,11 @@ msgstr ""
 msgid "normal"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:124
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:148
 msgid "off"
 msgstr ""
 
-#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:123
+#: D:\top_speed\top_speed_net\TopSpeed.Server\Commands\Input.cs:147
 msgid "on"
 msgstr ""
 

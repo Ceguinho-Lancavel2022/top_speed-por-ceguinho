@@ -201,6 +201,7 @@ namespace TopSpeed.Core.Settings
     internal sealed class SettingsUiDocument
     {
         [DataMember(Name = "usageHints")] public bool? UsageHints { get; set; }
+        [DataMember(Name = "menuAutoFocus")] public bool? MenuAutoFocus { get; set; }
         [DataMember(Name = "menuWrapNavigation")] public bool? MenuWrapNavigation { get; set; }
         [DataMember(Name = "menuSoundPreset")] public string? MenuSoundPreset { get; set; }
         [DataMember(Name = "menuNavigatePanning")] public bool? MenuNavigatePanning { get; set; }

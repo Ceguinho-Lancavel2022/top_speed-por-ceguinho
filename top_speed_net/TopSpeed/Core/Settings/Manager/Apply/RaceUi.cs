@@ -28,6 +28,8 @@ namespace TopSpeed.Core.Settings
         {
             if (ui.UsageHints.HasValue)
                 settings.UsageHints = ui.UsageHints.Value;
+            if (ui.MenuAutoFocus.HasValue)
+                settings.MenuAutoFocus = ui.MenuAutoFocus.Value;
             if (ui.MenuWrapNavigation.HasValue)
                 settings.MenuWrapNavigation = ui.MenuWrapNavigation.Value;
             if (ui.MenuNavigatePanning.HasValue)

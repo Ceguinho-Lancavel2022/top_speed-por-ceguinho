@@ -50,7 +50,7 @@ namespace TopSpeed.Menu
             if (_index == NoSelection && _autoFocusPending)
             {
                 FocusFirstItem();
-                _autoFocusPending = false;
+                ClearAutoFocusPending();
             }
 
             return MenuUpdateResult.None;

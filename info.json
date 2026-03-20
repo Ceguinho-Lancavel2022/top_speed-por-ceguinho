@@ -1,7 +1,8 @@
 {
-  "version": "2026.3.20.1",
+  "version": "2026.3.20.2",
   "serverVersion": "2026.3.19.2",
   "changes": [
+    "Added the ability to disable automatic focus of the first item in menus. This will bypass screen-reader calibration that is used for that, but screen-reader calibration will still be used for usage hints if you enable them.",
     "Add support for ZDSR and BOY screen-readers.",
     "Engine sounds now follow rpm, not speed."
   ],

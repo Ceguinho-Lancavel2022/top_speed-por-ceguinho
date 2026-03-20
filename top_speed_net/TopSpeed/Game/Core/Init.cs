@@ -47,6 +47,7 @@ namespace TopSpeed.Game
             _menu.SetWrapNavigation(_settings.MenuWrapNavigation);
             _menu.SetMenuSoundPreset(_settings.MenuSoundPreset);
             _menu.SetMenuNavigatePanning(_settings.MenuNavigatePanning);
+            _menu.SetMenuAutoFocus(_settings.MenuAutoFocus);
             _selection = new RaceSelection(_setup, _settings);
             _menuRegistry = new MenuRegistry(_menu, _settings, _setup, _raceInput, _selection, this, this, this, this, this, this);
             _inputMapping = new InputMappingHandler(input, _raceInput, _settings, speech, SaveSettings);
@@ -77,7 +78,7 @@ namespace TopSpeed.Game
             _settings.AudioVolumes ??= new AudioVolumeSettings();
             _settings.SyncAudioCategoriesFromMusicVolume();
             ApplyAudioSettings();
-            _needsCalibration = _settings.ScreenReaderRateMs <= 0f;
+            _needsCalibration = _settings.UsageHints && _settings.ScreenReaderRateMs <= 0f;
         }
 
         public void Initialize()

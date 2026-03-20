@@ -72,7 +72,7 @@ namespace TopSpeed.Menu
             {
                 input.LatchMenuBack();
                 _ignoreHeldInput = false;
-                _autoFocusPending = false;
+                ClearAutoFocusPending();
                 result = MenuUpdateResult.Back;
                 return true;
             }
@@ -80,7 +80,7 @@ namespace TopSpeed.Menu
             if (state.MoveUp)
             {
                 _ignoreHeldInput = false;
-                _autoFocusPending = false;
+                ClearAutoFocusPending();
                 MoveToIndex(_items.Count - 1);
                 return true;
             }
@@ -88,7 +88,7 @@ namespace TopSpeed.Menu
             if (state.MoveDown)
             {
                 _ignoreHeldInput = false;
-                _autoFocusPending = false;
+                ClearAutoFocusPending();
                 MoveToIndex(0);
                 return true;
             }
@@ -96,7 +96,7 @@ namespace TopSpeed.Menu
             if (state.MoveHome)
             {
                 _ignoreHeldInput = false;
-                _autoFocusPending = false;
+                ClearAutoFocusPending();
                 MoveToIndex(0);
                 return true;
             }
@@ -104,7 +104,7 @@ namespace TopSpeed.Menu
             if (state.MoveEnd)
             {
                 _ignoreHeldInput = false;
-                _autoFocusPending = false;
+                ClearAutoFocusPending();
                 MoveToIndex(_items.Count - 1);
                 return true;
             }

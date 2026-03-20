@@ -78,6 +78,7 @@ namespace TopSpeed.Input
         public int DefaultServerPort { get; set; }
         public float ScreenReaderRateMs { get; set; }
         public bool UsageHints { get; set; }
+        public bool MenuAutoFocus { get; set; }
         public bool MenuWrapNavigation { get; set; }
         public string MenuSoundPreset { get; set; } = "1";
         public bool MenuNavigatePanning { get; set; }
@@ -161,6 +162,7 @@ namespace TopSpeed.Input
             DefaultServerPort = 28630;
             ScreenReaderRateMs = 0f;
             UsageHints = true;
+            MenuAutoFocus = true;
             MenuWrapNavigation = true;
             MenuSoundPreset = "1";
             MenuNavigatePanning = false;

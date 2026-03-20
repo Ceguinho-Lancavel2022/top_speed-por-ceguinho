@@ -111,6 +111,7 @@ namespace TopSpeed.Core.Settings
                 Ui = new SettingsUiDocument
                 {
                     UsageHints = settings.UsageHints,
+                    MenuAutoFocus = settings.MenuAutoFocus,
                     MenuWrapNavigation = settings.MenuWrapNavigation,
                     MenuSoundPreset = settings.MenuSoundPreset,
                     MenuNavigatePanning = settings.MenuNavigatePanning,

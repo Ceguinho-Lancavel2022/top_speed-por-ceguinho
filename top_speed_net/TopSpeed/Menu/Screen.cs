@@ -25,6 +25,7 @@ namespace TopSpeed.Menu
         private readonly AudioManager _audio;
         private readonly SpeechService _speech;
         private readonly Func<bool> _usageHintsEnabled;
+        private readonly Func<bool> _autoFocusFirstItemEnabled;
         private readonly string _defaultMenuSoundRoot;
         private readonly string _legacySoundRoot;
         private readonly string _musicRoot;
@@ -99,12 +100,14 @@ namespace TopSpeed.Menu
             SpeechService speech,
             string? title = null,
             Func<string>? titleProvider = null,
-            Func<bool>? usageHintsEnabled = null)
+            Func<bool>? usageHintsEnabled = null,
+            Func<bool>? autoFocusFirstItemEnabled = null)
         {
             Id = id;
             _audio = audio;
             _speech = speech;
             _usageHintsEnabled = usageHintsEnabled ?? (() => false);
+            _autoFocusFirstItemEnabled = autoFocusFirstItemEnabled ?? (() => true);
             _items = new List<MenuItem>();
             _views = new List<MenuView>();
             _defaultViewId = $"{id}:main";
@@ -194,6 +197,18 @@ namespace TopSpeed.Menu
 
         private MenuView ActiveView => _views[_viewIndex];
         private MenuView PrimaryView => _views[0];
+
+        private void QueueAutoFocusFirstItem(bool force = false)
+        {
+            _autoFocusPending = force || _autoFocusFirstItemEnabled();
+            if (!_autoFocusPending)
+                _pendingFocusIndex = null;
+        }
+
+        private void ClearAutoFocusPending()
+        {
+            _autoFocusPending = false;
+        }
 
         private int ResolveScreenIndex(string? screenId)
         {
