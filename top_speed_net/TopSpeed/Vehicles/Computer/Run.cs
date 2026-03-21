@@ -66,7 +66,7 @@ namespace TopSpeed.Vehicles
                 _autoShiftCooldown = physicsState.AutoShiftCooldownSeconds;
                 _speedDiff = _speed - beforeSpeed;
 
-                _engine.SyncFromSpeed(_speed, _gear, elapsed, _currentThrottle, inReverse: false);
+                _engine.SyncFromSpeed(_speed, _gear, elapsed, _currentThrottle, inReverse: false, couplingMode: EngineCouplingMode.Blended);
                 UpdateEngineFreq();
 
                 if (_frame % 4 == 0)

@@ -157,9 +157,24 @@ namespace TopSpeed.Vehicles
 
         private void SyncEngineFromSpeed(float elapsed)
         {
-            _engine.SyncFromSpeed(_speed, GetDriveGear(), elapsed, _currentThrottle, _gear == ReverseGear, _reverseGearRatio);
-            if (_lastDriveRpm > 0f && _lastDriveRpm > _engine.Rpm)
+            var couplingMode = ResolveEngineCouplingMode();
+            _engine.SyncFromSpeed(
+                _speed,
+                GetDriveGear(),
+                elapsed,
+                _currentThrottle,
+                _gear == ReverseGear,
+                _reverseGearRatio,
+                couplingMode);
+            if (couplingMode == EngineCouplingMode.Blended && _lastDriveRpm > 0f && _lastDriveRpm > _engine.Rpm)
                 _engine.OverrideRpm(_lastDriveRpm);
+        }
+
+        private EngineCouplingMode ResolveEngineCouplingMode()
+        {
+            if (_manualTransmission && _gear >= FirstForwardGear && _switchingGear == 0)
+                return EngineCouplingMode.Locked;
+            return EngineCouplingMode.Blended;
         }
 
         private void UpdateBackfireStateAfterDrive()
