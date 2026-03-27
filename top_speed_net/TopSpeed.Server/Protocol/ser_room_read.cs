@@ -79,6 +79,18 @@ namespace TopSpeed.Server.Protocol
             return true;
         }
 
+        public static bool TryReadRoomSetGameRules(byte[] data, out PacketRoomSetGameRules packet)
+        {
+            packet = new PacketRoomSetGameRules();
+            if (data.Length < 2 + 4)
+                return false;
+            var reader = new PacketReader(data);
+            reader.ReadByte();
+            reader.ReadByte();
+            packet.GameRulesFlags = reader.ReadUInt32();
+            return true;
+        }
+
         public static bool TryReadRoomPlayerReady(byte[] data, out PacketRoomPlayerReady packet)
         {
             packet = new PacketRoomPlayerReady();
@@ -95,7 +107,7 @@ namespace TopSpeed.Server.Protocol
         public static bool TryReadRoomEvent(byte[] data, out PacketRoomEvent packet)
         {
             packet = new PacketRoomEvent();
-            if (data.Length < 2 + 4 + 4 + 1 + 4 + 1 + 1 + 1 + 1 + 1 + 12 + 1 + ProtocolConstants.MaxRoomNameLength + 4 + 1 + 1 + ProtocolConstants.MaxPlayerNameLength)
+            if (data.Length < 2 + 4 + 4 + 1 + 4 + 1 + 1 + 1 + 1 + 1 + 12 + 1 + 4 + ProtocolConstants.MaxRoomNameLength + 4 + 1 + 1 + ProtocolConstants.MaxPlayerNameLength)
                 return false;
             var reader = new PacketReader(data);
             reader.ReadByte();
@@ -111,6 +123,7 @@ namespace TopSpeed.Server.Protocol
             packet.PreparingRace = reader.ReadBool();
             packet.TrackName = reader.ReadFixedString(12);
             packet.Laps = reader.ReadByte();
+            packet.GameRulesFlags = reader.ReadUInt32();
             packet.RoomName = reader.ReadFixedString(ProtocolConstants.MaxRoomNameLength);
             packet.SubjectPlayerId = reader.ReadUInt32();
             packet.SubjectPlayerNumber = reader.ReadByte();

@@ -93,6 +93,16 @@ namespace TopSpeed.Network
             return buffer;
         }
 
+        public static byte[] WriteRoomSetGameRules(uint gameRulesFlags)
+        {
+            var buffer = WritePacketHeader(Command.RoomSetGameRules, 4);
+            var writer = new PacketWriter(buffer);
+            writer.WriteByte(ProtocolConstants.Version);
+            writer.WriteByte((byte)Command.RoomSetGameRules);
+            writer.WriteUInt32(gameRulesFlags);
+            return buffer;
+        }
+
         public static byte[] WriteRoomAddBot()
         {
             return WriteGeneral(Command.RoomAddBot);

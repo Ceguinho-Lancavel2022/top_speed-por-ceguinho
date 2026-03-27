@@ -31,13 +31,13 @@ namespace TopSpeed.Vehicles
             var coupledRpm = wheelCircumference > 0f
                 ? (speedMps / wheelCircumference) * 60f * gearRatio * _finalDriveRatio
                 : _idleRpm;
-            coupledRpm = Math.Max(_idleRpm, Math.Min(_revLimiter, coupledRpm));
+            coupledRpm = Math.Max(_stallRpm, Math.Min(_revLimiter, coupledRpm));
 
             var lockToDriveline = couplingMode == EngineCouplingMode.Locked;
             var disengaged = couplingMode == EngineCouplingMode.Disengaged;
             var clampedCouplingFactor = Math.Max(0f, Math.Min(1f, couplingFactor));
             var baseRpm = lockToDriveline ? coupledRpm : (_rpm > 0f ? _rpm : coupledRpm);
-            var clampedBaseRpm = Math.Max(_idleRpm, Math.Min(_revLimiter, baseRpm));
+            var clampedBaseRpm = Math.Max(_stallRpm, Math.Min(_revLimiter, baseRpm));
             var torqueAvailable = _torqueCurve.EvaluateTorque(clampedBaseRpm);
             var maximumEngineTorque = torqueAvailable * _powerFactor;
             var requestedEngineTorque = maximumEngineTorque * throttle;
@@ -63,7 +63,7 @@ namespace TopSpeed.Vehicles
             var netEngineTorque = grossEngineTorque - lossTorque;
             var rpmPerSecond = (netEngineTorque / _engineInertiaKgm2) * (60f / (2f * (float)Math.PI));
             var torqueIntegratedRpm = clampedBaseRpm + (rpmPerSecond * elapsed);
-            torqueIntegratedRpm = Math.Max(_idleRpm, Math.Min(_maxRpm, torqueIntegratedRpm));
+            torqueIntegratedRpm = Math.Max(_stallRpm, Math.Min(_maxRpm, torqueIntegratedRpm));
 
             if (lockToDriveline)
             {
@@ -77,7 +77,7 @@ namespace TopSpeed.Vehicles
             {
                 var couplingAlpha = Math.Max(0f, Math.Min(1f, _drivelineCouplingRate * elapsed * clampedCouplingFactor));
                 var blendedRpm = torqueIntegratedRpm + ((coupledRpm - torqueIntegratedRpm) * couplingAlpha);
-                _rpm = Math.Max(_idleRpm, Math.Min(_maxRpm, blendedRpm));
+                _rpm = Math.Max(_stallRpm, Math.Min(_maxRpm, blendedRpm));
             }
 
             if (_rpm > _revLimiter)

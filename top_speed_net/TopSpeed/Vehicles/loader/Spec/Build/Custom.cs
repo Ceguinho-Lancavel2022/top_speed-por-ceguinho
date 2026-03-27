@@ -1,0 +1,82 @@
+using TopSpeed.Data;
+using TopSpeed.Vehicles.Parsing;
+using TopSpeed.Vehicles;
+
+namespace TopSpeed.Vehicles.Loader
+{
+    internal static partial class Spec
+    {
+        public static Common FromCustom(CustomVehicleTsvData parsed, TrackWeather weather)
+        {
+            return new Common
+            {
+                SurfaceTractionFactor = parsed.SurfaceTractionFactor,
+                Deceleration = parsed.Deceleration,
+                TopSpeed = parsed.TopSpeed,
+                IdleFreq = parsed.IdleFreq,
+                TopFreq = parsed.TopFreq,
+                ShiftFreq = parsed.ShiftFreq,
+                PitchCurveExponent = parsed.PitchCurveExponent,
+                Gears = parsed.Gears,
+                Steering = parsed.Steering,
+                PrimaryTransmissionType = parsed.PrimaryTransmissionType,
+                SupportedTransmissionTypes = (TransmissionType[])parsed.SupportedTransmissionTypes.Clone(),
+                ShiftOnDemand = parsed.ShiftOnDemand,
+                AutomaticTuning = parsed.AutomaticTuning,
+                HasWipers = weather == TrackWeather.Rain ? parsed.HasWipers : 0,
+                IdleRpm = parsed.IdleRpm,
+                MaxRpm = parsed.MaxRpm,
+                RevLimiter = parsed.RevLimiter,
+                AutoShiftRpm = ResolveAutoShiftRpm(parsed.AutoShiftRpm, parsed.RevLimiter),
+                EngineBraking = parsed.EngineBraking,
+                MassKg = parsed.MassKg,
+                DrivetrainEfficiency = parsed.DrivetrainEfficiency,
+                EngineBrakingTorqueNm = parsed.EngineBrakingTorqueNm,
+                TireGripCoefficient = parsed.TireGripCoefficient,
+                PeakTorqueNm = parsed.PeakTorqueNm,
+                PeakTorqueRpm = parsed.PeakTorqueRpm,
+                IdleTorqueNm = parsed.IdleTorqueNm,
+                RedlineTorqueNm = parsed.RedlineTorqueNm,
+                DragCoefficient = parsed.DragCoefficient,
+                FrontalAreaM2 = parsed.FrontalAreaM2,
+                RollingResistanceCoefficient = parsed.RollingResistanceCoefficient,
+                LaunchRpm = parsed.LaunchRpm,
+                EngineInertiaKgm2 = parsed.EngineInertiaKgm2,
+                EngineFrictionTorqueNm = parsed.EngineFrictionTorqueNm,
+                DrivelineCouplingRate = parsed.DrivelineCouplingRate,
+                FinalDriveRatio = parsed.FinalDriveRatio,
+                ReverseMaxSpeedKph = parsed.ReverseMaxSpeedKph,
+                ReversePowerFactor = parsed.ReversePowerFactor,
+                ReverseGearRatio = parsed.ReverseGearRatio,
+                TireCircumferenceM = parsed.TireCircumferenceM,
+                LateralGripCoefficient = parsed.LateralGripCoefficient,
+                HighSpeedStability = parsed.HighSpeedStability,
+                WheelbaseM = parsed.WheelbaseM,
+                MaxSteerDeg = parsed.MaxSteerDeg,
+                HighSpeedSteerGain = parsed.HighSpeedSteerGain,
+                HighSpeedSteerStartKph = parsed.HighSpeedSteerStartKph,
+                HighSpeedSteerFullKph = parsed.HighSpeedSteerFullKph,
+                CombinedGripPenalty = parsed.CombinedGripPenalty,
+                SlipAnglePeakDeg = parsed.SlipAnglePeakDeg,
+                SlipAngleFalloff = parsed.SlipAngleFalloff,
+                TurnResponse = parsed.TurnResponse,
+                MassSensitivity = parsed.MassSensitivity,
+                DownforceGripGain = parsed.DownforceGripGain,
+                CornerStiffnessFront = parsed.CornerStiffnessFront,
+                CornerStiffnessRear = parsed.CornerStiffnessRear,
+                YawInertiaScale = parsed.YawInertiaScale,
+                SteeringCurve = parsed.SteeringCurve,
+                TransientDamping = parsed.TransientDamping,
+                WidthM = parsed.WidthM,
+                LengthM = parsed.LengthM,
+                PowerFactor = parsed.PowerFactor,
+                GearRatios = parsed.GearRatios,
+                TorqueCurveRpm = parsed.TorqueCurveRpm,
+                TorqueCurveTorqueNm = parsed.TorqueCurveTorqueNm,
+                TorqueCurvePreset = parsed.TorqueCurvePreset,
+                BrakeStrength = parsed.BrakeStrength,
+                TransmissionPolicy = parsed.TransmissionPolicy
+            };
+        }
+    }
+}

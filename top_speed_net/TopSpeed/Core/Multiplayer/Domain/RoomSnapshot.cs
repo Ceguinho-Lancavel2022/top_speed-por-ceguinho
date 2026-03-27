@@ -17,6 +17,7 @@ namespace TopSpeed.Core.Multiplayer
         public bool PreparingRace;
         public string TrackName = string.Empty;
         public byte Laps;
+        public uint GameRulesFlags;
         public RoomParticipant[] Players = Array.Empty<RoomParticipant>();
     }
 }

@@ -64,6 +64,11 @@ namespace TopSpeed.Network
             return _sender.TrySend(ClientPacketSerializer.WriteRoomSetPlayersToStart(playersToStart), PacketStream.Room);
         }
 
+        public bool SendRoomSetGameRules(uint gameRulesFlags)
+        {
+            return _sender.TrySend(ClientPacketSerializer.WriteRoomSetGameRules(gameRulesFlags), PacketStream.Room);
+        }
+
         public bool SendRoomAddBot()
         {
             return _sender.TrySend(ClientPacketSerializer.WriteRoomAddBot(), PacketStream.Room);

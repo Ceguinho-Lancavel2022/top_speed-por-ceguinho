@@ -48,6 +48,7 @@ namespace TopSpeed.Vehicles
         void Crash();
         void MiniCrash(float newPosition);
         void Bump(float bumpX, float bumpY, float speedDeltaKph);
+        void SetNeutralGear();
         void Stop();
         void Quiet();
         void Run(float elapsed);

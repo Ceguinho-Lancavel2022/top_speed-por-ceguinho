@@ -27,6 +27,7 @@ namespace TopSpeed.Race
         {
             _track.Initialize();
             _car.Initialize();
+            _car.SetOverrideController(null);
             _elapsedTotal = 0.0f;
             _oldStopwatchMs = 0;
             _stopwatchDiffMs = 0;
@@ -54,6 +55,7 @@ namespace TopSpeed.Race
 
         protected void ApplyPlayerFinishState()
         {
+            _finished = true;
             var finishSounds = _randomSounds[(int)RandomSound.Finish];
             var finishSoundCount = _totalRandomSounds[(int)RandomSound.Finish];
             if (finishSoundCount > 0)
@@ -64,6 +66,8 @@ namespace TopSpeed.Race
             }
 
             _car.ManualTransmission = false;
+            _car.SetOverrideController(FinishLockController);
+            _car.SetNeutralGear();
             _car.Quiet();
             _car.Stop();
             _raceTime = (int)(_stopwatch.ElapsedMilliseconds - _stopwatchDiffMs);

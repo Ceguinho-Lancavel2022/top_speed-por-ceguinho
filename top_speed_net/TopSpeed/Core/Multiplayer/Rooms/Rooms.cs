@@ -12,6 +12,7 @@ namespace TopSpeed.Core.Multiplayer
         private const string MultiplayerPingShortcutActionId = "multiplayer_ping";
         private const string MultiplayerChatShortcutActionId = "multiplayer_chat";
         private const string MultiplayerRoomChatShortcutActionId = "multiplayer_room_chat";
+        private const string MultiplayerRoomRulesShortcutActionId = "multiplayer_room_rules";
         private const string MultiplayerShortcutScopeId = "multiplayer";
 
         private static readonly string[] MultiplayerScopeMenus =
@@ -23,6 +24,7 @@ namespace TopSpeed.Core.Multiplayer
             MultiplayerMenuKeys.RoomPlayers,
             MultiplayerMenuKeys.OnlinePlayers,
             MultiplayerMenuKeys.RoomOptions,
+            MultiplayerMenuKeys.RoomGameRules,
             MultiplayerMenuKeys.RoomTrackType,
             MultiplayerMenuKeys.RoomTrackRace,
             MultiplayerMenuKeys.RoomTrackAdventure,
@@ -57,6 +59,14 @@ namespace TopSpeed.Core.Multiplayer
                 LocalizationService.Mark("Opens chat input for the current room chat when you are inside a room."),
                 SharpDX.DirectInput.Key.Backslash,
                 OpenRoomChatInput,
+                () => IsInRoomCore);
+
+            _menu.RegisterShortcutAction(
+                MultiplayerRoomRulesShortcutActionId,
+                LocalizationService.Mark("View game rules"),
+                LocalizationService.Mark("Speaks currently active game rules for the current game room."),
+                SharpDX.DirectInput.Key.R,
+                AnnounceCurrentRoomGameRules,
                 () => IsInRoomCore);
 
             _menu.SetScopeShortcutActions(
@@ -99,6 +109,11 @@ namespace TopSpeed.Core.Multiplayer
                 CancelRoomOptionsChanges();
                 return false;
             });
+
+            _menu.SetMenuShortcutActions(
+                MultiplayerMenuKeys.RoomControls,
+                new[] { MultiplayerRoomRulesShortcutActionId },
+                LocalizationService.Mark("Room controls"));
 
             _menu.SetCloseHandler(MultiplayerMenuKeys.LoadoutTransmission, _ =>
             {

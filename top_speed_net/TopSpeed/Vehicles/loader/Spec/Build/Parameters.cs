@@ -1,0 +1,81 @@
+using TopSpeed.Data;
+using TopSpeed.Vehicles;
+
+namespace TopSpeed.Vehicles.Loader
+{
+    internal static partial class Spec
+    {
+        public static Common FromParameters(VehicleParameters parameters, TrackWeather weather)
+        {
+            return new Common
+            {
+                SurfaceTractionFactor = parameters.SurfaceTractionFactor,
+                Deceleration = parameters.Deceleration,
+                TopSpeed = parameters.TopSpeed,
+                IdleFreq = parameters.IdleFreq,
+                TopFreq = parameters.TopFreq,
+                ShiftFreq = parameters.ShiftFreq,
+                PitchCurveExponent = parameters.PitchCurveExponent,
+                Gears = parameters.Gears,
+                Steering = parameters.Steering,
+                PrimaryTransmissionType = parameters.PrimaryTransmissionType,
+                SupportedTransmissionTypes = (TransmissionType[])parameters.SupportedTransmissionTypes.Clone(),
+                ShiftOnDemand = parameters.ShiftOnDemand,
+                AutomaticTuning = parameters.AutomaticTuning,
+                HasWipers = parameters.HasWipers == 1 && weather == TrackWeather.Rain ? 1 : 0,
+                IdleRpm = parameters.IdleRpm,
+                MaxRpm = parameters.MaxRpm,
+                RevLimiter = parameters.RevLimiter,
+                AutoShiftRpm = ResolveAutoShiftRpm(parameters.AutoShiftRpm, parameters.RevLimiter),
+                EngineBraking = parameters.EngineBraking,
+                MassKg = parameters.MassKg,
+                DrivetrainEfficiency = parameters.DrivetrainEfficiency,
+                EngineBrakingTorqueNm = parameters.EngineBrakingTorqueNm,
+                TireGripCoefficient = parameters.TireGripCoefficient,
+                PeakTorqueNm = parameters.PeakTorqueNm,
+                PeakTorqueRpm = parameters.PeakTorqueRpm,
+                IdleTorqueNm = parameters.IdleTorqueNm,
+                RedlineTorqueNm = parameters.RedlineTorqueNm,
+                DragCoefficient = parameters.DragCoefficient,
+                FrontalAreaM2 = parameters.FrontalAreaM2,
+                RollingResistanceCoefficient = parameters.RollingResistanceCoefficient,
+                LaunchRpm = parameters.LaunchRpm,
+                EngineInertiaKgm2 = parameters.EngineInertiaKgm2,
+                EngineFrictionTorqueNm = parameters.EngineFrictionTorqueNm,
+                DrivelineCouplingRate = parameters.DrivelineCouplingRate,
+                FinalDriveRatio = parameters.FinalDriveRatio,
+                ReverseMaxSpeedKph = parameters.ReverseMaxSpeedKph,
+                ReversePowerFactor = parameters.ReversePowerFactor,
+                ReverseGearRatio = parameters.ReverseGearRatio,
+                TireCircumferenceM = parameters.TireCircumferenceM,
+                LateralGripCoefficient = parameters.LateralGripCoefficient,
+                HighSpeedStability = parameters.HighSpeedStability,
+                WheelbaseM = parameters.WheelbaseM,
+                MaxSteerDeg = parameters.MaxSteerDeg,
+                HighSpeedSteerGain = parameters.HighSpeedSteerGain,
+                HighSpeedSteerStartKph = parameters.HighSpeedSteerStartKph,
+                HighSpeedSteerFullKph = parameters.HighSpeedSteerFullKph,
+                CombinedGripPenalty = parameters.CombinedGripPenalty,
+                SlipAnglePeakDeg = parameters.SlipAnglePeakDeg,
+                SlipAngleFalloff = parameters.SlipAngleFalloff,
+                TurnResponse = parameters.TurnResponse,
+                MassSensitivity = parameters.MassSensitivity,
+                DownforceGripGain = parameters.DownforceGripGain,
+                CornerStiffnessFront = parameters.CornerStiffnessFront,
+                CornerStiffnessRear = parameters.CornerStiffnessRear,
+                YawInertiaScale = parameters.YawInertiaScale,
+                SteeringCurve = parameters.SteeringCurve,
+                TransientDamping = parameters.TransientDamping,
+                WidthM = parameters.WidthM,
+                LengthM = parameters.LengthM,
+                PowerFactor = parameters.PowerFactor,
+                GearRatios = parameters.GearRatios,
+                TorqueCurveRpm = parameters.TorqueCurveRpm,
+                TorqueCurveTorqueNm = parameters.TorqueCurveTorqueNm,
+                TorqueCurvePreset = parameters.TorqueCurvePreset,
+                BrakeStrength = parameters.BrakeStrength,
+                TransmissionPolicy = parameters.TransmissionPolicy
+            };
+        }
+    }
+}

@@ -32,6 +32,7 @@ namespace TopSpeed.Core.Multiplayer
             _state.Rooms.CurrentRoom.PreparingRace = roomEvent.PreparingRace;
             _state.Rooms.CurrentRoom.TrackName = roomEvent.TrackName ?? string.Empty;
             _state.Rooms.CurrentRoom.Laps = roomEvent.Laps;
+            _state.Rooms.CurrentRoom.GameRulesFlags = roomEvent.GameRulesFlags;
             _state.Rooms.CurrentRoom.IsHost = session != null && roomEvent.HostPlayerId == session.PlayerId;
             var localPlayerId = session?.PlayerId ?? 0u;
 

@@ -48,6 +48,7 @@ namespace TopSpeed.Core.Multiplayer
                 PreparingRace = packet.PreparingRace,
                 TrackName = packet.TrackName ?? string.Empty,
                 Laps = packet.Laps,
+                GameRulesFlags = packet.GameRulesFlags,
                 Players = ToParticipants(packet.Players)
             };
         }
@@ -70,6 +71,7 @@ namespace TopSpeed.Core.Multiplayer
                 PreparingRace = packet.PreparingRace,
                 TrackName = packet.TrackName ?? string.Empty,
                 Laps = packet.Laps,
+                GameRulesFlags = packet.GameRulesFlags,
                 RoomName = packet.RoomName ?? string.Empty,
                 SubjectPlayerId = packet.SubjectPlayerId,
                 SubjectPlayerNumber = packet.SubjectPlayerNumber,

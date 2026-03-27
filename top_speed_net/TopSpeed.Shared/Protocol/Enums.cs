@@ -103,7 +103,8 @@ namespace TopSpeed.Protocol
         PlayerLiveStop = 48,
         RoomPlayerWithdraw = 49,
         OnlinePlayersRequest = 50,
-        OnlinePlayers = 51
+        OnlinePlayers = 51,
+        RoomSetGameRules = 52
     }
 
     public enum ProtocolMessageCode : byte
@@ -149,7 +150,8 @@ namespace TopSpeed.Protocol
         PrepareStarted = 13,
         PrepareCancelled = 14,
         RaceStarted = 15,
-        RaceStopped = 16
+        RaceStopped = 16,
+        GameRulesChanged = 17
     }
 
     public enum ProtocolCompatStatus : byte

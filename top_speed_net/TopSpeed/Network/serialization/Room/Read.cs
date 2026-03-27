@@ -57,7 +57,7 @@ namespace TopSpeed.Network
         public static bool TryReadRoomState(byte[] data, out PacketRoomState packet)
         {
             packet = new PacketRoomState();
-            if (data.Length < 2 + 4 + 4 + 4 + ProtocolConstants.MaxRoomNameLength + 1 + 1 + 1 + 1 + 1 + 1 + 12 + 1 + 1)
+            if (data.Length < 2 + 4 + 4 + 4 + ProtocolConstants.MaxRoomNameLength + 1 + 1 + 1 + 1 + 1 + 1 + 12 + 1 + 4 + 1)
                 return false;
             if (data[0] != ProtocolConstants.Version || data[1] != (byte)Command.RoomState)
                 return false;
@@ -76,9 +76,10 @@ namespace TopSpeed.Network
             packet.PreparingRace = reader.ReadBool();
             packet.TrackName = reader.ReadFixedString(12);
             packet.Laps = reader.ReadByte();
+            packet.GameRulesFlags = reader.ReadUInt32();
             var count = reader.ReadByte();
             var stride = 4 + 1 + 1 + ProtocolConstants.MaxPlayerNameLength;
-            var available = Math.Max(0, (data.Length - (2 + 4 + 4 + 4 + ProtocolConstants.MaxRoomNameLength + 1 + 1 + 1 + 1 + 1 + 1 + 12 + 1 + 1)) / stride);
+            var available = Math.Max(0, (data.Length - (2 + 4 + 4 + 4 + ProtocolConstants.MaxRoomNameLength + 1 + 1 + 1 + 1 + 1 + 1 + 12 + 1 + 4 + 1)) / stride);
             var actualCount = Math.Min(count, available);
             var players = new PacketRoomPlayer[actualCount];
             for (var i = 0; i < actualCount; i++)
@@ -98,7 +99,7 @@ namespace TopSpeed.Network
         public static bool TryReadRoomEvent(byte[] data, out PacketRoomEvent packet)
         {
             packet = new PacketRoomEvent();
-            if (data.Length < 2 + 4 + 4 + 1 + 4 + 1 + 1 + 1 + 1 + 1 + 12 + 1 + ProtocolConstants.MaxRoomNameLength + 4 + 1 + 1 + ProtocolConstants.MaxPlayerNameLength)
+            if (data.Length < 2 + 4 + 4 + 1 + 4 + 1 + 1 + 1 + 1 + 1 + 12 + 1 + 4 + ProtocolConstants.MaxRoomNameLength + 4 + 1 + 1 + ProtocolConstants.MaxPlayerNameLength)
                 return false;
             if (data[0] != ProtocolConstants.Version || data[1] != (byte)Command.RoomEvent)
                 return false;
@@ -116,6 +117,7 @@ namespace TopSpeed.Network
             packet.PreparingRace = reader.ReadBool();
             packet.TrackName = reader.ReadFixedString(12);
             packet.Laps = reader.ReadByte();
+            packet.GameRulesFlags = reader.ReadUInt32();
             packet.RoomName = reader.ReadFixedString(ProtocolConstants.MaxRoomNameLength);
             packet.SubjectPlayerId = reader.ReadUInt32();
             packet.SubjectPlayerNumber = reader.ReadByte();
@@ -127,7 +129,7 @@ namespace TopSpeed.Network
         public static bool TryReadRoomGet(byte[] data, out PacketRoomGet packet)
         {
             packet = new PacketRoomGet();
-            if (data.Length < 2 + 1 + 4 + 4 + 4 + ProtocolConstants.MaxRoomNameLength + 1 + 1 + 1 + 1 + 12 + 1 + 1)
+            if (data.Length < 2 + 1 + 4 + 4 + 4 + ProtocolConstants.MaxRoomNameLength + 1 + 1 + 1 + 1 + 12 + 1 + 4 + 1)
                 return false;
             if (data[0] != ProtocolConstants.Version || data[1] != (byte)Command.RoomGet)
                 return false;
@@ -146,9 +148,10 @@ namespace TopSpeed.Network
             packet.PreparingRace = reader.ReadBool();
             packet.TrackName = reader.ReadFixedString(12);
             packet.Laps = reader.ReadByte();
+            packet.GameRulesFlags = reader.ReadUInt32();
             var count = reader.ReadByte();
             var stride = 4 + 1 + 1 + ProtocolConstants.MaxPlayerNameLength;
-            var available = Math.Max(0, (data.Length - (2 + 1 + 4 + 4 + 4 + ProtocolConstants.MaxRoomNameLength + 1 + 1 + 1 + 1 + 12 + 1 + 1)) / stride);
+            var available = Math.Max(0, (data.Length - (2 + 1 + 4 + 4 + 4 + ProtocolConstants.MaxRoomNameLength + 1 + 1 + 1 + 1 + 12 + 1 + 4 + 1)) / stride);
             var actualCount = Math.Min(count, available);
             var players = new PacketRoomPlayer[actualCount];
             for (var i = 0; i < actualCount; i++)

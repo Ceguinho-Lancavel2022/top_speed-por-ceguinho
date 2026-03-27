@@ -97,6 +97,12 @@ jobs:
     - name: Build
       run: dotnet build TopSpeed.sln --configuration Release --no-restore
 
+    - name: Run shared tests (net10.0)
+      run: dotnet test TopSpeed.Tests/TopSpeed.Tests.csproj --configuration Release --framework net10.0 --no-build --verbosity normal
+
+    - name: Run game tests (net472)
+      run: dotnet test TopSpeed.Tests/TopSpeed.Tests.csproj --configuration Release --framework net472 --no-build --verbosity normal
+
     - name: Publish TopSpeed.Server (all release profiles)
       shell: pwsh
       run: |

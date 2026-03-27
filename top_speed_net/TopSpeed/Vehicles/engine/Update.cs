@@ -44,7 +44,7 @@ namespace TopSpeed.Vehicles
             }
             else
             {
-                targetRpm = Math.Max(_idleRpm, targetRpmFromSpeed * 0.9f);
+                targetRpm = Math.Max(_stallRpm, targetRpmFromSpeed * 0.9f);
                 rpmChangeRate = 2000f * _engineBraking * surfaceDecelMod;
             }
 
@@ -53,7 +53,7 @@ namespace TopSpeed.Vehicles
             else
                 _rpm = Math.Max(targetRpm, _rpm - (rpmChangeRate * elapsed));
 
-            _rpm = Math.Max(_idleRpm, Math.Min(_maxRpm, _rpm));
+            _rpm = Math.Max(_stallRpm, Math.Min(_maxRpm, _rpm));
             var effectiveRpm = _rpm > _revLimiter ? _revLimiter : _rpm;
 
             float acceleration;

@@ -174,6 +174,11 @@ namespace TopSpeed.Protocol
         public byte PlayersToStart;
     }
 
+    public sealed class PacketRoomSetGameRules
+    {
+        public uint GameRulesFlags;
+    }
+
     public sealed class PacketRoomPlayerReady
     {
         public CarType Car;
@@ -202,6 +207,7 @@ namespace TopSpeed.Protocol
         public bool PreparingRace;
         public string TrackName = string.Empty;
         public byte Laps;
+        public uint GameRulesFlags;
         public PacketRoomPlayer[] Players = Array.Empty<PacketRoomPlayer>();
     }
 
@@ -218,6 +224,7 @@ namespace TopSpeed.Protocol
         public bool PreparingRace;
         public string TrackName = string.Empty;
         public byte Laps;
+        public uint GameRulesFlags;
         public PacketRoomPlayer[] Players = Array.Empty<PacketRoomPlayer>();
     }
 
@@ -234,6 +241,7 @@ namespace TopSpeed.Protocol
         public bool PreparingRace;
         public string TrackName = string.Empty;
         public byte Laps;
+        public uint GameRulesFlags;
         public string RoomName = string.Empty;
         public uint SubjectPlayerId;
         public byte SubjectPlayerNumber;

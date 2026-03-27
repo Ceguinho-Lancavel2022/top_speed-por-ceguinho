@@ -40,6 +40,12 @@ namespace TopSpeed.Server.Network
         {
             foreach (var room in _rooms.Values)
             {
+                if ((room.GameRulesFlags & (uint)RoomGameRules.GhostMode) != 0u)
+                {
+                    room.ActiveBumpPairs.Clear();
+                    continue;
+                }
+
                 var roadModel = BuildRoadModel(room);
                 var racers = room.PlayerIds.Where(id => _players.TryGetValue(id, out var p) && p.State == PlayerState.Racing)
                     .Select(id => _players[id]).ToList();

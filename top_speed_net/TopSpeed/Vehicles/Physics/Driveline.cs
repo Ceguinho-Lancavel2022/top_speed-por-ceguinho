@@ -6,9 +6,10 @@ namespace TopSpeed.Vehicles
     internal partial class Car
     {
         private const float StallSpeedThresholdKph = 8f;
-        private const float StallDemandRpmFraction = 0.55f;
         private const float StallCouplingThreshold = 0.75f;
         private const float StallDelaySeconds = 0.25f;
+        private const float StallDisengagedThrottleMax = 0.12f;
+        private const float StallRpmCaptureBand = 35f;
 
         private float UpdateDriveline(float elapsed, float speedMps, float throttle, bool inReverse, int clutchInput)
         {
@@ -124,21 +125,39 @@ namespace TopSpeed.Vehicles
                 return;
             }
 
+            var stallThresholdRpm = _engine.StallRpm;
+            var engineNearStall = _engine.Rpm <= stallThresholdRpm + StallRpmCaptureBand;
             var lowSpeed = _speed <= StallSpeedThresholdKph;
             var engagedEnough = _drivelineCouplingFactor >= StallCouplingThreshold;
             var clutchDown = clutchInput >= 90;
+            if (clutchDown)
+            {
+                if (engineNearStall && throttle <= StallDisengagedThrottleMax)
+                {
+                    _stallTimer += elapsed;
+                    if (_stallTimer >= StallDelaySeconds)
+                        StallEngine();
+                }
+                else
+                {
+                    _stallTimer = 0f;
+                }
+
+                return;
+            }
+
             var insufficientThrottle = throttle < 0.20f;
             var highLoadGear = _gear > FirstForwardGear;
             var reverseLoad = _gear == ReverseGear && throttle < 0.15f;
-            if (!lowSpeed || !engagedEnough || clutchDown || (!insufficientThrottle && !highLoadGear && !reverseLoad))
+            if (!lowSpeed || !engagedEnough || (!insufficientThrottle && !highLoadGear && !reverseLoad))
             {
                 _stallTimer = 0f;
                 return;
             }
 
             var coupledDemandRpm = ComputeRawCoupledRpm(speedMps, inReverse: _gear == ReverseGear);
-            var stallThresholdRpm = _idleRpm * StallDemandRpmFraction;
-            if (coupledDemandRpm >= stallThresholdRpm)
+            var demandNearStall = coupledDemandRpm < stallThresholdRpm;
+            if (!demandNearStall && !engineNearStall)
             {
                 _stallTimer = 0f;
                 return;

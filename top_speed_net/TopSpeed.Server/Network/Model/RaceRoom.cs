@@ -36,6 +36,7 @@ namespace TopSpeed.Server.Network
         public TrackData? TrackData { get; set; }
         public string TrackName { get; set; }
         public byte Laps { get; set; }
+        public uint GameRulesFlags { get; set; }
         public List<byte> RaceResults { get; } = new List<byte>();
         public Dictionary<byte, int> RaceFinishTimesMs { get; } = new Dictionary<byte, int>();
         public DateTime RaceStartedUtc { get; set; }

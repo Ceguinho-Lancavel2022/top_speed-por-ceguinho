@@ -6,6 +6,13 @@ namespace TopSpeed.Vehicles
 {
     internal partial class Car
     {
+        public void SetNeutralGear()
+        {
+            _gear = NeutralGear;
+            _switchingGear = 0;
+            _autoShiftCooldown = 0f;
+        }
+
         private void HandleTransmissionInput(in CarControlIntent intent)
         {
             if (!intent.GearUp && !intent.GearDown)
@@ -183,7 +190,7 @@ namespace TopSpeed.Vehicles
             if (gearDown && _stickReleased)
             {
                 _stickReleased = false;
-                if (_gear >= FirstForwardGear)
+                if (_gear == FirstForwardGear)
                 {
                     _switchingGear = -1;
                     _gear = NeutralGear;

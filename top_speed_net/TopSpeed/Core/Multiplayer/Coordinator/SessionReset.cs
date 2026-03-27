@@ -30,6 +30,7 @@ namespace TopSpeed.Core.Multiplayer
             _state.Rooms.RoomOptionsTrackRandom = false;
             _state.Rooms.RoomOptionsLaps = 1;
             _state.Rooms.RoomOptionsPlayersToStart = 2;
+            _state.Rooms.RoomOptionsGameRulesFlags = 0;
             _state.SavedServers.Draft = new SavedServerEntry();
             _state.SavedServers.Original = null;
             _state.SavedServers.EditIndex = -1;
@@ -43,6 +44,7 @@ namespace TopSpeed.Core.Multiplayer
             RebuildSavedServerFormMenu();
             RebuildRoomControlsMenu();
             RebuildRoomOptionsMenu();
+            RebuildRoomGameRulesMenu();
             RebuildRoomPlayersMenu();
             RebuildOnlinePlayersMenu();
             RebuildLoadoutVehicleMenu();

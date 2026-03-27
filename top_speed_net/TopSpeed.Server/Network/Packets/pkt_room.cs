@@ -55,6 +55,13 @@ namespace TopSpeed.Server.Network
                 else
                     PacketFail(endPoint, Command.RoomSetPlayersToStart);
             });
+            _pktReg.Add("room", Command.RoomSetGameRules, (player, payload, endPoint) =>
+            {
+                if (PacketSerializer.TryReadRoomSetGameRules(payload, out var gameRules))
+                    HandleSetGameRules(player, gameRules);
+                else
+                    PacketFail(endPoint, Command.RoomSetGameRules);
+            });
             _pktReg.Add("room", Command.RoomAddBot, (player, _, _) => HandleAddBot(player));
             _pktReg.Add("room", Command.RoomRemoveBot, (player, _, _) => HandleRemoveBot(player));
             _pktReg.Add("room", Command.RoomPlayerReady, (player, payload, endPoint) =>

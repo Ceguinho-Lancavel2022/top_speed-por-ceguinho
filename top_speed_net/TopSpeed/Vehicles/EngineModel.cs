@@ -10,6 +10,7 @@ namespace TopSpeed.Vehicles
     internal sealed partial class EngineModel
     {
         private readonly float _idleRpm;
+        private readonly float _stallRpm;
         private readonly float _maxRpm;
         private readonly float _revLimiter;
         private readonly float _autoShiftRpm;
@@ -58,6 +59,7 @@ namespace TopSpeed.Vehicles
             CurveProfile? torqueCurve = null)
         {
             _idleRpm = Math.Max(500f, idleRpm);
+            _stallRpm = Math.Max(200f, _idleRpm * 0.55f);
             _maxRpm = Math.Max(_idleRpm + 1000f, maxRpm);
             _revLimiter = Math.Min(_maxRpm, Math.Max(_idleRpm, revLimiter));
             _autoShiftRpm = autoShiftRpm <= 0f
@@ -106,6 +108,7 @@ namespace TopSpeed.Vehicles
 
         public float Rpm => _rpm;
         public float IdleRpm => _idleRpm;
+        public float StallRpm => _stallRpm;
         public float MaxRpm => _maxRpm;
         public float RevLimiter => _revLimiter;
         public float AutoShiftRpm => _autoShiftRpm;
@@ -118,7 +121,7 @@ namespace TopSpeed.Vehicles
 
         public void OverrideRpm(float rpm)
         {
-            var clamped = Math.Max(_idleRpm, Math.Min(_revLimiter, rpm));
+            var clamped = Math.Max(_stallRpm, Math.Min(_revLimiter, rpm));
             if (clamped > _rpm)
                 _rpm = clamped;
         }

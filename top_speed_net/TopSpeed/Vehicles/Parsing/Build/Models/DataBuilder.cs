@@ -1,0 +1,101 @@
+using System.IO;
+using System.Linq;
+
+namespace TopSpeed.Vehicles.Parsing
+{
+    internal static partial class VehicleTsvParser
+    {
+        private static CustomVehicleTsvData BuildParsedData(
+            string fullPath,
+            ParsedValues values,
+            string? torqueCurvePreset,
+            float[] torqueCurveRpm,
+            float[] torqueCurveTorqueNm,
+            float tireCircumferenceResolved,
+            TransmissionPolicy transmissionPolicy)
+        {
+            return new CustomVehicleTsvData
+            {
+                SourcePath = fullPath,
+                SourceDirectory = Path.GetDirectoryName(fullPath) ?? string.Empty,
+                Meta = new CustomVehicleMeta(values.MetaName, values.MetaVersion, values.MetaDescription),
+                Sounds = new CustomVehicleSounds
+                {
+                    Engine = values.EngineSound,
+                    Start = values.StartSound,
+                    Horn = values.HornSound,
+                    Throttle = values.ThrottleSound,
+                    CrashVariants = values.CrashVariants,
+                    Brake = values.BrakeSound,
+                    BackfireVariants = values.BackfireVariants
+                },
+                SurfaceTractionFactor = values.SurfaceTractionFactor,
+                Deceleration = values.Deceleration,
+                TopSpeed = values.TopSpeed,
+                HasWipers = values.HasWipers ? 1 : 0,
+                IdleFreq = values.IdleFreq,
+                TopFreq = values.TopFreq,
+                ShiftFreq = values.ShiftFreq,
+                PitchCurveExponent = TopSpeed.Vehicles.VehicleDefinition.ClampPitchCurveExponent(values.PitchCurveExponent),
+                Gears = values.GearCount,
+                GearRatios = values.GearRatios!.ToArray(),
+                PrimaryTransmissionType = values.PrimaryTransmissionType,
+                SupportedTransmissionTypes = values.SupportedTransmissionTypes.ToArray(),
+                ShiftOnDemand = values.ShiftOnDemand,
+                AutomaticTuning = values.AutomaticTuning,
+                IdleRpm = values.IdleRpm,
+                MaxRpm = values.MaxRpm,
+                RevLimiter = values.RevLimiter,
+                AutoShiftRpm = values.AutoShiftRpm,
+                EngineBraking = values.EngineBraking,
+                MassKg = values.MassKg,
+                DrivetrainEfficiency = values.DrivetrainEfficiency,
+                EngineBrakingTorqueNm = values.EngineBrakingTorque,
+                PeakTorqueNm = values.PeakTorque,
+                PeakTorqueRpm = values.PeakTorqueRpm,
+                IdleTorqueNm = values.IdleTorque,
+                RedlineTorqueNm = values.RedlineTorque,
+                DragCoefficient = values.DragCoefficient,
+                FrontalAreaM2 = values.FrontalArea,
+                RollingResistanceCoefficient = values.RollingResistance,
+                LaunchRpm = values.LaunchRpm,
+                EngineInertiaKgm2 = values.EngineInertiaKgm2,
+                EngineFrictionTorqueNm = values.EngineFrictionTorqueNm,
+                DrivelineCouplingRate = values.DrivelineCouplingRate,
+                PowerFactor = values.PowerFactor,
+                TorqueCurvePreset = torqueCurvePreset,
+                TorqueCurveRpm = torqueCurveRpm,
+                TorqueCurveTorqueNm = torqueCurveTorqueNm,
+                FinalDriveRatio = values.FinalDrive,
+                ReverseMaxSpeedKph = values.ReverseMaxSpeed,
+                ReversePowerFactor = values.ReversePowerFactor,
+                ReverseGearRatio = values.ReverseGearRatio,
+                BrakeStrength = values.BrakeStrength,
+                Steering = values.SteeringResponse,
+                TireGripCoefficient = values.TireGrip,
+                LateralGripCoefficient = values.LateralGrip,
+                HighSpeedStability = values.HighSpeedStability,
+                WheelbaseM = values.Wheelbase,
+                MaxSteerDeg = values.MaxSteerDeg,
+                HighSpeedSteerGain = values.HighSpeedSteerGain,
+                HighSpeedSteerStartKph = values.HighSpeedSteerStartKph,
+                HighSpeedSteerFullKph = values.HighSpeedSteerFullKph,
+                CombinedGripPenalty = values.CombinedGripPenalty,
+                SlipAnglePeakDeg = values.SlipAnglePeakDeg,
+                SlipAngleFalloff = values.SlipAngleFalloff,
+                TurnResponse = values.TurnResponse,
+                MassSensitivity = values.MassSensitivity,
+                DownforceGripGain = values.DownforceGripGain,
+                CornerStiffnessFront = values.CornerStiffnessFront,
+                CornerStiffnessRear = values.CornerStiffnessRear,
+                YawInertiaScale = values.YawInertiaScale,
+                SteeringCurve = values.SteeringCurve,
+                TransientDamping = values.TransientDamping,
+                WidthM = values.WidthM,
+                LengthM = values.LengthM,
+                TireCircumferenceM = tireCircumferenceResolved,
+                TransmissionPolicy = transmissionPolicy
+            };
+        }
+    }
+}

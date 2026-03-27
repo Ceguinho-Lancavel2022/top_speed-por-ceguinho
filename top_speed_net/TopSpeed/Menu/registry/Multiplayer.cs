@@ -130,6 +130,16 @@ namespace TopSpeed.Menu
             return _menu.CreateMenu("multiplayer_room_options", items, string.Empty);
         }
 
+        private MenuScreen BuildMultiplayerRoomGameRulesMenu()
+        {
+            var items = new List<MenuItem>
+            {
+                new MenuItem(LocalizationService.Mark("Game rules are loading"), MenuAction.None),
+                BackItem()
+            };
+            return _menu.CreateMenu("multiplayer_room_game_rules", items, string.Empty);
+        }
+
         private MenuScreen BuildMultiplayerRoomTrackTypeMenu()
         {
             var items = new List<MenuItem>

@@ -37,6 +37,7 @@ namespace TopSpeed.Core.Multiplayer
                 : _state.Rooms.CurrentRoom.TrackName;
             _state.Rooms.RoomOptionsLaps = _state.Rooms.CurrentRoom.Laps > 0 ? _state.Rooms.CurrentRoom.Laps : (byte)1;
             _state.Rooms.RoomOptionsPlayersToStart = _state.Rooms.CurrentRoom.PlayersToStart >= 2 ? _state.Rooms.CurrentRoom.PlayersToStart : (byte)2;
+            _state.Rooms.RoomOptionsGameRulesFlags = _state.Rooms.CurrentRoom.GameRulesFlags;
             if (_state.Rooms.CurrentRoom.RoomType == GameRoomType.OneOnOne)
                 _state.Rooms.RoomOptionsPlayersToStart = 2;
         }
@@ -45,6 +46,7 @@ namespace TopSpeed.Core.Multiplayer
         {
             _state.Rooms.RoomOptionsDraftActive = false;
             _state.Rooms.RoomOptionsTrackRandom = false;
+            _state.Rooms.RoomOptionsGameRulesFlags = 0;
         }
 
         private void ConfirmRoomOptionsChanges()
@@ -87,6 +89,14 @@ namespace TopSpeed.Core.Multiplayer
                         return;
                     appliedAny = true;
                 }
+            }
+
+            var gameRules = _state.Rooms.RoomOptionsGameRulesFlags & (uint)RoomGameRules.GhostMode;
+            if (_state.Rooms.CurrentRoom.GameRulesFlags != gameRules)
+            {
+                if (!TrySend(session.SendRoomSetGameRules(gameRules), "game rules change request"))
+                    return;
+                appliedAny = true;
             }
 
             CancelRoomOptionsChanges();
@@ -168,6 +178,56 @@ namespace TopSpeed.Core.Multiplayer
             RebuildRoomTrackMenu(MultiplayerMenuKeys.RoomTrackRace, TrackCategory.RaceTrack);
             RebuildRoomTrackMenu(MultiplayerMenuKeys.RoomTrackAdventure, TrackCategory.StreetAdventure);
             _menu.Push(MultiplayerMenuKeys.RoomTrackType);
+        }
+
+        private void OpenRoomGameRulesMenu()
+        {
+            if (!_state.Rooms.RoomOptionsDraftActive)
+                BeginRoomOptionsDraft();
+
+            RebuildRoomGameRulesMenu();
+            _menu.Push(MultiplayerMenuKeys.RoomGameRules);
+        }
+
+        private bool GetRoomOptionsGhostModeEnabled()
+        {
+            if (!_state.Rooms.RoomOptionsDraftActive)
+                BeginRoomOptionsDraft();
+
+            return (_state.Rooms.RoomOptionsGameRulesFlags & (uint)RoomGameRules.GhostMode) != 0u;
+        }
+
+        private void SetRoomOptionsGhostModeEnabled(bool enabled)
+        {
+            if (!_state.Rooms.RoomOptionsDraftActive)
+                BeginRoomOptionsDraft();
+
+            var flags = _state.Rooms.RoomOptionsGameRulesFlags;
+            if (enabled)
+                flags |= (uint)RoomGameRules.GhostMode;
+            else
+                flags &= ~(uint)RoomGameRules.GhostMode;
+
+            _state.Rooms.RoomOptionsGameRulesFlags = flags;
+        }
+
+        private void AnnounceCurrentRoomGameRules()
+        {
+            if (!_state.Rooms.CurrentRoom.InRoom)
+            {
+                _speech.Speak(LocalizationService.Mark("You are not currently inside a game room."));
+                return;
+            }
+
+            _speech.Speak(FormatGameRulesSummary(_state.Rooms.CurrentRoom.GameRulesFlags));
+        }
+
+        private static string FormatGameRulesSummary(uint gameRulesFlags)
+        {
+            var ghostEnabled = (gameRulesFlags & (uint)RoomGameRules.GhostMode) != 0u;
+            return ghostEnabled
+                ? LocalizationService.Mark("Ghost mode is enabled.")
+                : LocalizationService.Mark("Ghost mode is disabled.");
         }
 
         private void RebuildRoomTrackTypeMenu()

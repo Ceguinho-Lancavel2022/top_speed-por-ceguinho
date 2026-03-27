@@ -33,6 +33,7 @@ namespace TopSpeed.Core.Multiplayer
         public static readonly MenuId Lobby = new MenuId("multiplayer_lobby");
         public static readonly MenuId RoomControls = new MenuId("multiplayer_room_controls");
         public static readonly MenuId RoomOptions = new MenuId("multiplayer_room_options");
+        public static readonly MenuId RoomGameRules = new MenuId("multiplayer_room_game_rules");
         public static readonly MenuId RoomTrackType = new MenuId("multiplayer_room_track_type");
         public static readonly MenuId RoomTrackRace = new MenuId("multiplayer_room_tracks_race");
         public static readonly MenuId RoomTrackAdventure = new MenuId("multiplayer_room_tracks_adventure");

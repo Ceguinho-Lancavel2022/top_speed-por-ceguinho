@@ -11,6 +11,7 @@ using TopSpeed.Race.Runtime;
 using TopSpeed.Speech;
 using TopSpeed.Tracks;
 using TopSpeed.Vehicles;
+using TopSpeed.Vehicles.Control;
 using TopSpeed.Vehicles.Core;
 using TS.Audio;
 using TopSpeed.Input.Devices.Vibration;
@@ -63,6 +64,7 @@ namespace TopSpeed.Race
         protected readonly AudioSourceHandle[] _soundNumbers;
         protected readonly AudioSourceHandle?[][] _randomSounds;
         protected readonly int[] _totalRandomSounds;
+        private static readonly ICarController FinishLockController = new FixedIntentCarController(CarControlIntent.Neutral);
         private readonly SoundQueue _soundQueue;
         private readonly List<RaceEvent> _dueEvents;
         private readonly VehicleRadioController _localRadio;

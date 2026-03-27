@@ -169,5 +169,31 @@ namespace TopSpeed.Server.Network
             EmitRoomLifecycleEvent(room, RoomEventKind.RoomSummaryUpdated);
         }
 
+        private void HandleSetGameRules(PlayerConnection player, PacketRoomSetGameRules packet)
+        {
+            if (!TryGetHostedRoom(player, out var room))
+                return;
+            if (room.RaceStarted || room.PreparingRace)
+            {
+                _roomMutationDenied++;
+                _logger.Debug(LocalizationService.Format(
+                    LocalizationService.Mark("Room game-rules change denied: room={0}, player={1}, raceStarted={2}, preparing={3}."),
+                    room.Id,
+                    player.Id,
+                    room.RaceStarted,
+                    room.PreparingRace));
+                SendProtocolMessage(player, ProtocolMessageCode.Failed, LocalizationService.Mark("Cannot change game rules while race setup or race is active."));
+                return;
+            }
+
+            var normalizedFlags = packet.GameRulesFlags & (uint)RoomGameRules.GhostMode;
+            if (room.GameRulesFlags == normalizedFlags)
+                return;
+
+            room.GameRulesFlags = normalizedFlags;
+            TouchRoomVersion(room);
+            EmitRoomLifecycleEvent(room, RoomEventKind.GameRulesChanged);
+        }
+
     }
 }

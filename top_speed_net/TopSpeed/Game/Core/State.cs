@@ -44,6 +44,7 @@ namespace TopSpeed.Game
         private readonly MenuManager _menu;
         private readonly DialogManager _dialogs;
         private readonly ChoiceDialogManager _choices;
+        private readonly ResultShow _resultShow;
         private readonly RaceSettings _settings;
         private readonly IReadOnlyList<SettingsIssue> _settingsIssues;
         private readonly bool _settingsFileMissing;

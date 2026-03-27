@@ -63,6 +63,7 @@ namespace TopSpeed.Server.Network
                     RoomType = GameRoomType.BotsRace,
                     PlayersToStart = 0,
                     PreparingRace = false,
+                    GameRulesFlags = 0,
                     Players = Array.Empty<PacketRoomPlayer>()
                 }), PacketStream.Query);
                 return;
@@ -82,6 +83,7 @@ namespace TopSpeed.Server.Network
                 PreparingRace = room.PreparingRace,
                 TrackName = room.TrackName,
                 Laps = room.Laps,
+                GameRulesFlags = room.GameRulesFlags,
                 Players = BuildRoomPlayers(room)
             }), PacketStream.Query);
         }
@@ -111,6 +113,7 @@ namespace TopSpeed.Server.Network
                 PreparingRace = room.PreparingRace,
                 TrackName = room.TrackName,
                 Laps = room.Laps,
+                GameRulesFlags = room.GameRulesFlags,
                 Players = BuildRoomPlayers(room)
             }), PacketStream.Query);
         }

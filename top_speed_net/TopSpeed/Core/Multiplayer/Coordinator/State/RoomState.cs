@@ -22,5 +22,6 @@ namespace TopSpeed.Core.Multiplayer
         public bool RoomOptionsTrackRandom;
         public byte RoomOptionsLaps = 1;
         public byte RoomOptionsPlayersToStart = 2;
+        public uint RoomOptionsGameRulesFlags;
     }
 }

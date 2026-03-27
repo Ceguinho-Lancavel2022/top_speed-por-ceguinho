@@ -26,6 +26,7 @@ namespace TopSpeed.Server.Network
                 PreparingRace = room.PreparingRace,
                 TrackName = room.TrackName,
                 Laps = room.Laps,
+                GameRulesFlags = room.GameRulesFlags,
                 RoomName = room.Name
             };
         }
@@ -39,6 +40,7 @@ namespace TopSpeed.Server.Network
                 kind == RoomEventKind.TrackChanged ||
                 kind == RoomEventKind.LapsChanged ||
                 kind == RoomEventKind.PlayersToStartChanged ||
+                kind == RoomEventKind.GameRulesChanged ||
                 kind == RoomEventKind.PrepareStarted ||
                 kind == RoomEventKind.PrepareCancelled;
 

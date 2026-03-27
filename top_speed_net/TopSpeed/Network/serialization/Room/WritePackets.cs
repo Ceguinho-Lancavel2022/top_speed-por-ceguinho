@@ -7,7 +7,7 @@ namespace TopSpeed.Network
     {
         public static byte[] WriteRoomEvent(PacketRoomEvent evt)
         {
-            var payload = 4 + 4 + 1 + 4 + 1 + 1 + 1 + 1 + 1 + 12 + 1 +
+            var payload = 4 + 4 + 1 + 4 + 1 + 1 + 1 + 1 + 1 + 12 + 1 + 4 +
                 ProtocolConstants.MaxRoomNameLength + 4 + 1 + 1 + ProtocolConstants.MaxPlayerNameLength;
             var buffer = WritePacketHeader(Command.RoomEvent, payload);
             var writer = new PacketWriter(buffer);
@@ -24,6 +24,7 @@ namespace TopSpeed.Network
             writer.WriteBool(evt.PreparingRace);
             writer.WriteFixedString(evt.TrackName ?? string.Empty, 12);
             writer.WriteByte(evt.Laps);
+            writer.WriteUInt32(evt.GameRulesFlags);
             writer.WriteFixedString(evt.RoomName ?? string.Empty, ProtocolConstants.MaxRoomNameLength);
             writer.WriteUInt32(evt.SubjectPlayerId);
             writer.WriteByte(evt.SubjectPlayerNumber);
@@ -35,7 +36,7 @@ namespace TopSpeed.Network
         public static byte[] WriteRoomGet(PacketRoomGet packet)
         {
             var count = Math.Min(packet.Players.Length, ProtocolConstants.MaxPlayers);
-            var payload = 1 + 4 + 4 + 4 + ProtocolConstants.MaxRoomNameLength + 1 + 1 + 1 + 1 + 12 + 1 + 1 +
+            var payload = 1 + 4 + 4 + 4 + ProtocolConstants.MaxRoomNameLength + 1 + 1 + 1 + 1 + 12 + 1 + 4 + 1 +
                 (count * (4 + 1 + 1 + ProtocolConstants.MaxPlayerNameLength));
             var buffer = WritePacketHeader(Command.RoomGet, payload);
             var writer = new PacketWriter(buffer);
@@ -52,6 +53,7 @@ namespace TopSpeed.Network
             writer.WriteBool(packet.PreparingRace);
             writer.WriteFixedString(packet.TrackName ?? string.Empty, 12);
             writer.WriteByte(packet.Laps);
+            writer.WriteUInt32(packet.GameRulesFlags);
             writer.WriteByte((byte)count);
             for (var i = 0; i < count; i++)
             {

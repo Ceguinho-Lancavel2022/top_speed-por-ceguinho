@@ -43,6 +43,7 @@ namespace TopSpeed.Core.Multiplayer
                 items.Add(new MenuItem(LocalizationService.Mark("Add a bot to this game room"), MenuAction.None, onActivate: AddBotToRoom));
             if (_state.Rooms.CurrentRoom.IsHost && _state.Rooms.CurrentRoom.RoomType == GameRoomType.BotsRace)
                 items.Add(new MenuItem(LocalizationService.Mark("Remove the last bot that was added"), MenuAction.None, onActivate: RemoveLastBotFromRoom));
+            items.Add(new MenuItem(LocalizationService.Mark("View game rules"), MenuAction.None, onActivate: AnnounceCurrentRoomGameRules));
             items.Add(new MenuItem(LocalizationService.Mark("Who is currently present in this game room"), MenuAction.None, onActivate: OpenRoomPlayersMenu));
             items.Add(new MenuItem(LocalizationService.Mark("Leave this game room"), MenuAction.None, flags: MenuItemFlags.Close));
             _menu.UpdateItems(MultiplayerMenuKeys.RoomControls, items);
@@ -66,6 +67,8 @@ namespace TopSpeed.Core.Multiplayer
                 _menu.UpdateItems(MultiplayerMenuKeys.RoomOptions, items);
                 return;
             }
+
+            items.Add(new MenuItem(LocalizationService.Mark("Game rules"), MenuAction.None, onActivate: OpenRoomGameRulesMenu));
 
             items.Add(new MenuItem(
                 () => GetRoomOptionsTrackText(),
@@ -93,6 +96,36 @@ namespace TopSpeed.Core.Multiplayer
             items.Add(new MenuItem(LocalizationService.Mark("Cancel and discard changes"), MenuAction.Back, onActivate: CancelRoomOptionsChanges));
             var preserveSelection = string.Equals(_menu.CurrentId, MultiplayerMenuKeys.RoomOptions, StringComparison.Ordinal);
             _menu.UpdateItems(MultiplayerMenuKeys.RoomOptions, items, preserveSelection);
+        }
+
+        private void RebuildRoomGameRulesMenu()
+        {
+            var items = new List<MenuItem>();
+            if (!_state.Rooms.CurrentRoom.InRoom)
+            {
+                items.Add(new MenuItem(LocalizationService.Mark("You are not currently inside a game room."), MenuAction.None));
+                items.Add(new MenuItem(LocalizationService.Mark("Go back"), MenuAction.Back));
+                _menu.UpdateItems(MultiplayerMenuKeys.RoomGameRules, items);
+                return;
+            }
+
+            if (!_state.Rooms.CurrentRoom.IsHost)
+            {
+                items.Add(new MenuItem(LocalizationService.Mark("Only the host can change game rules."), MenuAction.None));
+                items.Add(new MenuItem(LocalizationService.Mark("Go back"), MenuAction.Back));
+                _menu.UpdateItems(MultiplayerMenuKeys.RoomGameRules, items);
+                return;
+            }
+
+            items.Add(new CheckBox(
+                LocalizationService.Mark("Ghost mode"),
+                GetRoomOptionsGhostModeEnabled,
+                SetRoomOptionsGhostModeEnabled,
+                hint: LocalizationService.Mark("When enabled, vehicle collisions are disabled and vehicles can pass through each other.")));
+            items.Add(new MenuItem(LocalizationService.Mark("Go back"), MenuAction.Back));
+
+            var preserveSelection = string.Equals(_menu.CurrentId, MultiplayerMenuKeys.RoomGameRules, StringComparison.Ordinal);
+            _menu.UpdateItems(MultiplayerMenuKeys.RoomGameRules, items, preserveSelection);
         }
 
         private void RebuildLoadoutVehicleMenu()

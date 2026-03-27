@@ -44,6 +44,10 @@ namespace TopSpeed.Game
             _menu = new MenuManager(audio, speech, () => _settings.UsageHints);
             _dialogs = new DialogManager(_menu, message => speech.Speak(message));
             _choices = new ChoiceDialogManager(_menu, message => speech.Speak(message));
+            var pick = new Pick();
+            var fmt = new ResultFmt(pick);
+            var resultDialogs = new ResultDialogs(pick, fmt);
+            _resultShow = new ResultShow(dialog => _dialogs.Show(dialog), PlayRaceWinSound, resultDialogs);
             _menu.SetWrapNavigation(_settings.MenuWrapNavigation);
             _menu.SetMenuSoundPreset(_settings.MenuSoundPreset);
             _menu.SetMenuNavigatePanning(_settings.MenuNavigatePanning);

@@ -18,6 +18,7 @@ namespace TopSpeed.Vehicles
         {
             _frequency = EnginePitch.FromRpm(
                 _engine.Rpm,
+                _engine.StallRpm,
                 _engine.IdleRpm,
                 _engine.RevLimiter,
                 _idleFreq,
