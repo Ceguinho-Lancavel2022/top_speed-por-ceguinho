@@ -1,14 +1,28 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using TopSpeed.Common;
 using TopSpeed.Data;
 using TopSpeed.Localization;
 using TopSpeed.Menu;
 using TopSpeed.Protocol;
+
 namespace TopSpeed.Core.Multiplayer
 {
     internal sealed partial class MultiplayerCoordinator
     {
+        private readonly struct RoomCustomTrackOption
+        {
+            public RoomCustomTrackOption(string key, string display)
+            {
+                Key = key ?? string.Empty;
+                Display = display ?? string.Empty;
+            }
+
+            public string Key { get; }
+            public string Display { get; }
+        }
+
         private void OpenRoomOptionsMenu()
         {
             if (!_state.Rooms.CurrentRoom.InRoom)
@@ -236,6 +250,7 @@ namespace TopSpeed.Core.Multiplayer
             {
                 new MenuItem(LocalizationService.Mark("Race track"), MenuAction.None, nextMenuId: MultiplayerMenuKeys.RoomTrackRace),
                 new MenuItem(LocalizationService.Mark("Street adventure"), MenuAction.None, nextMenuId: MultiplayerMenuKeys.RoomTrackAdventure),
+                new MenuItem(LocalizationService.Mark("Custom track"), MenuAction.None, onActivate: OpenRoomCustomTrackMenuOrAnnounce),
                 new MenuItem(LocalizationService.Mark("Random"), MenuAction.None, onActivate: SelectRandomRoomTrackAny),
                 new MenuItem(LocalizationService.Mark("Go back"), MenuAction.Back)
             };
@@ -258,20 +273,71 @@ namespace TopSpeed.Core.Multiplayer
             _menu.UpdateItems(menuId, items);
         }
 
+        private void OpenRoomCustomTrackMenuOrAnnounce()
+        {
+            var customTracks = GetRoomCustomTrackOptions();
+            if (customTracks.Count == 0)
+            {
+                _speech.Speak(LocalizationService.Mark("No compatible custom tracks found. For now, each custom track folder name must be 12 characters or less."));
+                return;
+            }
+
+            RebuildRoomCustomTrackMenu();
+            _menu.Push(MultiplayerMenuKeys.RoomTrackRace);
+        }
+
+        private void RebuildRoomCustomTrackMenu()
+        {
+            var items = new List<MenuItem>();
+            var customTracks = GetRoomCustomTrackOptions();
+            for (var i = 0; i < customTracks.Count; i++)
+            {
+                var track = customTracks[i];
+                items.Add(new MenuItem(track.Display, MenuAction.None, onActivate: () => SelectRoomTrack(track.Key, false)));
+            }
+
+            items.Add(new MenuItem(LocalizationService.Mark("Random"), MenuAction.None, onActivate: () => SelectRandomRoomTrackCategory(TrackCategory.CustomTrack)));
+            items.Add(new MenuItem(LocalizationService.Mark("Go back"), MenuAction.Back));
+            _menu.UpdateItems(MultiplayerMenuKeys.RoomTrackRace, items);
+        }
+
         private void SelectRandomRoomTrackAny()
         {
-            if (RoomTrackOptions.Length == 0)
+            var customTracks = GetRoomCustomTrackOptions();
+            var total = RoomTrackOptions.Length + customTracks.Count;
+            if (total <= 0)
             {
                 SelectRoomTrack(TrackList.RaceTracks[0].Key, true);
                 return;
             }
 
-            var index = Algorithm.RandomInt(RoomTrackOptions.Length);
-            SelectRoomTrack(RoomTrackOptions[index].Key, true);
+            var index = Algorithm.RandomInt(total);
+            if (index < RoomTrackOptions.Length)
+            {
+                SelectRoomTrack(RoomTrackOptions[index].Key, true);
+                return;
+            }
+
+            var customIndex = index - RoomTrackOptions.Length;
+            SelectRoomTrack(customTracks[customIndex].Key, true);
         }
 
         private void SelectRandomRoomTrackCategory(TrackCategory category)
         {
+            if (category == TrackCategory.CustomTrack)
+            {
+                var customTracks = GetRoomCustomTrackOptions();
+                if (customTracks.Count == 0)
+                {
+                    SelectRandomRoomTrackAny();
+                    return;
+                }
+
+                var customIndex = Algorithm.RandomInt(customTracks.Count);
+                SelectRoomTrack(customTracks[customIndex].Key, true);
+                return;
+            }
+
             var tracks = TrackList.GetTracks(category);
             if (tracks.Count == 0)
             {
@@ -303,7 +369,7 @@ namespace TopSpeed.Core.Multiplayer
                 _menu.Push(MultiplayerMenuKeys.RoomOptions);
         }
 
-        private static bool TryGetTrackDisplay(string trackKey, out string display)
+        private bool TryGetTrackDisplay(string trackKey, out string display)
         {
             display = string.Empty;
             if (string.IsNullOrWhiteSpace(trackKey))
@@ -318,8 +384,70 @@ namespace TopSpeed.Core.Multiplayer
                 return true;
             }
 
+            var customTracks = GetRoomCustomTrackOptions();
+            for (var i = 0; i < customTracks.Count; i++)
+            {
+                if (!string.Equals(customTracks[i].Key, trackKey, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                display = customTracks[i].Display;
+                return true;
+            }
+
             return false;
+        }
+
+        private IReadOnlyList<RoomCustomTrackOption> GetRoomCustomTrackOptions()
+        {
+            var files = Scan.Find("Tracks", "*.tsm");
+            if (files.Count == 0)
+                return Array.Empty<RoomCustomTrackOption>();
+
+            var options = new List<RoomCustomTrackOption>(files.Count);
+            var knownKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            for (var i = 0; i < files.Count; i++)
+            {
+                var file = files[i];
+                if (!TrackTsmParser.TryLoadFromFile(file, out var parsed, out _))
+                    continue;
+
+                var key = ResolveRoomCustomTrackKey(file);
+                if (string.IsNullOrWhiteSpace(key) || key.Length > 12 || !knownKeys.Add(key))
+                    continue;
+
+                var display = string.IsNullOrWhiteSpace(parsed.Name)
+                    ? ResolveRoomCustomTrackDisplay(file)
+                    : parsed.Name!;
+
+                if (string.IsNullOrWhiteSpace(display))
+                    display = LocalizationService.Mark("Custom track");
+
+                options.Add(new RoomCustomTrackOption(key, display));
+            }
+
+            options.Sort((a, b) => string.Compare(a.Display, b.Display, StringComparison.OrdinalIgnoreCase));
+            return options;
+        }
+
+        private static string ResolveRoomCustomTrackKey(string file)
+        {
+            var directory = Path.GetDirectoryName(file);
+            if (string.IsNullOrWhiteSpace(directory))
+                return string.Empty;
+
+            var folder = Path.GetFileName(directory);
+            return string.IsNullOrWhiteSpace(folder) ? string.Empty : folder;
+        }
+
+        private static string ResolveRoomCustomTrackDisplay(string file)
+        {
+            var directory = Path.GetDirectoryName(file);
+            if (string.IsNullOrWhiteSpace(directory))
+                return Path.GetFileNameWithoutExtension(file);
+
+            var folder = Path.GetFileName(directory);
+            return string.IsNullOrWhiteSpace(folder) ? Path.GetFileNameWithoutExtension(file) : folder;
         }
     }
 }
-
